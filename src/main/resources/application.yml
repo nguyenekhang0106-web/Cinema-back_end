@@ -1,0 +1,15 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /identity
+
+spring:
+  datasource:
+    # Tham s? createDatabaseIfNotExist=true s? ra l?nh cho MySQL t? t?o database n?u nó ch?a t?n t?i
+    url: "jdbc:mysql://localhost:3308/cinema_db?createDatabaseIfNotExist=true"
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
