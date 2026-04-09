@@ -1,19 +1,25 @@
 package com.devteria.cinemaback_end.user.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Role {
-    @Id
-    String name; // Tên quyền, ví dụ: "ADMIN", "USER", "STAFF"
 
-    String description; // Mô tả ý nghĩa của quyền này
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    String id;
+
+    String name;
+    String description;
 }
