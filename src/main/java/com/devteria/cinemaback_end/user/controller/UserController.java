@@ -28,7 +28,7 @@ public class UserController {
     public ApiResponse<List<UserResponse>> getUsers() {
         return ApiResponse.<List<UserResponse>>builder()
                 .code(1000)
-                .result(userService.getAllUsers())
+                .result(userService.getUsers())
                 .build();
     }
 
@@ -47,6 +47,13 @@ public class UserController {
                 .message("Cập nhật thông tin thành công")
                 .result(userService.updateUser(id, request))
                 .build();
+    }
+
+    @GetMapping("/myInfo")
+    ApiResponse<UserResponse> getMyInfo(){
+        ApiResponse<UserResponse> response = new ApiResponse<>();
+        response.setResult(userService.getMyInfo());
+        return response;
     }
 
     @DeleteMapping("/{id}")

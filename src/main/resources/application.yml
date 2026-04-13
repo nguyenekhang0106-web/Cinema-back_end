@@ -1,7 +1,7 @@
 server:
-  port: 8080
+  port: 9090
   servlet:
-    context-path: /identity
+    context-path: /cinema #/identity
 
 spring:
   datasource:
@@ -15,3 +15,8 @@ spring:
       ddl-auto: update
       #ddl-auto: create # dùng khi update tạo lại bảng từ đầu
     show-sql: true
+
+jwt:
+  signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
+  valid-duration: 6000 #in second
+  refreshable-duration: 12000 #in second

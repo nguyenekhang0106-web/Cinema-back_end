@@ -1,9 +1,7 @@
 package com.devteria.cinemaback_end.user.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.devteria.cinemaback_end.user.entity.enums.RoleName;
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -20,6 +18,8 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
 
-    String name;
+    @Enumerated(EnumType.STRING)
+    @Column(unique = true) // Tên Role không được trùng nhau
+    RoleName name;
     String description;
 }

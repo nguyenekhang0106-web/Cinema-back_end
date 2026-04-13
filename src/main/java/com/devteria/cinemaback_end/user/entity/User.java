@@ -38,6 +38,7 @@ public class User {
     String citizenIdNumber;
     @Enumerated(EnumType.STRING)
     Gender gender;
+
     LocalDate dateOfBirth;
     String area;
     @Builder.Default
