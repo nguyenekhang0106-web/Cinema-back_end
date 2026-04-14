@@ -2,10 +2,8 @@ package com.devteria.cinemaback_end.user.service;
 
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
-import com.devteria.cinemaback_end.user.dto.AuthenticationRequest;
-import com.devteria.cinemaback_end.user.dto.AuthenticationResponse;
-import com.devteria.cinemaback_end.user.dto.IntrospectRequest;
-import com.devteria.cinemaback_end.user.dto.IntrospectResponse;
+import com.devteria.cinemaback_end.user.dto.*;
+import com.devteria.cinemaback_end.user.entity.InvalidatedToken;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
 import com.devteria.cinemaback_end.user.entity.User;
 import com.devteria.cinemaback_end.user.repository.InvalidatedRepository;
@@ -160,5 +158,45 @@ public class AuthenticationService {
         }
 
         return signedJWT;
+    }
+
+    public void logout(LogoutRequest request) throws ParseException, JOSEException {
+        try{
+            var signToken = verifyToken(request.getToken(), true);
+            String jit = signToken.getJWTClaimsSet().getJWTID();
+            Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
+
+            InvalidatedToken invalidatedToken = InvalidatedToken.builder()
+                    .id(jit)
+                    .expiryTime(expiryTime)
+                    .build();
+            invalidatedRepository.save(invalidatedToken);
+        }catch (AppException exception){
+            log.info("Token already expired");
+        }
+    }
+
+    public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
+        var signJWT = verifyToken(request.getToken(), true);
+
+        var jit = signJWT.getJWTClaimsSet().getJWTID();
+        var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
+
+        InvalidatedToken invalidatedToken = InvalidatedToken.builder()
+                .id(jit)
+                .expiryTime(expiryTime)
+                .build();
+        invalidatedRepository.save(invalidatedToken);
+
+        var email = signJWT.getJWTClaimsSet().getSubject();
+        var user = userRepository.findByEmail(email).orElseThrow(()
+                -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        var token = generateToken(user);
+
+        return AuthenticationResponse.builder()
+                .token(token)
+                .authenticated(true)
+                .build();
     }
 }
