@@ -1,6 +1,7 @@
 package com.devteria.cinemaback_end.user.entity;
 
 import com.devteria.cinemaback_end.cinema.entity.Cinema;
+import com.devteria.cinemaback_end.movie.entity.enums.Area;
 import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import jakarta.persistence.*;
@@ -40,7 +41,10 @@ public class User {
     Gender gender;
 
     LocalDate dateOfBirth;
-    String area;
+
+    @Enumerated(EnumType.STRING) // Thêm dòng này để lưu vào DB dưới dạng Text (HA_NOI, DA_NANG...)
+    Area area; // Đổi String thành Area
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     MemberTier memberTier = MemberTier.BASIC;

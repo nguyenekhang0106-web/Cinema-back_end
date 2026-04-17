@@ -2,6 +2,7 @@ package com.devteria.cinemaback_end.configuration;
 
 import com.devteria.cinemaback_end.user.entity.Role;
 import com.devteria.cinemaback_end.user.entity.User;
+import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import com.devteria.cinemaback_end.user.entity.enums.RoleName;
 import com.devteria.cinemaback_end.user.repository.RoleRepository;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
@@ -15,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.HashSet;
+import java.util.Set;
 
 @Configuration
 @RequiredArgsConstructor
@@ -30,25 +32,29 @@ public class ApplicationInitConfig {
     ApplicationRunner applicationRunner() {
         return args -> {
 
-            if (userRepository.findByfullName("admin").isEmpty()) {
+            // 1. Tạo role nếu chưa có
+            Role adminRole = roleRepository.findByName(RoleName.ADMIN)
+                    .orElseGet(() -> roleRepository.save(
+                            Role.builder().name(RoleName.ADMIN).build()
+                    ));
 
-                // ✅ Lấy role ADMIN từ DB
-                Role adminRole = roleRepository.findByName(RoleName.ADMIN)
-                        .orElseThrow(() -> new RuntimeException("Role ADMIN chưa tồn tại"));
+            Role userRole = roleRepository.findByName(RoleName.USER)
+                    .orElseGet(() -> roleRepository.save(
+                            Role.builder().name(RoleName.USER).build()
+                    ));
 
-                var roles = new HashSet<Role>();
-                roles.add(adminRole);
-
-                User user = User.builder()
-                        .fullName("admin")
-                        .email("admin@gmail.com") // ✅ FIX lỗi 400
-                        .password(passwordEncoder.encode("admin"))
-                        .roles(roles) // ✅ đúng kiểu
+            // 2. Tạo user admin nếu chưa có
+            if (userRepository.findByEmail("admin@gmail.com").isEmpty()) {
+                User admin = User.builder()
+                        .email("admin@gmail.com")
+                        .password(passwordEncoder.encode("admin123"))
+                        .fullName("Admin")
+                        .gender(Gender.Nam)
                         .build();
 
-                userRepository.save(user);
+                admin.setRoles(Set.of(adminRole));
 
-                log.warn("Admin user created with default password: admin");
+                userRepository.save(admin);
             }
         };
     }

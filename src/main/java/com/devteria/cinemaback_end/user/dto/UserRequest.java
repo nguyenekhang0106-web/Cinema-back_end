@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.user.dto;
 
+import com.devteria.cinemaback_end.movie.entity.enums.Area;
 import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
@@ -22,6 +23,7 @@ public class UserRequest {
     @Email(message = "EMAIL_NOT_FORMAT")
     String email;
 
+    @NotBlank(message = "PHONE_NOT_BLANK") // Thêm mã lỗi này vào ErrorCode
     @Pattern(regexp = "(84|0[3|5|7|8|9])+([0-9]{8})\\b", message = "PHONE_INVALID")
     String phone;
 
@@ -39,6 +41,6 @@ public class UserRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate dateOfBirth;
 
-    String area;
+    Area area;
 
 }

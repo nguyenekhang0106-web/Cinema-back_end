@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.user.dto;
 
+import com.devteria.cinemaback_end.movie.entity.enums.Area;
 import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import lombok.*;
@@ -20,7 +21,7 @@ public class UserResponse {
     String citizenIdNumber;
     Gender gender;
     LocalDate dateOfBirth;
-    String area;
+    Area area; // Đổi String thành Area
     MemberTier memberTier; // Dùng Enum
     Integer totalRewardPoints;
 }
