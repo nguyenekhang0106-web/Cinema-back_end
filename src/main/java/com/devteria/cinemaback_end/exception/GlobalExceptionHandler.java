@@ -1,7 +1,7 @@
 package com.devteria.cinemaback_end.exception;
 
 import com.devteria.cinemaback_end.common.ApiResponse;
-import com.devteria.cinemaback_end.movie.entity.enums.Area;
+import com.devteria.cinemaback_end.movie.entity.enums.*;
 import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -70,17 +70,22 @@ public class GlobalExceptionHandler {
 
         // 3. Nếu nguyên nhân là do Jackson ép kiểu thất bại (InvalidFormatException)
         if (cause instanceof InvalidFormatException invalidFormatException) {
-
-            // Lấy ra class mục tiêu mà Jackson đang cố gắng ép kiểu sang
             Class<?> targetType = invalidFormatException.getTargetType();
 
-            // Kiểm tra xem class nào đang bị ép kiểu lỗi để trả về ErrorCode tương ứng
             if (targetType.equals(Area.class)) {
                 errorCode = ErrorCode.INVALID_AREA;
             } else if (targetType.equals(Gender.class)) {
                 errorCode = ErrorCode.INVALID_GENDER;
             } else if (targetType.equals(java.time.LocalDate.class)) {
                 errorCode = ErrorCode.INVALID_DOB_FORMAT;
+            } else if (targetType.equals(Genre.class)) {
+                errorCode = ErrorCode.INVALID_GENRE;
+            } else if (targetType.equals(Language.class)) {
+                errorCode = ErrorCode.INVALID_LANGUAGE;
+            } else if (targetType.equals(AgeRestriction.class)) {
+                errorCode = ErrorCode.INVALID_AGE_RESTRICTION;
+            } else if (targetType.equals(MovieStatus.class)) {
+                errorCode = ErrorCode.INVALID_MOVIE_STATUS;
             }
         }
 

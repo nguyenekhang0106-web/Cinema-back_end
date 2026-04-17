@@ -21,8 +21,18 @@ import org.springframework.web.filter.CorsFilter;
 @Configuration
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {"/users", "/auth/token", "/auth/introspect",
-            "/auth/logout", "/auth/refresh"};
+    private final String[] PUBLIC_POST_ENDPOINTS = {
+            "/users",
+            "/auth/token",
+            "/auth/introspect",
+            "/auth/logout",
+            "/auth/refresh"
+    };
+
+    private final String[] PUBLIC_GET_ENDPOINTS = {
+            "/movies",
+            "/movies/**" // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
+    };
 
     @Value("${jwt.signerKey}")
     private String signerKey;
@@ -33,13 +43,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> request
-                // THÊM DÒNG NÀY: Mở cửa cho tất cả các request dò đường (Preflight) của trình duyệt
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Các cấu hình cũ giữ nguyên
-                .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                .anyRequest()
-                .authenticated());
+                // 3. Cấu hình phân dải cho POST và GET
+                .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
+                .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
+
+                .anyRequest().authenticated());
 
         // Kích hoạt CORS
         httpSecurity.cors(Customizer.withDefaults());

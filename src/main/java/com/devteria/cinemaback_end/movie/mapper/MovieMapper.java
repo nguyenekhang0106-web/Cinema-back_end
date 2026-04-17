@@ -6,13 +6,16 @@ import com.devteria.cinemaback_end.movie.entity.Movie;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
-@Mapper(componentModel = "spring")
+// THÊM CẤU HÌNH BỎ QUA GIÁ TRỊ NULL VÀO ĐÂY
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface MovieMapper {
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "manager", ignore = true) // Sẽ map thủ công ở Service
+    @Mapping(target = "manager", ignore = true)
     Movie toMovie(MovieRequest request);
 
     @Mapping(source = "manager.id", target = "managerId")

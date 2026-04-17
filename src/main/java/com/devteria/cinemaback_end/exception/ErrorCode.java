@@ -27,7 +27,22 @@ public enum ErrorCode {
     CITIZEN_ID_EXISTED(1018, "CCCD đã được sử dụng", HttpStatus.BAD_REQUEST),
     CCCD_NOT_BLANK(1019, "CCCD Không được để trống", HttpStatus.BAD_REQUEST),
     PHONE_NOT_BLANK(1020, "Số điện thoại không dược để trống", HttpStatus.BAD_REQUEST),
-    INVALID_AREA(1021, "Khu vực (Tỉnh/Thành phố) không hợp lệ", HttpStatus.BAD_REQUEST)
+    INVALID_AREA(1021, "Khu vực (Tỉnh/Thành phố) không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    TITLE_NOT_BLANK(1022, "Tên phim không được để trống", HttpStatus.BAD_REQUEST),
+    DURATION_NOT_NULL(1023, "Thời lượng phim không được để trống", HttpStatus.BAD_REQUEST),
+    DURATION_MIN_INVALID(1024, "Thời lượng phim phải từ 1 phút trở lên", HttpStatus.BAD_REQUEST),
+    GENRE_NOT_NULL(1025, "Thể loại phim không được để trống", HttpStatus.BAD_REQUEST),
+    LANGUAGE_NOT_NULL(1026, "Ngôn ngữ phim không được để trống", HttpStatus.BAD_REQUEST),
+    AGE_RESTRICTION_NOT_NULL(1027, "Giới hạn độ tuổi không được để trống", HttpStatus.BAD_REQUEST),
+    RELEASE_DATE_NOT_NULL(1028, "Ngày phát hành không được để trống", HttpStatus.BAD_REQUEST),
+
+    // Xử lý bắt lỗi khi nhập sai Enum của Movie
+    INVALID_GENRE(1029, "Thể loại phim không hợp lệ", HttpStatus.BAD_REQUEST),
+    INVALID_LANGUAGE(1030, "Ngôn ngữ phim không hợp lệ", HttpStatus.BAD_REQUEST),
+    INVALID_AGE_RESTRICTION(1031, "Mã giới hạn độ tuổi không hợp lệ", HttpStatus.BAD_REQUEST),
+    INVALID_MOVIE_STATUS(1032, "Trạng thái phim không hợp lệ", HttpStatus.BAD_REQUEST),
+    MOVIE_NOT_EXISTED(1033, "Phim không tồn tại", HttpStatus.NOT_FOUND)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

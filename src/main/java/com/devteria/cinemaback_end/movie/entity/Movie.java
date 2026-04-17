@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -28,7 +29,7 @@ public class Movie {
     String title;
 
     @Column(nullable = false)
-    @jakarta.validation.constraints.Min(1)
+    @jakarta.validation.constraints.Min(30)
     Integer durationMin;
 
     @Column(nullable = false)
@@ -63,7 +64,15 @@ public class Movie {
     @Enumerated(EnumType.STRING)
     MovieStatus status = MovieStatus.COMING_SOON;
 
+    @ElementCollection
+    @CollectionTable(name = "movie_directors", joinColumns = @JoinColumn(name = "movie_id"))
+    @Column(name = "director_name", nullable = false)
+    Set<String> directors; // Có thể có nhiều đạo diễn
 
+    @ElementCollection
+    @CollectionTable(name = "movie_actors", joinColumns = @JoinColumn(name = "movie_id"))
+    @Column(name = "actor_name", nullable = false)
+    Set<String> actors; // Có nhiều diễn viên
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

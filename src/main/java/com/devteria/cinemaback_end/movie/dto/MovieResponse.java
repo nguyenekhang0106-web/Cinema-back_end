@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
+import java.util.Set;
 
 @Data
 @Builder
@@ -29,4 +30,7 @@ public class MovieResponse {
     LocalDate createdAt;
     MovieStatus status;
     String managerId; // Trả về ID của manager thay vì cả object User để tránh lặp lồng nhau
+
+    Set<String> directors;
+    Set<String> actors;
 }
