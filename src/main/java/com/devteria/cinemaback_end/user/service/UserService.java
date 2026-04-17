@@ -14,11 +14,11 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.util.HashSet;
 import java.util.List;
 
@@ -28,26 +28,25 @@ import java.util.List;
 @Slf4j
 public class UserService {
     UserRepository userRepository;
-    RoleRepository roleRepository; // Inject thêm repository này
+    RoleRepository roleRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
 
     public UserResponse createUser(UserRequest request) {
-        // Kiểm tra chặt chẽ các trường Unique
+        // Đồng bộ ném ra AppException thay vì RuntimeException
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email đã được sử dụng");
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
         if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
-            throw new RuntimeException("Số điện thoại đã được sử dụng");
+            throw new AppException(ErrorCode.PHONE_EXISTED);
         }
         if (request.getCitizenIdNumber() != null && userRepository.existsByCitizenIdNumber(request.getCitizenIdNumber())) {
-            throw new RuntimeException("CCCD đã được sử dụng");
+            throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
         }
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Gán Role mặc định là USER từ Database
         HashSet<Role> roles = new HashSet<>();
         roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
         user.setRoles(roles);
@@ -56,9 +55,8 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
-    //    @PreAuthorize("hasAuthority('APPROVE_POST')")    ---> Map đúng với tên của Authority truyền vào
-    @PreAuthorize("hasRole('ADMIN')") // Mặc định sẽ map với prefix "ROLE_" ở trước
-    public List<UserResponse> getUsers(){ //Chỉ ADMIN ms xem được tất cả thông tin của tất cả user
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserResponse> getUsers() {
         log.info("In method get Users");
         return userRepository.findAll()
                 .stream()
@@ -66,20 +64,14 @@ public class UserService {
                 .toList();
     }
 
-    //truy vấn DB trước nếu response trả về có email khớp với enamil ở phần "sub" khi decode token ra
-    //thì mới trả vè thông tin user
-    @PostAuthorize("returnObject.email == authentication.name")
-    public UserResponse getUser(String id){
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse getUser(String id) {
         log.info("In method get user by id");
-        return userMapper.toUserResponse(userRepository.findById(id).orElseThrow(()
-                -> new RuntimeException("User not found")));
+        return userMapper.toUserResponse(userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))); // Thay RuntimeException
     }
 
-
-    //Hàm xem thông tin các nhân phải đúng token của người đăng nhập
-    //Cách đối chiếu là so sánh địa chỉ email trong token ở sub khi được decode ra giống email có sẵn
-    // trong DB thì mới cho xem thông tin
-    public UserResponse getMyInfo(){
+    public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();
         String email = context.getAuthentication().getName();
 
@@ -88,16 +80,41 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
-    public UserResponse updateUser(String id, UserRequest request) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+    // Xóa truyền id trên URL và xóa @PostAuthorize để bảo mật
+    public UserResponse updateUser(UserRequest request) {
+        // 1. Định danh chính xác user đang thực hiện request thông qua Token
+        var context = SecurityContextHolder.getContext();
+        String currentEmail = context.getAuthentication().getName();
 
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // 2. Kiểm tra tính duy nhất (Unique)
+        // Lưu ý: Chỉ báo lỗi khi user đổi sang một thông tin mới MÀ thông tin đó đã tồn tại trong DB
+        if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
+
+        if (request.getPhone() != null
+                && !request.getPhone().equals(user.getPhone())
+                && userRepository.existsByPhone(request.getPhone())) {
+            throw new AppException(ErrorCode.PHONE_EXISTED);
+        }
+
+        if (request.getCitizenIdNumber() != null
+                && !request.getCitizenIdNumber().equals(user.getCitizenIdNumber())
+                && userRepository.existsByCitizenIdNumber(request.getCitizenIdNumber())) {
+            throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
+        }
+
+        // 3. Map dữ liệu mới vào user hiện tại và lưu xuống DB
         userMapper.updateUser(user, request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user = userRepository.save(user);
-        return userMapper.toUserResponse(user);
+
+        return userMapper.toUserResponse(userRepository.save(user));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(String id) {
         userRepository.deleteById(id);
     }

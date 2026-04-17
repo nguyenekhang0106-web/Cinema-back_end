@@ -2,6 +2,7 @@ package com.devteria.cinemaback_end.exception;
 
 import com.devteria.cinemaback_end.common.ApiResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -14,7 +15,9 @@ public class GlobalExceptionHandler {
         ApiResponse apiResponse = new ApiResponse<>();
         apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
         apiResponse.setMessage(ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage());
-        return ResponseEntity.badRequest().body(apiResponse);
+        return ResponseEntity
+                .status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode())
+                .body(apiResponse);
     }
 
     @ExceptionHandler(value = AppException.class)
@@ -51,6 +54,14 @@ public class GlobalExceptionHandler {
 
         apiResponse.setCode(errorCode.getCode());
         apiResponse.setMessage(errorCode.getMessage());
+        return ResponseEntity.badRequest().body(apiResponse);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiResponse> handleJsonParse(HttpMessageNotReadableException e) {
+        ApiResponse apiResponse = new ApiResponse<>();
+        apiResponse.setCode(ErrorCode.INVALID_KEY.getCode());
+        apiResponse.setMessage("Invalid request format");
         return ResponseEntity.badRequest().body(apiResponse);
     }
 }

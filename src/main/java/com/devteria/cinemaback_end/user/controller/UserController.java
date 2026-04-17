@@ -40,12 +40,12 @@ public class UserController {
                 .build();
     }
 
-    @PutMapping("/{id}")
-    public ApiResponse<UserResponse> updateUser(@PathVariable String id, @RequestBody @Valid UserRequest request) {
+    @PutMapping("/my-info") // Bỏ phần /{id} đi
+    public ApiResponse<UserResponse> updateMyInfo(@RequestBody @Valid UserRequest request) { // Bỏ @PathVariable
         return ApiResponse.<UserResponse>builder()
                 .code(1000)
                 .message("Cập nhật thông tin thành công")
-                .result(userService.updateUser(id, request))
+                .result(userService.updateUser(request))
                 .build();
     }
 
