@@ -50,6 +50,7 @@ public class UserService {
         HashSet<Role> roles = new HashSet<>();
         roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
         user.setRoles(roles);
+        user.setEmailVerified(true);
 
         user = userRepository.save(user);
         return userMapper.toUserResponse(user);

@@ -24,4 +24,5 @@ public class UserResponse {
     Area area; // Đổi String thành Area
     MemberTier memberTier; // Dùng Enum
     Integer totalRewardPoints;
+    boolean emailVerified;
 }

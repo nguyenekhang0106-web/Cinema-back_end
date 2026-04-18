@@ -15,6 +15,7 @@ public interface UserMapper {
     @Mapping(target = "totalRewardPoints", ignore = true)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "cinema", ignore = true)
+    @Mapping(target = "emailVerified", ignore = true)
     User toUser(UserRequest request);
 
     UserResponse toUserResponse(User user);
@@ -24,5 +25,6 @@ public interface UserMapper {
     @Mapping(target = "totalRewardPoints", ignore = true)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "cinema", ignore = true)
+    @Mapping(target = "emailVerified", ignore = true)
     void updateUser(@MappingTarget User user, UserRequest request);
 }

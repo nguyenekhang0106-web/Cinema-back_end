@@ -23,6 +23,7 @@ public class SecurityConfig {
 
     private final String[] PUBLIC_POST_ENDPOINTS = {
             "/users",
+            "/users/verify-email",
             "/auth/token",
             "/auth/introspect",
             "/auth/logout",

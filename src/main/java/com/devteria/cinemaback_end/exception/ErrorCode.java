@@ -42,7 +42,14 @@ public enum ErrorCode {
     INVALID_LANGUAGE(1030, "Ngôn ngữ phim không hợp lệ", HttpStatus.BAD_REQUEST),
     INVALID_AGE_RESTRICTION(1031, "Mã giới hạn độ tuổi không hợp lệ", HttpStatus.BAD_REQUEST),
     INVALID_MOVIE_STATUS(1032, "Trạng thái phim không hợp lệ", HttpStatus.BAD_REQUEST),
-    MOVIE_NOT_EXISTED(1033, "Phim không tồn tại", HttpStatus.NOT_FOUND)
+    MOVIE_NOT_EXISTED(1033, "Phim không tồn tại", HttpStatus.NOT_FOUND),
+
+    EMAIL_NOT_VERIFIED(1034, "Vui lòng xác thực email trước khi đăng nhập", HttpStatus.UNAUTHORIZED),
+    INVALID_VERIFICATION_TOKEN(1035, "Mã xác thực không đúng hoặc đã hết hạn", HttpStatus.BAD_REQUEST),
+    UNABLE_TO_SEND_EMAIL(1036, "Không thể gửi email xác thực", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    VERIFY_CODE_NOT_BLANK(1037, "Mã xác thực không được để trống", HttpStatus.BAD_REQUEST),
+    VERIFY_CODE_INVALID(1038, "Mã xác thực phải gồm đúng 6 chữ số", HttpStatus.BAD_REQUEST)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
