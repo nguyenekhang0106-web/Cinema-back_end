@@ -49,7 +49,16 @@ public enum ErrorCode {
     UNABLE_TO_SEND_EMAIL(1036, "Không thể gửi email xác thực", HttpStatus.INTERNAL_SERVER_ERROR),
 
     VERIFY_CODE_NOT_BLANK(1037, "Mã xác thực không được để trống", HttpStatus.BAD_REQUEST),
-    VERIFY_CODE_INVALID(1038, "Mã xác thực phải gồm đúng 6 chữ số", HttpStatus.BAD_REQUEST)
+    VERIFY_CODE_INVALID(1038, "Mã xác thực phải gồm đúng 6 chữ số", HttpStatus.BAD_REQUEST),
+    USER_ID_NOT_BLANK(1039, "Mã người dùng không được để trống", HttpStatus.BAD_REQUEST),
+    VERIFY_TOKEN_NOT_BLANK(1040, "Mã phiên xác thực không được để trống", HttpStatus.BAD_REQUEST),
+    
+    INVALID_VERIFICATION_CODE(1041, "Mã xác thực không đúng", HttpStatus.BAD_REQUEST),
+    VERIFICATION_ATTEMPTS_EXCEEDED(1042, "Bạn đã nhập sai quá nhiều lần. Hãy resend mã xác thực", HttpStatus.BAD_REQUEST),
+    RESEND_TOO_FREQUENT(1043, "Vui lòng chờ trước khi resend mã xác thực tiếp theo", HttpStatus.BAD_REQUEST),
+    
+    PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_DIGIT_SPECIAL_CHAR(1044, "Mật khẩu phải chứa ít nhất: chữ hoa, chữ thường, số, ký tự đặc biệt (@$!%*?&)", HttpStatus.BAD_REQUEST),
+    TOO_MANY_LOGIN_ATTEMPTS(1045, "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

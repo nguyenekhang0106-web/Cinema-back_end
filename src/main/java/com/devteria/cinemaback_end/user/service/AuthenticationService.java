@@ -31,12 +31,13 @@ import java.util.StringJoiner;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor // Tự động tạo Constructor cho class với các field final hoặc có anntotation @NonNull
+@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedRepository invalidatedRepository;
+    LoginAttemptService loginAttemptService;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -53,6 +54,14 @@ public class AuthenticationService {
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
 
         String username = request.getUsername();
+
+        // Check rate limiting: max 5 failed attempts per 15 minutes
+        if (!loginAttemptService.isLoginAllowed(username)) {
+            long remainingSeconds = loginAttemptService.getRemainingLockoutTime(username);
+            long remainingMinutes = (remainingSeconds + 59) / 60;
+            throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
+                String.format("Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau %d phút", remainingMinutes));
+        }
 
         User user;
 
@@ -72,12 +81,25 @@ public class AuthenticationService {
         );
 
         if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            // Record failed attempt
+            int currentAttempt = loginAttemptService.recordFailedAttempt(username);
+            int remainingAttempts = loginAttemptService.getRemainingAttempts(username);
+            
+            if (remainingAttempts <= 0) {
+                throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
+                    "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút");
+            }
+            
+            throw new AppException(ErrorCode.UNAUTHENTICATED,
+                String.format("Mật khẩu không đúng. Bạn còn %d lần thử", remainingAttempts));
         }
 
         if (!user.isEmailVerified()) {
             throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
+
+        // Successful login: clear attempts
+        loginAttemptService.clearLoginAttempts(username);
 
         var token = generateToken(user);
 

@@ -25,4 +25,5 @@ public class UserResponse {
     MemberTier memberTier; // Dùng Enum
     Integer totalRewardPoints;
     boolean emailVerified;
+    String verificationToken;
 }
