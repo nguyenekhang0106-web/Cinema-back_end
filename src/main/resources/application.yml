@@ -4,6 +4,11 @@ server:
     context-path: /cinema #/identity
 
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # password: # bật nếu Redis có mật khẩu
   datasource:
     # Tham s? createDatabaseIfNotExist=true s? ra l?nh cho MySQL t? t?o database n?u n� ch?a t?n t?i
     url: "jdbc:mysql://localhost:3308/cinema_db?createDatabaseIfNotExist=true"
@@ -20,3 +25,19 @@ jwt:
   signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
   valid-duration: 6000 #in second
   refreshable-duration: 12000 #in second
+
+app:
+  # TTL mã 6 số xác thực email (lưu trong Redis, key prefix cinema:email-verify:)
+  email-verification-ttl-minutes: 15
+
+mail:
+  host: smtp.gmail.com
+  port: 587
+  username: bacdoandanh@gmail.com
+  password: ledwpisqwjsrvmwb # KHÔNG phải mật khẩu đăng nhập Gmail đâu nhé!
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true

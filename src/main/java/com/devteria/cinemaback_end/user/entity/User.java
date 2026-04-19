@@ -51,6 +51,10 @@ public class User {
     @Builder.Default
     Integer totalRewardPoints = 0;
 
+    @Column(nullable = false)
+    @Builder.Default
+    boolean emailVerified = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cinema_id", nullable = true)
     Cinema cinema;

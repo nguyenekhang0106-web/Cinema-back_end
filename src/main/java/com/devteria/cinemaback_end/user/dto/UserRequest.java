@@ -29,6 +29,10 @@ public class UserRequest {
 
     @NotBlank(message = "PASSWORD_NOT_BLANK")
     @Size(min = 8, message = "PASSWORD_INVALID")
+    @Pattern(
+        regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+        message = "PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_DIGIT_SPECIAL_CHAR"
+    )
     String password;
 
     @NotBlank(message = "CCCD_NOT_BLANK")
