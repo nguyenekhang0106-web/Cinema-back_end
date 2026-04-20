@@ -77,7 +77,7 @@ public class RegistrationService {
             log.info("New user created: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail));
 
             // STEP 2: Send OTP (handles rate limiting & blocking)
-            registrationOtpService.sendOtp(request.getEmail());
+            registrationOtpService.sendOtp(request.getEmail(), user.getFullName());
 
             // Build response
             OtpResponse otpResponse = OtpResponse.builder()

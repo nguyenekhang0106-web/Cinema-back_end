@@ -53,9 +53,10 @@ public class RegistrationOtpService {
      * Send OTP to email (check rate limiting & blocking)
      *
      * @param email Email address
+     * @param fullName Full name of user
      * @return OTP response with resend cooldown
      */
-    public void sendOtp(String email) {
+    public void sendOtp(String email, String fullName) {
         String normalizedEmail = normalize(email);
 
         // CHECK 1: Is account blocked?
@@ -116,7 +117,7 @@ public class RegistrationOtpService {
 
         // Send email
         try {
-            emailSenderService.sendVerificationCode(email, null, otp);
+            emailSenderService.sendVerificationCode(email, fullName, otp);
             log.info("OTP sent successfully to: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(otp));
         } catch (Exception e) {
             log.error("Failed to send OTP to: {}", normalizedEmail, e);

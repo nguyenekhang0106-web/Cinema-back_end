@@ -113,7 +113,7 @@ public class OtpVerificationService {
             }
 
             // Send OTP (handles rate limiting and blocking)
-            registrationOtpService.sendOtp(email);
+            registrationOtpService.sendOtp(email, user.getFullName());
 
             long resendCooldown = registrationOtpService.getResendCooldownRemaining(email);
             long registrationRemaining = registrationOtpService.getRegistrationTimeRemaining(email);
