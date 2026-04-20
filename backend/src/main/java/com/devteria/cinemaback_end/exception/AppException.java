@@ -1,8 +1,10 @@
 package com.devteria.cinemaback_end.exception;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class AppException extends RuntimeException{
 
     public AppException(ErrorCode errorCode) {

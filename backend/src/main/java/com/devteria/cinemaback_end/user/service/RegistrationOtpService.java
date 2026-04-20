@@ -2,6 +2,7 @@ package com.devteria.cinemaback_end.user.service;
 
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
+import com.devteria.cinemaback_end.common.SecurityUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -10,6 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -97,9 +99,12 @@ public class RegistrationOtpService {
         // Generate OTP
         String otp = generateOtp();
 
-        // Store in Redis with attempts counter
+        // ✅ HASH OTP before storing in Redis
+        String hashedOtp = SecurityUtils.hashOtp(otp);
+
+        // Store in Redis with hashed OTP
         String otpKey = OTP_KEY_PREFIX + normalizedEmail;
-        String otpValue = otp + ":0"; // format: code:attempts
+        String otpValue = hashedOtp + ":0"; // format: hashedOTP:attempts
         redisTemplate.opsForValue().set(otpKey, otpValue, OTP_TTL);
 
         // Set resend cooldown
@@ -112,11 +117,11 @@ public class RegistrationOtpService {
         // Send email
         try {
             emailSenderService.sendVerificationCode(email, null, otp);
-            log.info("OTP sent successfully to: {}", normalizedEmail);
+            log.info("OTP sent successfully to: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(otp));
         } catch (Exception e) {
             log.error("Failed to send OTP to: {}", normalizedEmail, e);
             // Cleanup on failure
-            redisTemplate.delete(otpKey, rateLimitKey);
+            redisTemplate.delete(Arrays.asList(otpKey, rateLimitKey));
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL,
                 "Không thể gửi email xác thực. Vui lòng thử lại");
         }
@@ -147,17 +152,17 @@ public class RegistrationOtpService {
                 "Mã OTP hết hạn. Vui lòng gửi lại");
         }
 
-        // Parse OTP value (format: code:attempts)
+        // Parse OTP value (format: hashedOTP:attempts)
         String[] parts = otpValue.split(":");
         if (parts.length != 2) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid OTP state");
         }
 
-        String storedCode = parts[0];
+        String storedHashedOtp = parts[0];
         int attempts = Integer.parseInt(parts[1]);
 
-        // CHECK 3: OTP code correct?
-        if (!storedCode.equals(otpCode.trim())) {
+        // ✅ VERIFY OTP with hashed value
+        if (!SecurityUtils.verifyOtp(otpCode, storedHashedOtp)) {
             // Increment attempts
             attempts++;
             if (attempts >= MAX_OTP_ATTEMPTS) {
@@ -167,8 +172,9 @@ public class RegistrationOtpService {
                     "Bạn đã nhập OTP sai 3 lần. Vui lòng gửi lại OTP mới");
             }
 
-            // Save incremented attempts
-            redisTemplate.opsForValue().set(otpKey, storedCode + ":" + attempts, OTP_TTL);
+            // Save incremented attempts (keep stored hash, only update attempts)
+            String newOtpValue = storedHashedOtp + ":" + attempts;
+            redisTemplate.opsForValue().set(otpKey, newOtpValue, OTP_TTL);
 
             int remainingAttempts = MAX_OTP_ATTEMPTS - attempts;
             throw new AppException(ErrorCode.INVALID_OTP,
@@ -190,7 +196,7 @@ public class RegistrationOtpService {
         String sendCountKey = OTP_SEND_COUNT_PREFIX + normalizedEmail;
         String registerKey = REGISTER_KEY_PREFIX + normalizedEmail;
 
-        redisTemplate.delete(otpKey, rateLimitKey, sendCountKey, registerKey);
+        redisTemplate.delete(Arrays.asList(otpKey, rateLimitKey, sendCountKey, registerKey));
         log.info("OTP keys cleaned up for: {}", normalizedEmail);
     }
 
@@ -203,7 +209,7 @@ public class RegistrationOtpService {
         String otpKey = OTP_KEY_PREFIX + normalizedEmail;
         String rateLimitKey = OTP_RATELIMIT_PREFIX + normalizedEmail;
 
-        redisTemplate.delete(registerKey, otpKey, rateLimitKey);
+        redisTemplate.delete(Arrays.asList(registerKey, otpKey, rateLimitKey));
         log.info("Registration cleaned up for: {}", normalizedEmail);
     }
 

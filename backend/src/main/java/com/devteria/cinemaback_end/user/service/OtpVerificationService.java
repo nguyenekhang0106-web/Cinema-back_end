@@ -2,6 +2,8 @@ package com.devteria.cinemaback_end.user.service;
 
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
+import com.devteria.cinemaback_end.common.SecurityUtils;
+import com.devteria.cinemaback_end.user.dto.OtpResponse;
 import com.devteria.cinemaback_end.user.dto.UserResponse;
 import com.devteria.cinemaback_end.user.entity.User;
 import com.devteria.cinemaback_end.user.mapper.UserMapper;
@@ -61,7 +63,7 @@ public class OtpVerificationService {
 
             user.setEmailVerified(true);
             userRepository.save(user);
-            log.info("Email verified successfully for: {}", normalizedEmail);
+            log.info("Email verified successfully for: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail));
 
             return ApiResponse.<UserResponse>builder()
                 .code(1000)
@@ -77,7 +79,7 @@ public class OtpVerificationService {
             }
             throw e;
         } catch (Exception e) {
-            log.error("OTP verification failed for: {}", normalizedEmail, e);
+            log.error("OTP verification failed for: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail), e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION,
                 "Lỗi khi xác thực OTP. Vui lòng thử lại");
         }
@@ -132,7 +134,7 @@ public class OtpVerificationService {
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Resend OTP failed for: {}", normalizedEmail, e);
+            log.error("Resend OTP failed for: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail), e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION,
                 "Lỗi khi gửi lại OTP. Vui lòng thử lại");
         }
@@ -152,7 +154,7 @@ public class OtpVerificationService {
                 }
             });
         } catch (Exception e) {
-            log.error("Failed to delete unverified user: {}", email, e);
+            log.error("Failed to delete unverified user: {} [hash: {}]", email, SecurityUtils.hashSensitiveData(email), e);
             // Don't throw, just log
         }
     }

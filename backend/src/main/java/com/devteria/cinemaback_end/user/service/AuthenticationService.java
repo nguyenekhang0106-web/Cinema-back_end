@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.user.service;
 
+import com.devteria.cinemaback_end.common.SecurityUtils;
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.user.dto.*;
@@ -54,11 +55,15 @@ public class AuthenticationService {
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
 
         String username = request.getUsername();
+        
+        // ✅ Log hashed username for security (not plain credentials)
+        log.debug("Login attempt: {}", SecurityUtils.hashSensitiveData(username));
 
         // Check rate limiting: max 5 failed attempts per 15 minutes
         if (!loginAttemptService.isLoginAllowed(username)) {
             long remainingSeconds = loginAttemptService.getRemainingLockoutTime(username);
             long remainingMinutes = (remainingSeconds + 59) / 60;
+            log.warn("Login blocked due to rate limiting: {}", SecurityUtils.hashSensitiveData(username));
             throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
                 String.format("Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau %d phút", remainingMinutes));
         }
@@ -67,10 +72,16 @@ public class AuthenticationService {
 
         if (isEmail(username)) {
             user = userRepository.findByEmail(username)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                    .orElseThrow(() -> {
+                        log.warn("User not found by email: {}", SecurityUtils.hashSensitiveData(username));
+                        return new AppException(ErrorCode.USER_NOT_EXISTED);
+                    });
         } else {
             user = userRepository.findByPhone(username)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                    .orElseThrow(() -> {
+                        log.warn("User not found by phone: {}", SecurityUtils.hashSensitiveData(username));
+                        return new AppException(ErrorCode.USER_NOT_EXISTED);
+                    });
         }
 
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
@@ -85,7 +96,10 @@ public class AuthenticationService {
             int currentAttempt = loginAttemptService.recordFailedAttempt(username);
             int remainingAttempts = loginAttemptService.getRemainingAttempts(username);
             
+            log.warn("Failed login attempt #{} for: {}", currentAttempt, SecurityUtils.hashSensitiveData(username));
+            
             if (remainingAttempts <= 0) {
+                log.warn("Account locked due to too many failed attempts: {}", SecurityUtils.hashSensitiveData(username));
                 throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
                     "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút");
             }
@@ -95,11 +109,13 @@ public class AuthenticationService {
         }
 
         if (!user.isEmailVerified()) {
+            log.warn("Login attempt with unverified email: {}", SecurityUtils.hashSensitiveData(username));
             throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
 
         // Successful login: clear attempts
         loginAttemptService.clearLoginAttempts(username);
+        log.info("Successful login: {}", SecurityUtils.hashSensitiveData(username));
 
         var token = generateToken(user);
 

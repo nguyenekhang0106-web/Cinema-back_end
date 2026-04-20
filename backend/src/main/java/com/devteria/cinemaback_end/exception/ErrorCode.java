@@ -58,7 +58,17 @@ public enum ErrorCode {
     RESEND_TOO_FREQUENT(1043, "Vui lòng chờ trước khi resend mã xác thực tiếp theo", HttpStatus.BAD_REQUEST),
     
     PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_DIGIT_SPECIAL_CHAR(1044, "Mật khẩu phải chứa ít nhất: chữ hoa, chữ thường, số, ký tự đặc biệt (@$!%*?&)", HttpStatus.BAD_REQUEST),
-    TOO_MANY_LOGIN_ATTEMPTS(1045, "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS)
+    TOO_MANY_LOGIN_ATTEMPTS(1045, "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
+    
+    // New Registration Flow - OTP & Rate Limiting
+    REGISTRATION_BLOCKED(1046, "Tài khoản này bị khóa do quá nhiều lần gửi OTP. Vui lòng thử lại sau 24 giờ", HttpStatus.FORBIDDEN),
+    OTP_EXPIRED(1047, "OTP hết hạn. Vui lòng gửi lại", HttpStatus.GONE),
+    INVALID_OTP(1048, "OTP không đúng", HttpStatus.BAD_REQUEST),
+    OTP_ATTEMPTS_EXCEEDED(1049, "Bạn đã nhập OTP sai 3 lần. Vui lòng gửi lại OTP mới", HttpStatus.BAD_REQUEST),
+    OTP_SEND_LIMIT_EXCEEDED(1050, "Bạn đã gửi quá 5 lần trong 24 giờ. Vui lòng thử lại sau 24 giờ", HttpStatus.TOO_MANY_REQUESTS),
+    OTP_RESEND_COOLDOWN(1051, "Vui lòng chờ trước khi gửi OTP tiếp theo", HttpStatus.TOO_MANY_REQUESTS),
+    REGISTRATION_EXPIRED(1052, "Thời hạn đăng kí 7 ngày đã hết. Vui lòng đăng kí lại", HttpStatus.GONE),
+    INVALID_REQUEST(1053, "Yêu cầu không hợp lệ", HttpStatus.BAD_REQUEST)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

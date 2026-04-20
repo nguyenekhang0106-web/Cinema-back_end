@@ -23,6 +23,9 @@ public class SecurityConfig {
 
     private final String[] PUBLIC_POST_ENDPOINTS = {
             "/users",
+            "/users/register",
+            "/users/verify-otp",
+            "/users/resend-otp",
             "/users/verify-email",
             "/users/resend-verification",
             "/auth/token",
