@@ -12,7 +12,6 @@ import java.time.Duration;
  */
 @Service
 public class LoginAttemptService {
-
     public static final String LOGIN_ATTEMPT_PREFIX = "cinema:login-attempt:";
     public static final String LOGIN_COOLDOWN_PREFIX = "cinema:login-cooldown:";
     

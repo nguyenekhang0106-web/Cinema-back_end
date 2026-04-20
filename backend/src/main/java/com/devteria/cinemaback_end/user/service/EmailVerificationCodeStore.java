@@ -49,6 +49,7 @@ public class EmailVerificationCodeStore {
      * Verify token and code in single Redis query
      * @return email if token + code valid; null otherwise
      */
+
     public String consumeIfValidByToken(String token, String code) {
         String storedValue = stringRedisTemplate.opsForValue().get(tokenKey(token));
         if (storedValue == null) {

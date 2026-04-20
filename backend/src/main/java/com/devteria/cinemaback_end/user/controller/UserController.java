@@ -16,6 +16,7 @@ import com.devteria.cinemaback_end.user.repository.UserRepository;
 import com.devteria.cinemaback_end.user.service.EmailSenderService;
 import com.devteria.cinemaback_end.user.service.EmailVerificationCodeStore;
 import com.devteria.cinemaback_end.user.service.UserService;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,6 +42,7 @@ public class UserController {
     private final EmailVerificationCodeStore emailVerificationCodeStore;
 
     @PostMapping
+    @Transactional
     public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserRequest request) {
         try {
             User user = userMapper.toUser(request);
