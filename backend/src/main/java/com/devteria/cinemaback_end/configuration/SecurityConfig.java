@@ -36,7 +36,9 @@ public class SecurityConfig {
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
             "/movies",
-            "/movies/**" // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
+            "/movies/**", // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
+            "/showtimes",     // Thêm dòng này: Cho phép xem danh sách lịch chiếu
+            "/showtimes/**"   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
     };
 
     @Value("${jwt.signerKey}")

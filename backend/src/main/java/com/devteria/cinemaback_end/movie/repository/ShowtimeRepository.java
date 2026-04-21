@@ -1,11 +1,33 @@
 package com.devteria.cinemaback_end.movie.repository;
 
 import com.devteria.cinemaback_end.movie.entity.Showtime;
+import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, String> {
     List<Showtime> findByMovieId(String movieId);
+
+    @Query("SELECT COUNT(s) > 0 FROM Showtime s WHERE s.hall.id = :hallId " +
+            "AND s.status != 'CANCELLED' " +
+            "AND s.startTime < :newEndTime " +
+            "AND s.endTime > :newStartTime")
+    boolean existsOverlappingShowtime(@Param("hallId") String hallId,
+                                      @Param("newStartTime") LocalDateTime newStartTime,
+                                      @Param("newEndTime") LocalDateTime newEndTime);
+    // 2. Dùng cho Update (loại trừ ID của chính nó)
+    @Query("SELECT COUNT(s) > 0 FROM Showtime s WHERE s.hall.id = :hallId " +
+            "AND s.status != 'CANCELLED' " +
+            "AND s.id != :excludeId " +
+            "AND s.startTime < :newEndTime " +
+            "AND s.endTime > :newStartTime")
+    boolean existsOverlappingShowtimeForUpdate(@Param("hallId") String hallId,
+                                               @Param("newStartTime") LocalDateTime newStartTime,
+                                               @Param("newEndTime") LocalDateTime newEndTime,
+                                               @Param("excludeId") String excludeId);
 }

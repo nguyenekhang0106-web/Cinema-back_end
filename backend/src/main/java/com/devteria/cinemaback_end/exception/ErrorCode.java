@@ -68,7 +68,27 @@ public enum ErrorCode {
     OTP_SEND_LIMIT_EXCEEDED(1050, "Bạn đã gửi quá 5 lần trong 24 giờ. Vui lòng thử lại sau 24 giờ", HttpStatus.TOO_MANY_REQUESTS),
     OTP_RESEND_COOLDOWN(1051, "Vui lòng chờ trước khi gửi OTP tiếp theo", HttpStatus.TOO_MANY_REQUESTS),
     REGISTRATION_EXPIRED(1052, "Thời hạn đăng kí 7 ngày đã hết. Vui lòng đăng kí lại", HttpStatus.GONE),
-    INVALID_REQUEST(1053, "Yêu cầu không hợp lệ", HttpStatus.BAD_REQUEST)
+    INVALID_REQUEST(1053, "Yêu cầu không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    START_TIME_NOT_NULL(1054, "Giờ bắt đầu không được để trống", HttpStatus.BAD_REQUEST),
+    END_TIME_NOT_NULL(1055, "Giờ kết thúc không được để trống", HttpStatus.BAD_REQUEST),
+    BASE_PRICE_NOT_NULL(1056, "Giá gốc không được để trống", HttpStatus.BAD_REQUEST),
+    PRICE_MUST_BE_POSITIVE(1057, "Giá vé phải lớn hơn 0", HttpStatus.BAD_REQUEST),
+    SHOWTIME_FORMAT_NOT_NULL(1058, "Định dạng chiếu không được để trống", HttpStatus.BAD_REQUEST),
+    MOVIE_ID_NOT_BLANK(1059, "ID Phim không được để trống", HttpStatus.BAD_REQUEST),
+    HALL_ID_NOT_BLANK(1060, "ID Phòng chiếu không được để trống", HttpStatus.BAD_REQUEST),
+
+    // Lỗi Enum Format / Status
+    INVALID_SHOWTIME_FORMAT(1061, "Định dạng lịch chiếu không hợp lệ", HttpStatus.BAD_REQUEST),
+    INVALID_SHOWTIME_STATUS(1062, "Trạng thái lịch chiếu không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    // Lỗi nghiệp vụ (Business Logic)
+    SHOWTIME_NOT_EXISTED(1063, "Lịch chiếu không tồn tại", HttpStatus.NOT_FOUND),
+    INVALID_TIME_RANGE(1064, "Giờ kết thúc phải sau giờ bắt đầu", HttpStatus.BAD_REQUEST),
+    START_TIME_IN_PAST(1065, "Giờ bắt đầu không được nằm trong quá khứ", HttpStatus.BAD_REQUEST),
+    SHOWTIME_OVERLAP(1066, "Phòng chiếu này đã có lịch chiếu bị trùng lặp thời gian", HttpStatus.CONFLICT),
+
+    HALL_NOT_EXISTED(1067, "Phòng chiếu không tồn tại", HttpStatus.NOT_FOUND)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

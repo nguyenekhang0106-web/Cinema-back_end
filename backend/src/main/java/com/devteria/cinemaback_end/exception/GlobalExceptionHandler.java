@@ -109,7 +109,16 @@ public class GlobalExceptionHandler {
                 errorCode = ErrorCode.INVALID_AGE_RESTRICTION;
             } else if (targetType.equals(MovieStatus.class)) {
                 errorCode = ErrorCode.INVALID_MOVIE_STATUS;
+            } else if (targetType.equals(MovieStatus.class)) {
+                errorCode = ErrorCode.INVALID_MOVIE_STATUS;
             }
+            // THÊM 2 DÒNG NÀY CHO SHOWTIME
+            else if (targetType.equals(ShowtimeFormat.class)) {
+                errorCode = ErrorCode.INVALID_SHOWTIME_FORMAT;
+            } else if (targetType.equals(ShowtimeStatus.class)) {
+                errorCode = ErrorCode.INVALID_SHOWTIME_STATUS;
+            }
+
         }
 
         return buildResponse(errorCode);
