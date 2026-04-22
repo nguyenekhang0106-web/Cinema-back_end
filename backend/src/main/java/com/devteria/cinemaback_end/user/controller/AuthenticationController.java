@@ -4,6 +4,7 @@ import com.devteria.cinemaback_end.common.ApiResponse;
 import com.devteria.cinemaback_end.user.dto.*;
 import com.devteria.cinemaback_end.user.service.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
+import jakarta.validation.Valid; // Bổ sung import này
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,13 +17,14 @@ import java.text.ParseException;
 
 @RestController
 @RequestMapping("/auth")
-@RequiredArgsConstructor // Tự động tạo Constructor cho class với các field final hoặc có anntotation @NonNull
+@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationController {
     AuthenticationService authenticationService;
 
     @PostMapping("/token")
-    ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request){
+        // BỔ SUNG @Valid Ở ĐÂY
+    ApiResponse<AuthenticationResponse> authenticate(@RequestBody @Valid AuthenticationRequest request){
         var result = authenticationService.authenticate(request);
 
         ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
@@ -48,7 +50,7 @@ public class AuthenticationController {
         authenticationService.logout(request);
 
         ApiResponse<Void> response = new ApiResponse<>();
-        response.setResult(null); // hoặc không set cũng được
+        response.setResult(null);
 
         return response;
     }

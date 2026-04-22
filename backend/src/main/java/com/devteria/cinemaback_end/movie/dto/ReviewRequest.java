@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -15,17 +14,17 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ReviewRequest {
-    @NotNull(message = "Điểm đánh giá không được để trống")
-    @Min(value = 1, message = "Điểm tối thiểu là 1")
-    @Max(value = 5, message = "Điểm tối đa là 5")
+
+    @NotNull(message = "RATING_NOT_NULL")
+    @Min(value = 1, message = "RATING_MIN_INVALID")
+    @Max(value = 5, message = "RATING_MAX_INVALID")
     Integer ratingScore;
 
-    @Size(max = 1000, message = "Bình luận không được vượt quá 1000 ký tự")
+    @Size(max = 1000, message = "COMMENT_TOO_LONG")
     String comment;
 
-    @NotBlank(message = "ID Khách hàng không được để trống")
-    String customerId;
-
-    @NotBlank(message = "ID Phim không được để trống")
+    @NotBlank(message = "MOVIE_ID_NOT_BLANK")
     String movieId;
+
+    // Đã xóa customerId
 }

@@ -55,7 +55,7 @@ public class AuthenticationService {
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
 
         String username = request.getUsername();
-        
+
         // ✅ Log hashed username for security (not plain credentials)
         log.debug("Login attempt: {}", SecurityUtils.hashSensitiveData(username));
 
@@ -65,7 +65,7 @@ public class AuthenticationService {
             long remainingMinutes = (remainingSeconds + 59) / 60;
             log.warn("Login blocked due to rate limiting: {}", SecurityUtils.hashSensitiveData(username));
             throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
-                String.format("Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau %d phút", remainingMinutes));
+                    String.format("Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau %d phút", remainingMinutes));
         }
 
         User user;
@@ -95,17 +95,17 @@ public class AuthenticationService {
             // Record failed attempt
             int currentAttempt = loginAttemptService.recordFailedAttempt(username);
             int remainingAttempts = loginAttemptService.getRemainingAttempts(username);
-            
+
             log.warn("Failed login attempt #{} for: {}", currentAttempt, SecurityUtils.hashSensitiveData(username));
-            
+
             if (remainingAttempts <= 0) {
                 log.warn("Account locked due to too many failed attempts: {}", SecurityUtils.hashSensitiveData(username));
                 throw new AppException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS,
-                    "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút");
+                        "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút");
             }
-            
+
             throw new AppException(ErrorCode.UNAUTHENTICATED,
-                String.format("Mật khẩu không đúng. Bạn còn %d lần thử", remainingAttempts));
+                    String.format("Mật khẩu không đúng. Bạn còn %d lần thử", remainingAttempts));
         }
 
         if (!user.isEmailVerified()) {

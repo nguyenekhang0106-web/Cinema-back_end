@@ -88,7 +88,16 @@ public enum ErrorCode {
     START_TIME_IN_PAST(1065, "Giờ bắt đầu không được nằm trong quá khứ", HttpStatus.BAD_REQUEST),
     SHOWTIME_OVERLAP(1066, "Phòng chiếu này đã có lịch chiếu bị trùng lặp thời gian", HttpStatus.CONFLICT),
 
-    HALL_NOT_EXISTED(1067, "Phòng chiếu không tồn tại", HttpStatus.NOT_FOUND)
+    HALL_NOT_EXISTED(1067, "Phòng chiếu không tồn tại", HttpStatus.NOT_FOUND),
+
+    RATING_NOT_NULL(1068, "Điểm đánh giá không được để trống", HttpStatus.BAD_REQUEST),
+    RATING_MIN_INVALID(1069, "Điểm đánh giá tối thiểu là 1 sao", HttpStatus.BAD_REQUEST),
+    RATING_MAX_INVALID(1070, "Điểm đánh giá tối đa là 5 sao", HttpStatus.BAD_REQUEST),
+    COMMENT_TOO_LONG(1071, "Bình luận không được vượt quá 1000 ký tự", HttpStatus.BAD_REQUEST),
+
+    // Các lỗi nghiệp vụ cho Review
+    REVIEW_NOT_EXISTED(1072, "Đánh giá không tồn tại", HttpStatus.NOT_FOUND),
+    REVIEW_ALREADY_EXISTED(1073, "Bạn đã đánh giá bộ phim này rồi", HttpStatus.CONFLICT)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

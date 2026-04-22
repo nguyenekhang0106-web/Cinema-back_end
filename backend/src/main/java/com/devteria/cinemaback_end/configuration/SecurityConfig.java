@@ -38,7 +38,8 @@ public class SecurityConfig {
             "/movies",
             "/movies/**", // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
             "/showtimes",     // Thêm dòng này: Cho phép xem danh sách lịch chiếu
-            "/showtimes/**"   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
+            "/showtimes/**",   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
+            "/reviews/movie/**", "/reviews/*"  // Mở khóa để ai cũng xem được review
     };
 
     @Value("${jwt.signerKey}")
