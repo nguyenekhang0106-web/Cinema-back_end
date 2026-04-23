@@ -117,6 +117,8 @@ public class GlobalExceptionHandler {
                 errorCode = ErrorCode.INVALID_SHOWTIME_FORMAT;
             } else if (targetType.equals(ShowtimeStatus.class)) {
                 errorCode = ErrorCode.INVALID_SHOWTIME_STATUS;
+            }else if (targetType.equals(Area.class)) {
+                errorCode = ErrorCode.INVALID_AREA;
             }
 
         }
