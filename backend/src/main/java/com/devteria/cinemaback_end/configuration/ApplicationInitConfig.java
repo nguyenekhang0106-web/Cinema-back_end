@@ -49,11 +49,19 @@ public class ApplicationInitConfig {
                         .password(passwordEncoder.encode("admin123"))
                         .fullName("Admin")
                         .gender(Gender.Nam)
+                        .emailVerified(true)
                         .build();
 
                 admin.setRoles(Set.of(adminRole));
 
                 userRepository.save(admin);
+            } else {
+                userRepository.findByEmail("admin@gmail.com").ifPresent(admin -> {
+                    if (!admin.isEmailVerified()) {
+                        admin.setEmailVerified(true);
+                        userRepository.save(admin);
+                    }
+                });
             }
         };
     }

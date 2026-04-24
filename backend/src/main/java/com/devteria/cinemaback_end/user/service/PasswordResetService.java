@@ -70,7 +70,7 @@ public class PasswordResetService {
                 SecurityUtils.hashSensitiveData(email)
         );
         
-        String resetLink = "http://frontend-domain.com/reset-password?token=" + rawToken;
+        String resetLink = "http://localhost:9090/cinema/auth/reset-password?token=" + rawToken;
         emailSenderService.sendPasswordResetLink(email, resetLink);
     }
 
