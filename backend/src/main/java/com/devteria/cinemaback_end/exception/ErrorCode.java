@@ -135,6 +135,7 @@ public enum ErrorCode {
     ROW_NAMES_NOT_EMPTY(1100, "Danh sách tên hàng ghế không được để trống", HttpStatus.BAD_REQUEST),
     SEATS_PER_ROW_NOT_NULL(1101, "Số lượng ghế mỗi hàng không được để trống", HttpStatus.BAD_REQUEST),
     SEATS_PER_ROW_INVALID(1102, "Số lượng ghế mỗi hàng phải lớn hơn 0", HttpStatus.BAD_REQUEST),
+    TOO_MANY_REQUESTS(1103, "Quá nhiều yêu cầu. Vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

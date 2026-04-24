@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -175,7 +176,9 @@ public class RegistrationOtpService {
 
             // Save incremented attempts (keep stored hash, only update attempts)
             String newOtpValue = storedHashedOtp + ":" + attempts;
-            redisTemplate.opsForValue().set(otpKey, newOtpValue, OTP_TTL);
+            Long ttl = redisTemplate.getExpire(otpKey);
+
+            redisTemplate.opsForValue().set(otpKey, newOtpValue, ttl, TimeUnit.SECONDS);
 
             int remainingAttempts = MAX_OTP_ATTEMPTS - attempts;
             throw new AppException(ErrorCode.INVALID_OTP,

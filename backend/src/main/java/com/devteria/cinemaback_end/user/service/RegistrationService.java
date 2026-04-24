@@ -49,7 +49,7 @@ public class RegistrationService {
     @Transactional
     public ApiResponse<OtpResponse> register(UserRequest request) {
         String normalizedEmail = normalize(request.getEmail());
-
+        User user = null;
         try {
             // CHECK 1: Email already verified?
             Optional<User> existingUser = userRepository.findByEmail(normalizedEmail);
@@ -65,7 +65,7 @@ public class RegistrationService {
             }
 
             // STEP 1: Create new user (emailVerified = false)
-            User user = userMapper.toUser(request);
+            user = userMapper.toUser(request);
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setEmailVerified(false);
 
@@ -110,9 +110,16 @@ public class RegistrationService {
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Registration failed for: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail), e);
+            log.error("Registration failed for: {}", normalizedEmail, e);
+
+            // 🔥 cleanup an toàn
+            if (user != null && user.getId() != null) {
+                userRepository.delete(user);
+            }
+            registrationOtpService.cleanupOtpKeys(normalizedEmail);
+
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION,
-                "Lỗi hệ thống. Vui lòng thử lại");
+                    "Lỗi hệ thống. Vui lòng thử lại");
         }
     }
 

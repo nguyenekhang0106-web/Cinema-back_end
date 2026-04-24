@@ -41,7 +41,7 @@ public class OtpVerificationService {
 
         try {
             // STEP 1: Verify OTP (handles all checks: expiry, attempts, blocking)
-            registrationOtpService.verifyOtp(email, otpCode);
+            registrationOtpService.verifyOtp(normalizedEmail, otpCode);
 
             // STEP 2: Find user and update emailVerified
             User user = userRepository.findByEmail(normalizedEmail)
@@ -54,6 +54,7 @@ public class OtpVerificationService {
             // STEP 3: Update emailVerified
             if (user.isEmailVerified()) {
                 // Email already verified in previous attempt
+                registrationOtpService.cleanupOtpKeys(normalizedEmail);
                 return ApiResponse.<UserResponse>builder()
                     .code(1000)
                     .message("Email đã được xác thực trước đó")
@@ -63,6 +64,9 @@ public class OtpVerificationService {
 
             user.setEmailVerified(true);
             userRepository.save(user);
+            // 🔥 thêm dòng này
+            registrationOtpService.cleanupOtpKeys(normalizedEmail);
+
             log.info("Email verified successfully for: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail));
 
             return ApiResponse.<UserResponse>builder()
@@ -101,22 +105,39 @@ public class OtpVerificationService {
                     "Không tìm thấy người dùng"));
 
             if (user.isEmailVerified()) {
+
+                // 🔥 thêm log ở đây
+                log.info("Cleanup OTP keys for already verified user: {} [hash: {}]",
+                        normalizedEmail,
+                        SecurityUtils.hashSensitiveData(normalizedEmail)
+                );
+
+                registrationOtpService.cleanupOtpKeys(normalizedEmail);
+
                 OtpResponse response = OtpResponse.builder()
-                    .message("Email đã được xác thực trước đó")
-                    .build();
-                
+                        .message("Email đã được xác thực trước đó")
+                        .build();
+
                 return ApiResponse.<OtpResponse>builder()
-                    .code(1000)
-                    .message("Email đã được xác thực trước đó")
-                    .result(response)
-                    .build();
+                        .code(1000)
+                        .message("Email đã được xác thực trước đó")
+                        .result(response)
+                        .build();
+            }
+
+            // 🔥 THÊM ĐOẠN NÀY Ở ĐÂY
+            long registrationRemaining = registrationOtpService.getRegistrationTimeRemaining(normalizedEmail);
+
+            if (registrationRemaining <= 0) {
+                throw new AppException(ErrorCode.REGISTRATION_EXPIRED,
+                        "Thời hạn đăng kí đã hết. Vui lòng đăng kí lại");
             }
 
             // Send OTP (handles rate limiting and blocking)
-            registrationOtpService.sendOtp(email, user.getFullName());
+            registrationOtpService.sendOtp(normalizedEmail, user.getFullName());
 
-            long resendCooldown = registrationOtpService.getResendCooldownRemaining(email);
-            long registrationRemaining = registrationOtpService.getRegistrationTimeRemaining(email);
+            long resendCooldown = registrationOtpService.getResendCooldownRemaining(normalizedEmail);
+            registrationRemaining = registrationOtpService.getRegistrationTimeRemaining(normalizedEmail);
 
             OtpResponse response = OtpResponse.builder()
                 .message("Mã OTP mới đã được gửi")
@@ -150,12 +171,15 @@ public class OtpVerificationService {
             userRepository.findByEmail(email).ifPresent(user -> {
                 if (!user.isEmailVerified()) {
                     userRepository.delete(user);
+
+                    // 🔥 FIX: cleanup Redis
+                    registrationOtpService.cleanupOtpKeys(email);
+
                     log.info("Deleted unverified user due to registration expiry: {}", email);
                 }
             });
         } catch (Exception e) {
             log.error("Failed to delete unverified user: {} [hash: {}]", email, SecurityUtils.hashSensitiveData(email), e);
-            // Don't throw, just log
         }
     }
 

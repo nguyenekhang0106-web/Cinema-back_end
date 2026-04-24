@@ -31,9 +31,25 @@ public class PasswordResetService {
 
     private static final String RESET_PASSWORD_PREFIX = "cinema:reset_pwd:";
     private static final Duration RESET_TOKEN_TTL = Duration.ofMinutes(15);
+    private static final String RESET_PASSWORD_RATELIMIT_PREFIX = "cinema:reset_pwd:ratelimit:";
+    private static final Duration RESET_PASSWORD_RATELIMIT_TTL = Duration.ofMinutes(1); // 1 phút
 
     public void requestPasswordReset(ForgotPasswordRequest request) {
         String email = request.getEmail();
+
+        // 🔥 STEP 1: RATE LIMIT
+        String rateKey = RESET_PASSWORD_RATELIMIT_PREFIX + email;
+
+        if (redisTemplate.hasKey(rateKey)) {
+            long remainingSeconds = redisTemplate.getExpire(rateKey);
+            long remainingMinutes = (remainingSeconds + 59) / 60;
+
+            throw new AppException(ErrorCode.TOO_MANY_REQUESTS,
+                    String.format("Vui lòng chờ %d phút trước khi gửi lại yêu cầu", remainingMinutes));
+        }
+
+        // 👉 set rate limit
+        redisTemplate.opsForValue().set(rateKey, "1", RESET_PASSWORD_RATELIMIT_TTL);
         
         // Kiểm tra User có tồn tại không
         User user = userRepository.findByEmail(email)
@@ -49,7 +65,10 @@ public class PasswordResetService {
         // Lưu vào Redis với Key là hashedToken, Value là email (set TTL khoảng 15 phút).
         redisTemplate.opsForValue().set(redisKey, email, RESET_TOKEN_TTL);
 
-        log.info("Password reset token created for user: {}", email);
+        log.info("Password reset token created for user: {} [hash: {}]",
+                email,
+                SecurityUtils.hashSensitiveData(email)
+        );
         
         String resetLink = "http://frontend-domain.com/reset-password?token=" + rawToken;
         emailSenderService.sendPasswordResetLink(email, resetLink);
