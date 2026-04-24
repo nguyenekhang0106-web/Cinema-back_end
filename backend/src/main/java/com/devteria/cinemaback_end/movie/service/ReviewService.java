@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.List;
 
@@ -47,6 +48,10 @@ public class ReviewService {
         Review review = reviewMapper.toReview(request);
         review.setCustomer(customer);
         review.setMovie(movie);
+
+        if (review.getComment() != null && !review.getComment().isEmpty()) {
+            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
+        }
 
         return reviewMapper.toReviewResponse(reviewRepository.save(review));
     }
@@ -92,6 +97,10 @@ public class ReviewService {
         }
 
         reviewMapper.updateReview(review, request);
+
+        if (review.getComment() != null && !review.getComment().isEmpty()) {
+            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
+        }
         return reviewMapper.toReviewResponse(reviewRepository.save(review));
     }
 

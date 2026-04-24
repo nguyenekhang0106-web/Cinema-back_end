@@ -49,7 +49,7 @@ public class CustomJwtDecoder implements JwtDecoder {
                     .build();
         }
 
-        System.out.println(nimbusJwtDecoder);
+//        System.out.println(nimbusJwtDecoder);
 
         return nimbusJwtDecoder.decode(token);
     }

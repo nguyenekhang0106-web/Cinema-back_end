@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +47,10 @@ public class UserService {
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        if (user.getFullName() != null && !user.getFullName().isEmpty()) {
+            user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
+        }
 
         HashSet<Role> roles = new HashSet<>();
         roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
@@ -112,6 +117,9 @@ public class UserService {
         userMapper.updateUser(user, request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
+        if (user.getFullName() != null && !user.getFullName().isEmpty()) {
+            user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
+        }
         return userMapper.toUserResponse(userRepository.save(user));
     }
 

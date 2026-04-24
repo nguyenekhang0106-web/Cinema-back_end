@@ -17,6 +17,7 @@ public class UserRequest {
 
     @NotBlank(message = "FULLNAME_NOT_BLANK")
     @Size(min = 3, message = "FULLNAME_INVALID")
+    @Pattern(regexp = "^[^<>]*$", message = "FULLNAME_CANNOT_CONTAIN_HTML_TAGS")
     String fullName;
 
     @NotBlank(message = "EMAIL_NOT_BLANK")
