@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cinema_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=USER,ROLE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+mail:
+  host: localhost
+  port: 1025
+  username:
+  password:
+
+jwt:
+  signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
+  valid-duration: 6000
+  refreshable-duration: 12000
