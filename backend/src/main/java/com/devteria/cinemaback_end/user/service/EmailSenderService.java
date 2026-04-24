@@ -107,4 +107,63 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
 
     return String.format(htmlTemplate, fullName, sixDigitCode);
 }
+
+    public void sendPasswordResetLink(String toEmail, String resetLink) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setFrom(username);
+            helper.setTo(toEmail);
+            helper.setSubject("Yêu cầu đặt lại mật khẩu Cinema");
+            helper.setText(buildPasswordResetBody(resetLink), true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            log.error("Cannot send password reset email to {}", toEmail, e);
+            throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);
+        }
+    }
+
+    private static String buildPasswordResetBody(String resetLink) {
+        String htmlTemplate = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
+                    <h2 style="color: #333333; text-align: center; margin-bottom: 20px;">Đặt lại mật khẩu</h2>
+                    
+                    <p style="color: #555555; font-size: 16px; line-height: 1.5;">Xin chào,</p>
+                    
+                    <p style="color: #555555; font-size: 16px; line-height: 1.5;">
+                        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng nhấn vào nút bên dưới để tiến hành đặt lại mật khẩu:
+                    </p>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                        <a href="%s" style="display: inline-block; font-size: 16px; font-weight: bold; color: #ffffff; background-color: #3498db; padding: 15px 30px; border-radius: 8px; text-decoration: none; transition: background-color 0.3s;">
+                            Đặt Lại Mật Khẩu
+                        </a>
+                    </div>
+                    
+                    <p style="color: #e74c3c; font-size: 14px; text-align: center; font-weight: bold;">
+                        Link này chỉ có hiệu lực trong thời gian 15 phút kể từ lúc gửi đi. 
+                    </p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eeeeee; margin: 30px 0;">
+                    
+                    <p style="color: #999999; font-size: 13px; text-align: center; margin: 0;">
+                        Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Tài khoản của bạn vẫn an toàn.
+                    </p>
+                    <p style="color: #999999; font-size: 13px; text-align: center; margin-top: 10px; word-break: break-all;">
+                        Hoặc sao chép đường dẫn này vào trình duyệt của bạn: <br/>
+                        <a href="%s" style="color: #3498db;">%s</a>
+                    </p>
+                </div>
+            </body>
+            </html>
+            """;
+
+        return String.format(htmlTemplate, resetLink, resetLink, resetLink);
+    }
 }

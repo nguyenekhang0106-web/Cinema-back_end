@@ -31,7 +31,9 @@ public class SecurityConfig {
             "/auth/token",
             "/auth/introspect",
             "/auth/logout",
-            "/auth/refresh"
+            "/auth/refresh",
+            "/auth/forgot-password",
+            "/auth/reset-password"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
