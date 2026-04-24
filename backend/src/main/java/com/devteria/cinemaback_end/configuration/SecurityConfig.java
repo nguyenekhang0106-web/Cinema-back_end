@@ -44,7 +44,8 @@ public class SecurityConfig {
             "/reviews/movie/**", "/reviews/*" , // Mở khóa để ai cũng xem được review
             "/cinemas", "/cinemas/**",
             "/halls", "/halls/**",
-            "/banners"
+            "/banners",
+            "/seats/hall/**",
     };
 
     @Value("${jwt.signerKey}")

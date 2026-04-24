@@ -122,6 +122,19 @@ public enum ErrorCode {
     DISPLAY_ORDER_NOT_NULL(1091, "Thứ tự hiển thị không được để trống", HttpStatus.BAD_REQUEST),
     DISPLAY_ORDER_INVALID(1092, "Thứ tự hiển thị phải từ 0 trở lên", HttpStatus.BAD_REQUEST),
     BANNER_NOT_EXISTED(1093, "Banner không tồn tại", HttpStatus.NOT_FOUND),
+
+    ROW_NAME_NOT_BLANK(1094, "Tên hàng ghế không được để trống", HttpStatus.BAD_REQUEST),
+    SEAT_NUMBER_NOT_NULL(1095, "Số ghế không được để trống", HttpStatus.BAD_REQUEST),
+    SEAT_NUMBER_INVALID(1096, "Số ghế phải lớn hơn 0", HttpStatus.BAD_REQUEST),
+    SEAT_TYPE_NOT_NULL(1097, "Loại ghế không được để trống", HttpStatus.BAD_REQUEST),
+
+    // Lỗi logic cho Service
+    SEAT_NOT_EXISTED(1098, "Ghế không tồn tại", HttpStatus.NOT_FOUND),
+    SEAT_ALREADY_EXISTED(1099, "Ghế này đã tồn tại trong phòng chiếu", HttpStatus.CONFLICT),
+
+    ROW_NAMES_NOT_EMPTY(1100, "Danh sách tên hàng ghế không được để trống", HttpStatus.BAD_REQUEST),
+    SEATS_PER_ROW_NOT_NULL(1101, "Số lượng ghế mỗi hàng không được để trống", HttpStatus.BAD_REQUEST),
+    SEATS_PER_ROW_INVALID(1102, "Số lượng ghế mỗi hàng phải lớn hơn 0", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
