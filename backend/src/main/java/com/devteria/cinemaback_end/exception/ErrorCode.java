@@ -116,7 +116,12 @@ public enum ErrorCode {
 
     // Lỗi logic dùng cho Service sau này
     HALL_NOT_EXISTED(1088, "Phòng chiếu không tồn tại", HttpStatus.NOT_FOUND),
-    HALL_ALREADY_EXISTED(1089, "Tên phòng chiếu này đã tồn tại trong rạp", HttpStatus.CONFLICT)
+    HALL_ALREADY_EXISTED(1089, "Tên phòng chiếu này đã tồn tại trong rạp", HttpStatus.CONFLICT),
+
+    IMAGE_URL_NOT_BLANK(1090, "Đường dẫn hình ảnh không được để trống", HttpStatus.BAD_REQUEST),
+    DISPLAY_ORDER_NOT_NULL(1091, "Thứ tự hiển thị không được để trống", HttpStatus.BAD_REQUEST),
+    DISPLAY_ORDER_INVALID(1092, "Thứ tự hiển thị phải từ 0 trở lên", HttpStatus.BAD_REQUEST),
+    BANNER_NOT_EXISTED(1093, "Banner không tồn tại", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

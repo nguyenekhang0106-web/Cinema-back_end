@@ -13,14 +13,14 @@ import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
 import java.util.Set;
 
-@Data // Đổi @Getter @Setter thành @Data cho gọn giống UserRequest
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MovieRequest {
 
-    @NotBlank(message = "TITLE_NOT_BLANK") // Bạn nhớ thêm các mã này vào ErrorCode nhé
+    @NotBlank(message = "TITLE_NOT_BLANK")
     String title;
 
     @NotNull(message = "DURATION_NOT_NULL")
@@ -37,20 +37,20 @@ public class MovieRequest {
     AgeRestriction ageRestriction;
 
     String posterUrl;
-
     String trailerUrl;
+
+    // BỔ SUNG TRƯỜNG NÀY
+    String bannerUrl;
 
     String description;
 
     @NotNull(message = "RELEASE_DATE_NOT_NULL")
-    @JsonFormat(pattern = "yyyy-MM-dd") // Ép định dạng ngày chuẩn
+    @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate releaseDate;
 
-    @NotEmpty(message = "DIRECTOR_NOT_EMPTY") // Đổi @NotBlank thành @NotEmpty cho List/Set
+    @NotEmpty(message = "DIRECTOR_NOT_EMPTY")
     Set<String> directors;
 
     @NotEmpty(message = "ACTORS_NOT_EMPTY")
     Set<String> actors;
-
-    // ĐÃ XÓA managerId
 }

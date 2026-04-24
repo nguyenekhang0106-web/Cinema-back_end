@@ -41,7 +41,8 @@ public class SecurityConfig {
             "/showtimes/**",   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
             "/reviews/movie/**", "/reviews/*" , // Mở khóa để ai cũng xem được review
             "/cinemas", "/cinemas/**",
-            "/halls", "/halls/**"
+            "/halls", "/halls/**",
+            "/banners"
     };
 
     @Value("${jwt.signerKey}")

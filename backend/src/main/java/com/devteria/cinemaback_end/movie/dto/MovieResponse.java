@@ -23,13 +23,17 @@ public class MovieResponse {
     Genre genre;
     Language language;
     AgeRestriction ageRestriction;
+
     String posterUrl;
     String trailerUrl;
+    // BỔ SUNG TRƯỜNG NÀY
+    String bannerUrl;
+
     String description;
     LocalDate releaseDate;
     LocalDate createdAt;
     MovieStatus status;
-    String managerId; // Trả về ID của manager thay vì cả object User để tránh lặp lồng nhau
+    String managerId;
 
     Set<String> directors;
     Set<String> actors;

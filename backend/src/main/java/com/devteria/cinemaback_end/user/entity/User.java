@@ -26,28 +26,34 @@ public class User {
 
     @Column(nullable = false)
     String fullName;
+
     @Column(nullable = false, unique = true)
     @Email
     @NotBlank
     String email;
+
     @Column(unique = true)
     String phone;
+
     @Column(nullable = false)
     @NotBlank
     String password;
+
     @Column(unique = true)
     String citizenIdNumber;
+
     @Enumerated(EnumType.STRING)
     Gender gender;
 
     LocalDate dateOfBirth;
 
-    @Enumerated(EnumType.STRING) // Thêm dòng này để lưu vào DB dưới dạng Text (HA_NOI, DA_NANG...)
-    Area area; // Đổi String thành Area
+    @Enumerated(EnumType.STRING)
+    Area area;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
     MemberTier memberTier = MemberTier.BASIC;
+
     @Builder.Default
     Integer totalRewardPoints = 0;
 
@@ -55,13 +61,17 @@ public class User {
     @Builder.Default
     boolean emailVerified = false;
 
+    // BỔ SUNG TRƯỜNG NÀY: Lưu đường dẫn ảnh đại diện (cho phép null)
+    @Column(name = "avatar_url")
+    String avatarUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cinema_id", nullable = true)
     Cinema cinema;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "user_roles", // đúng với DB của bạn
+            name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )

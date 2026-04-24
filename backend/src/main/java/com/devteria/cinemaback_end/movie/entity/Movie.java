@@ -47,6 +47,9 @@ public class Movie {
     String posterUrl;
     String trailerUrl;
 
+    // BỔ SUNG TRƯỜNG NÀY: Ảnh ngang của phim
+    String bannerUrl;
+
     @Column(columnDefinition = "TEXT")
     String description;
 
@@ -55,6 +58,7 @@ public class Movie {
 
     @Column(updatable = false)
     LocalDate createdAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDate.now();
@@ -67,12 +71,12 @@ public class Movie {
     @ElementCollection
     @CollectionTable(name = "movie_directors", joinColumns = @JoinColumn(name = "movie_id"))
     @Column(name = "director_name", nullable = false)
-    Set<String> directors; // Có thể có nhiều đạo diễn
+    Set<String> directors;
 
     @ElementCollection
     @CollectionTable(name = "movie_actors", joinColumns = @JoinColumn(name = "movie_id"))
     @Column(name = "actor_name", nullable = false)
-    Set<String> actors; // Có nhiều diễn viên
+    Set<String> actors;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

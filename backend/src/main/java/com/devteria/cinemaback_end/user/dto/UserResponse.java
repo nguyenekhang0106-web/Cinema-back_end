@@ -21,9 +21,12 @@ public class UserResponse {
     String citizenIdNumber;
     Gender gender;
     LocalDate dateOfBirth;
-    Area area; // Đổi String thành Area
-    MemberTier memberTier; // Dùng Enum
+    Area area;
+    MemberTier memberTier;
     Integer totalRewardPoints;
     boolean emailVerified;
     String verificationToken;
+
+    // BỔ SUNG TRƯỜNG NÀY: Trả về link ảnh cho Frontend
+    String avatarUrl;
 }

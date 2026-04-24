@@ -23,15 +23,15 @@ public class UserRequest {
     @Email(message = "EMAIL_NOT_FORMAT")
     String email;
 
-    @NotBlank(message = "PHONE_NOT_BLANK") // Thêm mã lỗi này vào ErrorCode
+    @NotBlank(message = "PHONE_NOT_BLANK")
     @Pattern(regexp = "(84|0[3|5|7|8|9])+([0-9]{8})\\b", message = "PHONE_INVALID")
     String phone;
 
     @NotBlank(message = "PASSWORD_NOT_BLANK")
     @Size(min = 8, message = "PASSWORD_INVALID")
     @Pattern(
-        regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-        message = "PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_DIGIT_SPECIAL_CHAR"
+            regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+            message = "PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_DIGIT_SPECIAL_CHAR"
     )
     String password;
 
@@ -39,12 +39,14 @@ public class UserRequest {
     @Pattern(regexp = "^[0-9]{12}$", message = "CITIZEN_ID_INVALID")
     String citizenIdNumber;
 
-    Gender gender; // Dùng Enum thay vì String
+    Gender gender;
 
-    @Past(message = "DOB_MUST_BE_PAST") // Bạn có thể thêm mã lỗi này vào ErrorCode
+    @Past(message = "DOB_MUST_BE_PAST")
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate dateOfBirth;
 
     Area area;
 
+    // BỔ SUNG TRƯỜNG NÀY: Nhận link ảnh từ Frontend truyền xuống
+    String avatarUrl;
 }
