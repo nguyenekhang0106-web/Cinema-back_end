@@ -83,21 +83,84 @@ type UserProfile = {
 };
 
 const initialMovies: MovieRecord[] = [
-  { key: "mv-01", title: "Dia Dao: Mat Troi Trong Bong Toi", genre: "Drama", status: "showing", featured: true },
-  { key: "mv-02", title: "Lat Mat 8", genre: "Action", status: "coming", featured: false },
-  { key: "mv-03", title: "Tham Tu Kien", genre: "Mystery", status: "hidden", featured: false },
+  {
+    key: "mv-01",
+    title: "Dia Dao: Mat Troi Trong Bong Toi",
+    genre: "Drama",
+    status: "showing",
+    featured: true,
+  },
+  {
+    key: "mv-02",
+    title: "Lat Mat 8",
+    genre: "Action",
+    status: "coming",
+    featured: false,
+  },
+  {
+    key: "mv-03",
+    title: "Tham Tu Kien",
+    genre: "Mystery",
+    status: "hidden",
+    featured: false,
+  },
 ];
 
 const initialShowtimes: ShowtimeRecord[] = [
-  { key: "st-01", movieTitle: "Dia Dao: Mat Troi Trong Bong Toi", cinema: "KCT Vincom", room: "P01", format: "2D", time: "20:30 21/04/2026", status: "open" },
-  { key: "st-02", movieTitle: "Lat Mat 8", cinema: "KCT Landmark", room: "P04", format: "IMAX", time: "18:45 22/04/2026", status: "paused" },
-  { key: "st-03", movieTitle: "Tham Tu Kien", cinema: "KCT Go Vap", room: "P02", format: "2D", time: "16:15 23/04/2026", status: "soldout" },
+  {
+    key: "st-01",
+    movieTitle: "Dia Dao: Mat Troi Trong Bong Toi",
+    cinema: "KCT Vincom",
+    room: "P01",
+    format: "2D",
+    time: "20:30 21/04/2026",
+    status: "open",
+  },
+  {
+    key: "st-02",
+    movieTitle: "Lat Mat 8",
+    cinema: "KCT Landmark",
+    room: "P04",
+    format: "IMAX",
+    time: "18:45 22/04/2026",
+    status: "paused",
+  },
+  {
+    key: "st-03",
+    movieTitle: "Tham Tu Kien",
+    cinema: "KCT Go Vap",
+    room: "P02",
+    format: "2D",
+    time: "16:15 23/04/2026",
+    status: "soldout",
+  },
 ];
 
 const initialUsers: UserRecord[] = [
-  { key: "us-01", fullName: "Nguyen Quan Tri", email: "admin@kctcinema.vn", role: "admin", status: "active", vouchers: 8 },
-  { key: "us-02", fullName: "Tran Khach Hang", email: "user@kctcinema.vn", role: "user", status: "active", vouchers: 3 },
-  { key: "us-03", fullName: "Le Thanh Vien", email: "member@kctcinema.vn", role: "user", status: "blocked", vouchers: 0 },
+  {
+    key: "us-01",
+    fullName: "Nguyen Quan Tri",
+    email: "admin@kctcinema.vn",
+    role: "admin",
+    status: "active",
+    vouchers: 8,
+  },
+  {
+    key: "us-02",
+    fullName: "Tran Khach Hang",
+    email: "user@kctcinema.vn",
+    role: "user",
+    status: "active",
+    vouchers: 3,
+  },
+  {
+    key: "us-03",
+    fullName: "Le Thanh Vien",
+    email: "member@kctcinema.vn",
+    role: "user",
+    status: "blocked",
+    vouchers: 0,
+  },
 ];
 
 const initialProfile: UserProfile = {
@@ -185,7 +248,10 @@ function DashboardHero(props: {
   stats: Array<{ label: string; value: string | number }>;
 }) {
   return (
-    <Card bordered={false} className="cinema-paper overflow-hidden rounded-[28px]">
+    <Card
+      bordered={false}
+      className="cinema-paper overflow-hidden rounded-[28px]"
+    >
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div className="space-y-4">
           <Tag color="red">{props.eyebrow}</Tag>
@@ -237,15 +303,27 @@ export function AdminDashboardPage() {
   const [showtimeForm] = Form.useForm<ShowtimeRecord>();
   const [userForm] = Form.useForm<UserRecord>();
 
-  const [movieModal, setMovieModal] = useState<{ open: boolean; mode: EditorMode; editingKey?: string }>({
+  const [movieModal, setMovieModal] = useState<{
+    open: boolean;
+    mode: EditorMode;
+    editingKey?: string;
+  }>({
     open: false,
     mode: "create",
   });
-  const [showtimeModal, setShowtimeModal] = useState<{ open: boolean; mode: EditorMode; editingKey?: string }>({
+  const [showtimeModal, setShowtimeModal] = useState<{
+    open: boolean;
+    mode: EditorMode;
+    editingKey?: string;
+  }>({
     open: false,
     mode: "create",
   });
-  const [userModal, setUserModal] = useState<{ open: boolean; mode: EditorMode; editingKey?: string }>({
+  const [userModal, setUserModal] = useState<{
+    open: boolean;
+    mode: EditorMode;
+    editingKey?: string;
+  }>({
     open: false,
     mode: "create",
   });
@@ -253,7 +331,10 @@ export function AdminDashboardPage() {
   const stats = [
     { label: dictionary.pages.admin.stats[0].label, value: movies.length },
     { label: dictionary.pages.admin.stats[1].label, value: showtimes.length },
-    { label: dictionary.pages.admin.stats[2].label, value: users.filter((item) => item.role === "admin").length },
+    {
+      label: dictionary.pages.admin.stats[2].label,
+      value: users.filter((item) => item.role === "admin").length,
+    },
   ];
 
   const movieColumns: ColumnsType<MovieRecord> = [
@@ -265,7 +346,13 @@ export function AdminDashboardPage() {
       key: "status",
       render: (value: MovieStatus) => (
         <StatusTag
-          color={value === "showing" ? "green" : value === "coming" ? "gold" : "default"}
+          color={
+            value === "showing"
+              ? "green"
+              : value === "coming"
+                ? "gold"
+                : "default"
+          }
           label={copy.movieStatus[value]}
         />
       ),
@@ -274,23 +361,37 @@ export function AdminDashboardPage() {
       title: copy.movieColumns.featured,
       dataIndex: "featured",
       key: "featured",
-      render: (value: boolean) => <Tag color={value ? "red" : "default"}>{value ? copy.featuredYes : copy.featuredNo}</Tag>,
+      render: (value: boolean) => (
+        <Tag color={value ? "red" : "default"}>
+          {value ? copy.featuredYes : copy.featuredNo}
+        </Tag>
+      ),
     },
     {
       title: copy.actions,
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button size="small" onClick={() => openMovieEditor("edit", record)}>{copy.edit}</Button>
-          <Button size="small" onClick={() => toggleMovieFeatured(record.key)}>{record.featured ? copy.unfeature : copy.feature}</Button>
-          <Button danger size="small" onClick={() => removeMovie(record.key)}>{copy.delete}</Button>
+          <Button size="small" onClick={() => openMovieEditor("edit", record)}>
+            {copy.edit}
+          </Button>
+          <Button size="small" onClick={() => toggleMovieFeatured(record.key)}>
+            {record.featured ? copy.unfeature : copy.feature}
+          </Button>
+          <Button danger size="small" onClick={() => removeMovie(record.key)}>
+            {copy.delete}
+          </Button>
         </Space>
       ),
     },
   ];
 
   const showtimeColumns: ColumnsType<ShowtimeRecord> = [
-    { title: copy.showtimeColumns.movie, dataIndex: "movieTitle", key: "movieTitle" },
+    {
+      title: copy.showtimeColumns.movie,
+      dataIndex: "movieTitle",
+      key: "movieTitle",
+    },
     { title: copy.showtimeColumns.cinema, dataIndex: "cinema", key: "cinema" },
     { title: copy.showtimeColumns.room, dataIndex: "room", key: "room" },
     { title: copy.showtimeColumns.time, dataIndex: "time", key: "time" },
@@ -300,7 +401,9 @@ export function AdminDashboardPage() {
       key: "status",
       render: (value: ShowtimeStatus) => (
         <StatusTag
-          color={value === "open" ? "green" : value === "paused" ? "gold" : "red"}
+          color={
+            value === "open" ? "green" : value === "paused" ? "gold" : "red"
+          }
           label={copy.showtimeStatus[value]}
         />
       ),
@@ -310,9 +413,22 @@ export function AdminDashboardPage() {
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button size="small" onClick={() => openShowtimeEditor("edit", record)}>{copy.edit}</Button>
-          <Button size="small" onClick={() => cycleShowtimeStatus(record.key)}>{copy.changeStatus}</Button>
-          <Button danger size="small" onClick={() => removeShowtime(record.key)}>{copy.delete}</Button>
+          <Button
+            size="small"
+            onClick={() => openShowtimeEditor("edit", record)}
+          >
+            {copy.edit}
+          </Button>
+          <Button size="small" onClick={() => cycleShowtimeStatus(record.key)}>
+            {copy.changeStatus}
+          </Button>
+          <Button
+            danger
+            size="small"
+            onClick={() => removeShowtime(record.key)}
+          >
+            {copy.delete}
+          </Button>
         </Space>
       ),
     },
@@ -325,25 +441,42 @@ export function AdminDashboardPage() {
       title: copy.userColumns.role,
       dataIndex: "role",
       key: "role",
-      render: (value: UserRole) => <Tag color={value === "admin" ? "red" : "blue"}>{copy.userRole[value]}</Tag>,
+      render: (value: UserRole) => (
+        <Tag color={value === "admin" ? "red" : "blue"}>
+          {copy.userRole[value]}
+        </Tag>
+      ),
     },
     {
       title: copy.userColumns.status,
       dataIndex: "status",
       key: "status",
       render: (value: UserStatus) => (
-        <StatusTag color={value === "active" ? "green" : "red"} label={copy.userStatus[value]} />
+        <StatusTag
+          color={value === "active" ? "green" : "red"}
+          label={copy.userStatus[value]}
+        />
       ),
     },
-    { title: copy.userColumns.vouchers, dataIndex: "vouchers", key: "vouchers" },
+    {
+      title: copy.userColumns.vouchers,
+      dataIndex: "vouchers",
+      key: "vouchers",
+    },
     {
       title: copy.actions,
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button size="small" onClick={() => openUserEditor("edit", record)}>{copy.edit}</Button>
-          <Button size="small" onClick={() => toggleUserStatus(record.key)}>{record.status === "active" ? copy.block : copy.unblock}</Button>
-          <Button danger size="small" onClick={() => removeUser(record.key)}>{copy.delete}</Button>
+          <Button size="small" onClick={() => openUserEditor("edit", record)}>
+            {copy.edit}
+          </Button>
+          <Button size="small" onClick={() => toggleUserStatus(record.key)}>
+            {record.status === "active" ? copy.block : copy.unblock}
+          </Button>
+          <Button danger size="small" onClick={() => removeUser(record.key)}>
+            {copy.delete}
+          </Button>
         </Space>
       ),
     },
@@ -351,25 +484,59 @@ export function AdminDashboardPage() {
 
   function openMovieEditor(mode: EditorMode, record?: MovieRecord) {
     setMovieModal({ open: true, mode, editingKey: record?.key });
-    movieForm.setFieldsValue(record ?? { key: "", title: "", genre: "", status: "coming", featured: false });
+    movieForm.setFieldsValue(
+      record ?? {
+        key: "",
+        title: "",
+        genre: "",
+        status: "coming",
+        featured: false,
+      },
+    );
   }
 
   function openShowtimeEditor(mode: EditorMode, record?: ShowtimeRecord) {
     setShowtimeModal({ open: true, mode, editingKey: record?.key });
-    showtimeForm.setFieldsValue(record ?? { key: "", movieTitle: "", cinema: "", room: "", format: "2D", time: "", status: "open" });
+    showtimeForm.setFieldsValue(
+      record ?? {
+        key: "",
+        movieTitle: "",
+        cinema: "",
+        room: "",
+        format: "2D",
+        time: "",
+        status: "open",
+      },
+    );
   }
 
   function openUserEditor(mode: EditorMode, record?: UserRecord) {
     setUserModal({ open: true, mode, editingKey: record?.key });
-    userForm.setFieldsValue(record ?? { key: "", fullName: "", email: "", role: "user", status: "active", vouchers: 0 });
+    userForm.setFieldsValue(
+      record ?? {
+        key: "",
+        fullName: "",
+        email: "",
+        role: "user",
+        status: "active",
+        vouchers: 0,
+      },
+    );
   }
 
   function saveMovie(values: MovieRecord) {
     if (movieModal.mode === "edit" && movieModal.editingKey) {
-      setMovies((current) => current.map((item) => (item.key === movieModal.editingKey ? { ...item, ...values } : item)));
+      setMovies((current) =>
+        current.map((item) =>
+          item.key === movieModal.editingKey ? { ...item, ...values } : item,
+        ),
+      );
       message.success(copy.movieUpdated);
     } else {
-      setMovies((current) => [...current, { ...values, key: `mv-${Date.now()}` }]);
+      setMovies((current) => [
+        ...current,
+        { ...values, key: `mv-${Date.now()}` },
+      ]);
       message.success(copy.movieCreated);
     }
     setMovieModal({ open: false, mode: "create" });
@@ -378,10 +545,17 @@ export function AdminDashboardPage() {
 
   function saveShowtime(values: ShowtimeRecord) {
     if (showtimeModal.mode === "edit" && showtimeModal.editingKey) {
-      setShowtimes((current) => current.map((item) => (item.key === showtimeModal.editingKey ? { ...item, ...values } : item)));
+      setShowtimes((current) =>
+        current.map((item) =>
+          item.key === showtimeModal.editingKey ? { ...item, ...values } : item,
+        ),
+      );
       message.success(copy.showtimeUpdated);
     } else {
-      setShowtimes((current) => [...current, { ...values, key: `st-${Date.now()}` }]);
+      setShowtimes((current) => [
+        ...current,
+        { ...values, key: `st-${Date.now()}` },
+      ]);
       message.success(copy.showtimeCreated);
     }
     setShowtimeModal({ open: false, mode: "create" });
@@ -390,10 +564,17 @@ export function AdminDashboardPage() {
 
   function saveUser(values: UserRecord) {
     if (userModal.mode === "edit" && userModal.editingKey) {
-      setUsers((current) => current.map((item) => (item.key === userModal.editingKey ? { ...item, ...values } : item)));
+      setUsers((current) =>
+        current.map((item) =>
+          item.key === userModal.editingKey ? { ...item, ...values } : item,
+        ),
+      );
       message.success(copy.userUpdated);
     } else {
-      setUsers((current) => [...current, { ...values, key: `us-${Date.now()}` }]);
+      setUsers((current) => [
+        ...current,
+        { ...values, key: `us-${Date.now()}` },
+      ]);
       message.success(copy.userCreated);
     }
     setUserModal({ open: false, mode: "create" });
@@ -401,7 +582,11 @@ export function AdminDashboardPage() {
   }
 
   function toggleMovieFeatured(key: string) {
-    setMovies((current) => current.map((item) => (item.key === key ? { ...item, featured: !item.featured } : item)));
+    setMovies((current) =>
+      current.map((item) =>
+        item.key === key ? { ...item, featured: !item.featured } : item,
+      ),
+    );
   }
 
   function cycleShowtimeStatus(key: string) {
@@ -409,7 +594,8 @@ export function AdminDashboardPage() {
     setShowtimes((current) =>
       current.map((item) => {
         if (item.key !== key) return item;
-        const nextStatus = order[(order.indexOf(item.status) + 1) % order.length];
+        const nextStatus =
+          order[(order.indexOf(item.status) + 1) % order.length];
         return { ...item, status: nextStatus };
       }),
     );
@@ -417,7 +603,11 @@ export function AdminDashboardPage() {
 
   function toggleUserStatus(key: string) {
     setUsers((current) =>
-      current.map((item) => (item.key === key ? { ...item, status: item.status === "active" ? "blocked" : "active" } : item)),
+      current.map((item) =>
+        item.key === key
+          ? { ...item, status: item.status === "active" ? "blocked" : "active" }
+          : item,
+      ),
     );
   }
 
@@ -475,15 +665,29 @@ export function AdminDashboardPage() {
           <Row gutter={[24, 24]} className="mt-8">
             {moduleCards.map((card) => (
               <Col xs={24} md={8} key={card.title}>
-                <Card bordered={false} className="cinema-paper h-full rounded-[24px]">
+                <Card
+                  bordered={false}
+                  className="cinema-paper h-full rounded-[24px]"
+                >
                   <Space direction="vertical" size={12} className="w-full">
-                    <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                    <Typography.Title
+                      level={4}
+                      style={{ margin: 0, color: "#4a3426" }}
+                    >
                       {card.title}
                     </Typography.Title>
-                    <Typography.Text style={{ fontSize: 28, fontWeight: 800, color: "#a61d24" }}>
+                    <Typography.Text
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 800,
+                        color: "#a61d24",
+                      }}
+                    >
                       {card.value}
                     </Typography.Text>
-                    <Typography.Paragraph style={{ color: "#6d5a46", marginBottom: 0 }}>
+                    <Typography.Paragraph
+                      style={{ color: "#6d5a46", marginBottom: 0 }}
+                    >
                       {card.desc}
                     </Typography.Paragraph>
                     <Button type="primary" onClick={card.action}>
@@ -501,18 +705,31 @@ export function AdminDashboardPage() {
                 <Space direction="vertical" size={18} className="w-full">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {dictionary.pages.admin.sections[0].title}
                       </Typography.Title>
-                      <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 0" }}>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
                         {dictionary.pages.admin.sections[0].desc}
                       </Typography.Paragraph>
                     </div>
-                    <Button type="primary" onClick={() => openMovieEditor("create")}>
+                    <Button
+                      type="primary"
+                      onClick={() => openMovieEditor("create")}
+                    >
                       {copy.addMovie}
                     </Button>
                   </div>
-                  <Table rowKey="key" columns={movieColumns} dataSource={movies} pagination={false} />
+                  <Table
+                    rowKey="key"
+                    columns={movieColumns}
+                    dataSource={movies}
+                    pagination={false}
+                  />
                 </Space>
               </Card>
             </Col>
@@ -522,18 +739,31 @@ export function AdminDashboardPage() {
                 <Space direction="vertical" size={18} className="w-full">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {dictionary.pages.admin.sections[1].title}
                       </Typography.Title>
-                      <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 0" }}>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
                         {dictionary.pages.admin.sections[1].desc}
                       </Typography.Paragraph>
                     </div>
-                    <Button type="primary" onClick={() => openShowtimeEditor("create")}>
+                    <Button
+                      type="primary"
+                      onClick={() => openShowtimeEditor("create")}
+                    >
                       {copy.addShowtime}
                     </Button>
                   </div>
-                  <Table rowKey="key" columns={showtimeColumns} dataSource={showtimes} pagination={false} />
+                  <Table
+                    rowKey="key"
+                    columns={showtimeColumns}
+                    dataSource={showtimes}
+                    pagination={false}
+                  />
                 </Space>
               </Card>
             </Col>
@@ -543,18 +773,31 @@ export function AdminDashboardPage() {
                 <Space direction="vertical" size={18} className="w-full">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {dictionary.pages.admin.sections[2].title}
                       </Typography.Title>
-                      <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 0" }}>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
                         {dictionary.pages.admin.sections[2].desc}
                       </Typography.Paragraph>
                     </div>
-                    <Button type="primary" onClick={() => openUserEditor("create")}>
+                    <Button
+                      type="primary"
+                      onClick={() => openUserEditor("create")}
+                    >
                       {copy.addUser}
                     </Button>
                   </div>
-                  <Table rowKey="key" columns={userColumns} dataSource={users} pagination={false} />
+                  <Table
+                    rowKey="key"
+                    columns={userColumns}
+                    dataSource={users}
+                    pagination={false}
+                  />
                 </Space>
               </Card>
             </Col>
@@ -569,60 +812,110 @@ export function AdminDashboardPage() {
             cancelText={copy.cancel}
           >
             <Form form={movieForm} layout="vertical" onFinish={saveMovie}>
-              <Form.Item name="title" label={copy.movieColumns.title} rules={[{ required: true }]}>
+              <Form.Item
+                name="title"
+                label={copy.movieColumns.title}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="genre" label={copy.movieColumns.genre} rules={[{ required: true }]}>
+              <Form.Item
+                name="genre"
+                label={copy.movieColumns.genre}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="status" label={copy.movieColumns.status} rules={[{ required: true }]}>
-                <Select options={[
-                  { value: "showing", label: copy.movieStatus.showing },
-                  { value: "coming", label: copy.movieStatus.coming },
-                  { value: "hidden", label: copy.movieStatus.hidden },
-                ]} />
+              <Form.Item
+                name="status"
+                label={copy.movieColumns.status}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: "showing", label: copy.movieStatus.showing },
+                    { value: "coming", label: copy.movieStatus.coming },
+                    { value: "hidden", label: copy.movieStatus.hidden },
+                  ]}
+                />
               </Form.Item>
-              <Form.Item name="featured" label={copy.movieColumns.featured} rules={[{ required: true }]}>
-                <Select options={[
-                  { value: true, label: copy.featuredYes },
-                  { value: false, label: copy.featuredNo },
-                ]} />
+              <Form.Item
+                name="featured"
+                label={copy.movieColumns.featured}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: true, label: copy.featuredYes },
+                    { value: false, label: copy.featuredNo },
+                  ]}
+                />
               </Form.Item>
             </Form>
           </Modal>
 
           <Modal
             open={showtimeModal.open}
-            title={showtimeModal.mode === "edit" ? copy.editShowtime : copy.addShowtime}
+            title={
+              showtimeModal.mode === "edit"
+                ? copy.editShowtime
+                : copy.addShowtime
+            }
             onCancel={() => setShowtimeModal({ open: false, mode: "create" })}
             onOk={() => showtimeForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
           >
             <Form form={showtimeForm} layout="vertical" onFinish={saveShowtime}>
-              <Form.Item name="movieTitle" label={copy.showtimeColumns.movie} rules={[{ required: true }]}>
+              <Form.Item
+                name="movieTitle"
+                label={copy.showtimeColumns.movie}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="cinema" label={copy.showtimeColumns.cinema} rules={[{ required: true }]}>
+              <Form.Item
+                name="cinema"
+                label={copy.showtimeColumns.cinema}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item name="room" label={copy.showtimeColumns.room} rules={[{ required: true }]}>
+                <Form.Item
+                  name="room"
+                  label={copy.showtimeColumns.room}
+                  rules={[{ required: true }]}
+                >
                   <Input />
                 </Form.Item>
-                <Form.Item name="format" label={copy.showtimeColumns.format} rules={[{ required: true }]}>
+                <Form.Item
+                  name="format"
+                  label={copy.showtimeColumns.format}
+                  rules={[{ required: true }]}
+                >
                   <Input />
                 </Form.Item>
               </div>
-              <Form.Item name="time" label={copy.showtimeColumns.time} rules={[{ required: true }]}>
+              <Form.Item
+                name="time"
+                label={copy.showtimeColumns.time}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="status" label={copy.showtimeColumns.status} rules={[{ required: true }]}>
-                <Select options={[
-                  { value: "open", label: copy.showtimeStatus.open },
-                  { value: "paused", label: copy.showtimeStatus.paused },
-                  { value: "soldout", label: copy.showtimeStatus.soldout },
-                ]} />
+              <Form.Item
+                name="status"
+                label={copy.showtimeColumns.status}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: "open", label: copy.showtimeStatus.open },
+                    { value: "paused", label: copy.showtimeStatus.paused },
+                    { value: "soldout", label: copy.showtimeStatus.soldout },
+                  ]}
+                />
               </Form.Item>
             </Form>
           </Modal>
@@ -636,27 +929,51 @@ export function AdminDashboardPage() {
             cancelText={copy.cancel}
           >
             <Form form={userForm} layout="vertical" onFinish={saveUser}>
-              <Form.Item name="fullName" label={copy.userColumns.name} rules={[{ required: true }]}>
+              <Form.Item
+                name="fullName"
+                label={copy.userColumns.name}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="email" label={copy.userColumns.email} rules={[{ required: true }]}>
+              <Form.Item
+                name="email"
+                label={copy.userColumns.email}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item name="role" label={copy.userColumns.role} rules={[{ required: true }]}>
-                  <Select options={[
-                    { value: "admin", label: copy.userRole.admin },
-                    { value: "user", label: copy.userRole.user },
-                  ]} />
+                <Form.Item
+                  name="role"
+                  label={copy.userColumns.role}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: "admin", label: copy.userRole.admin },
+                      { value: "user", label: copy.userRole.user },
+                    ]}
+                  />
                 </Form.Item>
-                <Form.Item name="status" label={copy.userColumns.status} rules={[{ required: true }]}>
-                  <Select options={[
-                    { value: "active", label: copy.userStatus.active },
-                    { value: "blocked", label: copy.userStatus.blocked },
-                  ]} />
+                <Form.Item
+                  name="status"
+                  label={copy.userColumns.status}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: "active", label: copy.userStatus.active },
+                      { value: "blocked", label: copy.userStatus.blocked },
+                    ]}
+                  />
                 </Form.Item>
               </div>
-              <Form.Item name="vouchers" label={copy.userColumns.vouchers} rules={[{ required: true }]}>
+              <Form.Item
+                name="vouchers"
+                label={copy.userColumns.vouchers}
+                rules={[{ required: true }]}
+              >
                 <Input type="number" />
               </Form.Item>
             </Form>
@@ -674,15 +991,23 @@ export function UserDashboardPage() {
   const copy = locale === "en" ? userCopy.en : userCopy.vi;
 
   const [profile, setProfile] = useState(initialProfile);
-  const [upcomingTickets, setUpcomingTickets] = useState(initialUpcomingTickets);
+  const [upcomingTickets, setUpcomingTickets] = useState(
+    initialUpcomingTickets,
+  );
   const [bookingHistory, setBookingHistory] = useState(initialBookingHistory);
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileForm] = Form.useForm<UserProfile>();
 
   const stats = [
-    { label: dictionary.pages.user.stats[0].label, value: upcomingTickets.length + bookingHistory.length },
-    { label: dictionary.pages.user.stats[1].label, value: vouchers.filter((item) => item.status === "available").length },
+    {
+      label: dictionary.pages.user.stats[0].label,
+      value: upcomingTickets.length + bookingHistory.length,
+    },
+    {
+      label: dictionary.pages.user.stats[1].label,
+      value: vouchers.filter((item) => item.status === "available").length,
+    },
     { label: dictionary.pages.user.stats[2].label, value: profile.points },
   ];
 
@@ -696,7 +1021,11 @@ export function UserDashboardPage() {
       dataIndex: "status",
       key: "status",
       render: (value: TicketRecord["status"]) => (
-        <Tag color={value === "paid" ? "green" : value === "reserved" ? "gold" : "blue"}>
+        <Tag
+          color={
+            value === "paid" ? "green" : value === "reserved" ? "gold" : "blue"
+          }
+        >
           {copy.ticketStatusMap[value]}
         </Tag>
       ),
@@ -738,7 +1067,9 @@ export function UserDashboardPage() {
       dataIndex: "status",
       key: "status",
       render: (value: VoucherRecord["status"]) => (
-        <Tag color={value === "available" ? "green" : "default"}>{copy.voucherStatusMap[value]}</Tag>
+        <Tag color={value === "available" ? "green" : "default"}>
+          {copy.voucherStatusMap[value]}
+        </Tag>
       ),
     },
     {
@@ -766,7 +1097,9 @@ export function UserDashboardPage() {
 
   function markTicketPaid(key: string) {
     setUpcomingTickets((current) =>
-      current.map((item) => (item.key === key ? { ...item, status: "paid" } : item)),
+      current.map((item) =>
+        item.key === key ? { ...item, status: "paid" } : item,
+      ),
     );
     setProfile((current) => ({ ...current, points: current.points + 30 }));
     message.success(copy.paymentDone);
@@ -783,7 +1116,9 @@ export function UserDashboardPage() {
 
   function applyVoucher(key: string) {
     setVouchers((current) =>
-      current.map((item) => (item.key === key ? { ...item, status: "used" } : item)),
+      current.map((item) =>
+        item.key === key ? { ...item, status: "used" } : item,
+      ),
     );
     message.success(copy.voucherApplied);
   }
@@ -806,28 +1141,48 @@ export function UserDashboardPage() {
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={18} className="w-full">
                     <div>
-                      <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {copy.ticketTitle}
                       </Typography.Title>
-                      <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 0" }}>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
                         {copy.ticketDesc}
                       </Typography.Paragraph>
                     </div>
-                    <Table rowKey="key" pagination={false} dataSource={upcomingTickets} columns={upcomingColumns} />
+                    <Table
+                      rowKey="key"
+                      pagination={false}
+                      dataSource={upcomingTickets}
+                      columns={upcomingColumns}
+                    />
                   </Space>
                 </Card>
 
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={18} className="w-full">
                     <div>
-                      <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {copy.historyTitle}
                       </Typography.Title>
-                      <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 0" }}>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
                         {copy.historyDesc}
                       </Typography.Paragraph>
                     </div>
-                    <Table rowKey="key" pagination={false} dataSource={bookingHistory} columns={historyColumns} />
+                    <Table
+                      rowKey="key"
+                      pagination={false}
+                      dataSource={bookingHistory}
+                      columns={historyColumns}
+                    />
                   </Space>
                 </Card>
               </Space>
@@ -838,27 +1193,40 @@ export function UserDashboardPage() {
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={14} className="w-full">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                      <Typography.Title
+                        level={4}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
                         {dictionary.pages.user.sections[0].title}
                       </Typography.Title>
                       <Button size="small" onClick={openProfileEditor}>
                         {copy.editProfile}
                       </Button>
                     </div>
-                    <Typography.Paragraph style={{ marginBottom: 0, color: "#6d5a46" }}>
+                    <Typography.Paragraph
+                      style={{ marginBottom: 0, color: "#6d5a46" }}
+                    >
                       {dictionary.pages.user.sections[0].desc}
                     </Typography.Paragraph>
                     <div className="space-y-2 rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4">
-                      <Typography.Text strong>{profile.fullName}</Typography.Text>
-                      <Typography.Text style={{ display: "block", color: "#6d5a46" }}>
+                      <Typography.Text strong>
+                        {profile.fullName}
+                      </Typography.Text>
+                      <Typography.Text
+                        style={{ display: "block", color: "#6d5a46" }}
+                      >
                         {profile.email}
                       </Typography.Text>
-                      <Typography.Text style={{ display: "block", color: "#6d5a46" }}>
+                      <Typography.Text
+                        style={{ display: "block", color: "#6d5a46" }}
+                      >
                         {profile.phone}
                       </Typography.Text>
                       <div className="flex flex-wrap gap-2">
                         <Tag color="gold">{profile.memberTier}</Tag>
-                        <Tag color="red">{copy.pointsLabel}: {profile.points}</Tag>
+                        <Tag color="red">
+                          {copy.pointsLabel}: {profile.points}
+                        </Tag>
                       </div>
                     </div>
                   </Space>
@@ -866,21 +1234,31 @@ export function UserDashboardPage() {
 
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={14} className="w-full">
-                    <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                    <Typography.Title
+                      level={4}
+                      style={{ margin: 0, color: "#4a3426" }}
+                    >
                       {dictionary.pages.user.sections[1].title}
                     </Typography.Title>
-                    <Typography.Paragraph style={{ marginBottom: 0, color: "#6d5a46" }}>
+                    <Typography.Paragraph
+                      style={{ marginBottom: 0, color: "#6d5a46" }}
+                    >
                       {dictionary.pages.user.sections[1].desc}
                     </Typography.Paragraph>
                     <div className="rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4 text-[#6d5a46]">
                       <div className="flex items-center justify-between">
                         <span>{copy.totalOrders}</span>
-                        <strong style={{ color: "#4a3426" }}>{upcomingTickets.length + bookingHistory.length}</strong>
+                        <strong style={{ color: "#4a3426" }}>
+                          {upcomingTickets.length + bookingHistory.length}
+                        </strong>
                       </div>
                       <div className="mt-3 flex items-center justify-between">
                         <span>{copy.paidTickets}</span>
                         <strong style={{ color: "#4a3426" }}>
-                          {bookingHistory.length + upcomingTickets.filter((item) => item.status === "paid").length}
+                          {bookingHistory.length +
+                            upcomingTickets.filter(
+                              (item) => item.status === "paid",
+                            ).length}
                         </strong>
                       </div>
                     </div>
@@ -889,13 +1267,24 @@ export function UserDashboardPage() {
 
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={14} className="w-full">
-                    <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                    <Typography.Title
+                      level={4}
+                      style={{ margin: 0, color: "#4a3426" }}
+                    >
                       {dictionary.pages.user.sections[2].title}
                     </Typography.Title>
-                    <Typography.Paragraph style={{ marginBottom: 0, color: "#6d5a46" }}>
+                    <Typography.Paragraph
+                      style={{ marginBottom: 0, color: "#6d5a46" }}
+                    >
                       {dictionary.pages.user.sections[2].desc}
                     </Typography.Paragraph>
-                    <Table rowKey="key" pagination={false} dataSource={vouchers} columns={voucherColumns} size="small" />
+                    <Table
+                      rowKey="key"
+                      pagination={false}
+                      dataSource={vouchers}
+                      columns={voucherColumns}
+                      size="small"
+                    />
                   </Space>
                 </Card>
               </Space>
@@ -911,24 +1300,46 @@ export function UserDashboardPage() {
             cancelText={copy.cancel}
           >
             <Form form={profileForm} layout="vertical" onFinish={saveProfile}>
-              <Form.Item name="fullName" label={copy.profileName} rules={[{ required: true }]}>
+              <Form.Item
+                name="fullName"
+                label={copy.profileName}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="email" label={copy.profileEmail} rules={[{ required: true }]}>
+              <Form.Item
+                name="email"
+                label={copy.profileEmail}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="phone" label={copy.profilePhone} rules={[{ required: true }]}>
+              <Form.Item
+                name="phone"
+                label={copy.profilePhone}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item name="memberTier" label={copy.profileTier} rules={[{ required: true }]}>
-                  <Select options={[
-                    { value: "Silver", label: "Silver" },
-                    { value: "Gold", label: "Gold" },
-                    { value: "Platinum", label: "Platinum" },
-                  ]} />
+                <Form.Item
+                  name="memberTier"
+                  label={copy.profileTier}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: "Silver", label: "Silver" },
+                      { value: "Gold", label: "Gold" },
+                      { value: "Platinum", label: "Platinum" },
+                    ]}
+                  />
                 </Form.Item>
-                <Form.Item name="points" label={copy.pointsLabel} rules={[{ required: true }]}>
+                <Form.Item
+                  name="points"
+                  label={copy.pointsLabel}
+                  rules={[{ required: true }]}
+                >
                   <Input type="number" />
                 </Form.Item>
               </div>
@@ -970,11 +1381,14 @@ const adminCopy = {
     featuredYes: "Co",
     featuredNo: "Khong",
     moduleMoviesTitle: "Tong phim dang quan ly",
-    moduleMoviesDesc: "Them moi hoac cap nhat trang thai phim hien thi tren he thong.",
+    moduleMoviesDesc:
+      "Them moi hoac cap nhat trang thai phim hien thi tren he thong.",
     moduleShowtimesTitle: "Lich chieu dang mo ban",
-    moduleShowtimesDesc: "Quan ly cac suat chieu dang mo, tam dung hoac da ban het.",
+    moduleShowtimesDesc:
+      "Quan ly cac suat chieu dang mo, tam dung hoac da ban het.",
     moduleUsersTitle: "Nguoi dung dang hoat dong",
-    moduleUsersDesc: "Theo doi so tai khoan con hoat dong va tao them nguoi dung demo.",
+    moduleUsersDesc:
+      "Theo doi so tai khoan con hoat dong va tao them nguoi dung demo.",
     movieColumns: {
       title: "Ten phim",
       genre: "The loai",
@@ -1044,9 +1458,11 @@ const adminCopy = {
     featuredYes: "Yes",
     featuredNo: "No",
     moduleMoviesTitle: "Managed movies",
-    moduleMoviesDesc: "Create new movies or update their visibility across the system.",
+    moduleMoviesDesc:
+      "Create new movies or update their visibility across the system.",
     moduleShowtimesTitle: "Open showtimes",
-    moduleShowtimesDesc: "Manage sessions that are on sale, paused, or sold out.",
+    moduleShowtimesDesc:
+      "Manage sessions that are on sale, paused, or sold out.",
     moduleUsersTitle: "Active users",
     moduleUsersDesc: "Track active accounts and create additional demo users.",
     movieColumns: {
@@ -1097,9 +1513,11 @@ const userCopy = {
     save: "Luu",
     cancel: "Huy",
     ticketTitle: "Ve sap toi cua ban",
-    ticketDesc: "Khu vuc nay cho phep ban xem nhanh cac ve da giu cho va trang thai thanh toan gan nhat.",
+    ticketDesc:
+      "Khu vuc nay cho phep ban xem nhanh cac ve da giu cho va trang thai thanh toan gan nhat.",
     historyTitle: "Lich su dat ve",
-    historyDesc: "Theo doi cac ve da dung, rap da xem va tong tien tung don hang gan day.",
+    historyDesc:
+      "Theo doi cac ve da dung, rap da xem va tong tien tung don hang gan day.",
     ticketMovie: "Phim",
     ticketSeats: "Ghe",
     ticketCinema: "Rap",
@@ -1141,9 +1559,11 @@ const userCopy = {
     save: "Save",
     cancel: "Cancel",
     ticketTitle: "Your upcoming tickets",
-    ticketDesc: "This area lets you quickly review reserved seats and the latest payment state.",
+    ticketDesc:
+      "This area lets you quickly review reserved seats and the latest payment state.",
     historyTitle: "Booking history",
-    historyDesc: "Track watched sessions, visited cinemas, and recent order totals.",
+    historyDesc:
+      "Track watched sessions, visited cinemas, and recent order totals.",
     ticketMovie: "Movie",
     ticketSeats: "Seats",
     ticketCinema: "Cinema",

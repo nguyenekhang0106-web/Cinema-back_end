@@ -1,21 +1,31 @@
 "use client";
 
 import { ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Form, Input, Radio, Select, Space, Typography } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Form,
+  Input,
+  Radio,
+  Select,
+  Space,
+  Typography,
+} from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { loginWithBackend, registerWithBackend } from "../lib/cinema-api";
+import {
+  loginWithBackend,
+  registerWithBackend,
+  verifyOtpWithBackend,
+} from "../lib/cinema-api";
 import { localizeHref } from "../lib/i18n";
 import { useAuthSession } from "./auth-session-provider";
 import { useDictionary, useLocale } from "./locale-provider";
 
-export function AuthPage({
-  mode,
-}: {
-  mode: "login" | "register";
-}) {
+export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale();
@@ -23,11 +33,86 @@ export function AuthPage({
   const { message } = App.useApp();
   const { signIn } = useAuthSession();
   const isLogin = mode === "login";
-  const registerCopy = locale === "en" ? registerContent.en : registerContent.vi;
+  const registerCopy =
+    locale === "en" ? registerContent.en : registerContent.vi;
   const loginCopy = locale === "en" ? loginContent.en : loginContent.vi;
   const [loginForm] = Form.useForm();
   const [captchaCode, setCaptchaCode] = useState(() => createCaptchaCode());
   const [submitting, setSubmitting] = useState(false);
+
+  const [isOtpStep, setIsOtpStep] = useState(false); // Biến kiểm tra xem có đang ở bước OTP không
+  const [registeredEmail, setRegisteredEmail] = useState(""); // Lưu email vừa đăng ký
+  const [otpForm] = Form.useForm();
+
+  // THÊM NGUYÊN ĐOẠN NÀY VÀO NGAY TRƯỚC: if (!isLogin) { return ... }
+  if (isOtpStep) {
+    return (
+      <Card
+        bordered={false}
+        className="cinema-paper mx-auto max-w-[560px] rounded-[28px]"
+      >
+        <div className="text-center mb-6">
+          <Typography.Title
+            level={2}
+            style={{ color: "#4a3426", marginTop: 0 }}
+          >
+            Xác thực Email
+          </Typography.Title>
+          <Typography.Paragraph style={{ color: "#6d5a46" }}>
+            Hệ thống đã gửi một mã gồm 6 chữ số tới email{" "}
+            <strong style={{ color: "#a61d24" }}>{registeredEmail}</strong>.
+            <br />
+            Vui lòng kiểm tra hộp thư (và mục Spam) để hoàn tất.
+          </Typography.Paragraph>
+        </div>
+
+        <Form
+          form={otpForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            setSubmitting(true);
+            try {
+              // Gọi API xác thực xuống Spring Boot (kiểm tra Redis)
+              await verifyOtpWithBackend(registeredEmail, values.otp);
+              message.success("Xác thực thành công! Bạn có thể đăng nhập.");
+              // Thành công mới chuyển hướng về trang đăng nhập
+              router.push(localizeHref("/dang-nhap", locale));
+            } catch (error) {
+              message.error("Mã OTP không chính xác hoặc đã hết hạn.");
+            } finally {
+              setSubmitting(false);
+            }
+          }}
+        >
+          <Form.Item
+            name="otp"
+            style={{ display: "flex", justifyContent: "center" }}
+            rules={[
+              { required: true, message: "Vui lòng nhập mã OTP." },
+              { len: 6, message: "Mã OTP phải gồm đúng 6 chữ số." },
+            ]}
+          >
+            {/* Nếu bạn đang dùng Ant Design phiên bản mới (>5.14), dùng Input.OTP */}
+            <Input.OTP length={6} size="large" />
+
+            {/* LƯU Ý: Nếu Ant Design bản cũ báo lỗi Input.OTP, hãy xóa dòng trên và dùng dòng dưới:
+             <Input size="large" maxLength={6} placeholder="Nhập mã 6 số..." style={{ textAlign: "center", fontSize: 24, letterSpacing: 8 }} />
+            */}
+          </Form.Item>
+
+          <Button
+            type="primary"
+            size="large"
+            htmlType="submit"
+            block
+            loading={submitting}
+          >
+            Xác nhận mã
+          </Button>
+        </Form>
+      </Card>
+    );
+  }
 
   if (!isLogin) {
     return (
@@ -55,7 +140,11 @@ export function AuthPage({
               {registerCopy.bannerTitle}
             </Typography.Title>
             <Typography.Paragraph
-              style={{ marginBottom: 0, maxWidth: 440, color: "rgba(255, 247, 234, 0.82)" }}
+              style={{
+                marginBottom: 0,
+                maxWidth: 440,
+                color: "rgba(255, 247, 234, 0.82)",
+              }}
             >
               {registerCopy.bannerDescription}
             </Typography.Paragraph>
@@ -85,13 +174,23 @@ export function AuthPage({
                 password: String(values.password),
                 citizenIdNumber: String(values.citizenId),
                 gender: values.gender === "male" ? "Nam" : undefined,
-                dateOfBirth: buildBirthDate(values.birthYear, values.birthMonth, values.birthDay),
+                dateOfBirth: buildBirthDate(
+                  values.birthYear,
+                  values.birthMonth,
+                  values.birthDay,
+                ),
                 area: provinceToArea(String(values.province)),
               });
-              message.success(registerCopy.registerSuccess);
-              router.push(localizeHref("/dang-nhap", locale));
+              // SỬA TỪ ĐÂY: Thay vì chuyển trang, ta bật bước OTP lên
+              setRegisteredEmail(String(values.email).trim().toLowerCase());
+              setIsOtpStep(true);
+              message.success(registerCopy.registerSuccess); // "Đăng kí thành công. Hãy kiểm tra email..."
             } catch (error) {
-              message.error(error instanceof Error ? error.message : registerCopy.registerFailed);
+              message.error(
+                error instanceof Error
+                  ? error.message
+                  : registerCopy.registerFailed,
+              );
             } finally {
               setSubmitting(false);
             }
@@ -101,9 +200,14 @@ export function AuthPage({
             <Form.Item
               name="fullName"
               label={registerCopy.fullName}
-              rules={[{ required: true, message: registerCopy.fullNameRequired }]}
+              rules={[
+                { required: true, message: registerCopy.fullNameRequired },
+              ]}
             >
-              <Input size="large" placeholder={registerCopy.fullNamePlaceholder} />
+              <Input
+                size="large"
+                placeholder={registerCopy.fullNamePlaceholder}
+              />
             </Form.Item>
             <Form.Item
               name="gender"
@@ -149,12 +253,18 @@ export function AuthPage({
             </Form.Item>
           </div>
 
-          <Form.Item label={registerCopy.birthDate} required style={{ marginBottom: 16 }}>
+          <Form.Item
+            label={registerCopy.birthDate}
+            required
+            style={{ marginBottom: 16 }}
+          >
             <div className="auth-register-grid auth-register-grid--three">
               <Form.Item
                 name="birthDay"
                 noStyle={false}
-                rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+                rules={[
+                  { required: true, message: registerCopy.birthDateRequired },
+                ]}
               >
                 <Select
                   size="large"
@@ -165,18 +275,25 @@ export function AuthPage({
               <Form.Item
                 name="birthMonth"
                 noStyle={false}
-                rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+                rules={[
+                  { required: true, message: registerCopy.birthDateRequired },
+                ]}
               >
                 <Select
                   size="large"
                   placeholder={registerCopy.month}
-                  options={months.map((month) => ({ label: month, value: month }))}
+                  options={months.map((month) => ({
+                    label: month,
+                    value: month,
+                  }))}
                 />
               </Form.Item>
               <Form.Item
                 name="birthYear"
                 noStyle={false}
-                rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+                rules={[
+                  { required: true, message: registerCopy.birthDateRequired },
+                ]}
               >
                 <Select
                   size="large"
@@ -217,7 +334,12 @@ export function AuthPage({
               },
             ]}
           >
-            <Input size="large" inputMode="numeric" maxLength={12} placeholder="012345678901" />
+            <Input
+              size="large"
+              inputMode="numeric"
+              maxLength={12}
+              placeholder="012345678901"
+            />
           </Form.Item>
 
           <div className="auth-register-grid auth-register-grid--two">
@@ -228,7 +350,8 @@ export function AuthPage({
                 { required: true, message: registerCopy.passwordRequired },
                 { min: 8, message: registerCopy.passwordTooShort },
                 {
-                  pattern: /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                  pattern:
+                    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
                   message: registerCopy.passwordWeak,
                 },
               ]}
@@ -240,14 +363,19 @@ export function AuthPage({
               label={registerCopy.confirmPassword}
               dependencies={["password"]}
               rules={[
-                { required: true, message: registerCopy.confirmPasswordRequired },
+                {
+                  required: true,
+                  message: registerCopy.confirmPasswordRequired,
+                },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue("password") === value) {
                       return Promise.resolve();
                     }
 
-                    return Promise.reject(new Error(registerCopy.confirmPasswordMismatch));
+                    return Promise.reject(
+                      new Error(registerCopy.confirmPasswordMismatch),
+                    );
                   },
                 }),
               ]}
@@ -256,7 +384,11 @@ export function AuthPage({
             </Form.Item>
           </div>
 
-          <Form.Item label={registerCopy.captcha} required style={{ marginBottom: 12 }}>
+          <Form.Item
+            label={registerCopy.captcha}
+            required
+            style={{ marginBottom: 12 }}
+          >
             <div className="auth-register-captcha-wrap">
               <Image
                 alt={registerCopy.captchaAlt}
@@ -281,11 +413,16 @@ export function AuthPage({
               { required: true, message: registerCopy.captchaRequired },
               () => ({
                 validator(_, value) {
-                  if (typeof value === "string" && value.trim().toUpperCase() === captchaCode) {
+                  if (
+                    typeof value === "string" &&
+                    value.trim().toUpperCase() === captchaCode
+                  ) {
                     return Promise.resolve();
                   }
 
-                  return Promise.reject(new Error(registerCopy.captchaMismatch));
+                  return Promise.reject(
+                    new Error(registerCopy.captchaMismatch),
+                  );
                 },
               }),
             ]}
@@ -298,7 +435,13 @@ export function AuthPage({
             />
           </Form.Item>
 
-          <Button type="primary" size="large" htmlType="submit" block loading={submitting}>
+          <Button
+            type="primary"
+            size="large"
+            htmlType="submit"
+            block
+            loading={submitting}
+          >
             {registerCopy.submit}
           </Button>
         </Form>
@@ -306,7 +449,9 @@ export function AuthPage({
           <Typography.Text style={{ color: "#6d5a46" }}>
             {dictionary.auth.hasAccount}
           </Typography.Text>
-          <Link href={localizeHref("/dang-nhap", locale)}>{dictionary.auth.login}</Link>
+          <Link href={localizeHref("/dang-nhap", locale)}>
+            {dictionary.auth.login}
+          </Link>
         </Space>
       </Card>
     );
@@ -333,7 +478,10 @@ export function AuthPage({
           {DEMO_ACCOUNTS.map((account) => (
             <div key={account.email} className="auth-demo-account">
               <div>
-                <Typography.Text strong style={{ color: "#4a3426", display: "block" }}>
+                <Typography.Text
+                  strong
+                  style={{ color: "#4a3426", display: "block" }}
+                >
                   {locale === "en" ? account.labelEn : account.labelVi}
                 </Typography.Text>
                 <Typography.Text style={{ color: "#6d5a46", display: "block" }}>
@@ -374,10 +522,18 @@ export function AuthPage({
             message.success(loginCopy.loginSuccess);
             const nextPath = searchParams.get("next");
             router.push(
-              nextPath || localizeHref(auth.user.role === "admin" ? "/admin" : "/user", locale),
+              nextPath ||
+                localizeHref(
+                  auth.user.role === "admin" ? "/admin" : "/user",
+                  locale,
+                ),
             );
           } catch (error) {
-            message.error(error instanceof Error ? error.message : loginCopy.invalidCredentials);
+            message.error(
+              error instanceof Error
+                ? error.message
+                : loginCopy.invalidCredentials,
+            );
           } finally {
             setSubmitting(false);
           }
@@ -393,11 +549,17 @@ export function AuthPage({
         <Form.Item
           name="password"
           label={dictionary.auth.password}
-          rules={[{ required: true, message: dictionary.auth.passwordRequired }]}
+          rules={[
+            { required: true, message: dictionary.auth.passwordRequired },
+          ]}
         >
           <Input.Password size="large" placeholder="********" />
         </Form.Item>
-        <Form.Item name="role" label={dictionary.auth.roleLabel} extra={dictionary.auth.roleDescription}>
+        <Form.Item
+          name="role"
+          label={dictionary.auth.roleLabel}
+          extra={dictionary.auth.roleDescription}
+        >
           <Radio.Group className="w-full">
             <Space direction="vertical">
               <Radio value="admin">{dictionary.auth.roleAdmin}</Radio>
@@ -405,7 +567,13 @@ export function AuthPage({
             </Space>
           </Radio.Group>
         </Form.Item>
-        <Button type="primary" size="large" htmlType="submit" block loading={submitting}>
+        <Button
+          type="primary"
+          size="large"
+          htmlType="submit"
+          block
+          loading={submitting}
+        >
           {isLogin ? dictionary.auth.login : dictionary.auth.register}
         </Button>
       </Form>
@@ -421,8 +589,12 @@ export function AuthPage({
   );
 }
 
-const days = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
-const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+const days = Array.from({ length: 31 }, (_, index) =>
+  String(index + 1).padStart(2, "0"),
+);
+const months = Array.from({ length: 12 }, (_, index) =>
+  String(index + 1).padStart(2, "0"),
+);
 const years = Array.from({ length: 87 }, (_, index) => String(2025 - index));
 
 const VIETNAM_PROVINCES = [
@@ -545,7 +717,8 @@ const registerContent = {
     password: "Password",
     passwordRequired: "Please enter a password.",
     passwordTooShort: "Password must be at least 8 characters.",
-    passwordWeak: "Password needs uppercase, lowercase, number, and special character.",
+    passwordWeak:
+      "Password needs uppercase, lowercase, number, and special character.",
     confirmPassword: "Confirm password",
     confirmPasswordRequired: "Please confirm your password.",
     confirmPasswordMismatch: "Confirmation password does not match.",
@@ -608,7 +781,10 @@ function buildBirthDate(year?: string, month?: string, day?: string) {
 function provinceToArea(province: string) {
   const normalized = province.toLowerCase();
 
-  if (normalized.includes("hồ chí minh") || normalized.includes("ho chi minh")) {
+  if (
+    normalized.includes("hồ chí minh") ||
+    normalized.includes("ho chi minh")
+  ) {
     return "HO_CHI_MINH";
   }
   if (normalized.includes("hà nội") || normalized.includes("ha noi")) {
@@ -626,7 +802,10 @@ function provinceToArea(province: string) {
 
 function createCaptchaCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from(
+    { length: 6 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
 }
 
 function buildCaptchaDataUri(code: string) {

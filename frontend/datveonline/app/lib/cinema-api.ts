@@ -103,11 +103,17 @@ export async function registerWithBackend(requestBody: RegisterRequest) {
 }
 
 export async function getBackendMovies(locale: Locale): Promise<MovieItem[]> {
-  const movies = await request<BackendMovie[]>("/movies", { next: { revalidate: 30 } });
-  return Promise.all(movies.map((movie, index) => toMovieItem(movie, index, locale)));
+  const movies = await request<BackendMovie[]>("/movies", {
+    next: { revalidate: 30 },
+  });
+  return Promise.all(
+    movies.map((movie, index) => toMovieItem(movie, index, locale)),
+  );
 }
 
-export async function getMoviesWithFallback(locale: Locale): Promise<MovieItem[]> {
+export async function getMoviesWithFallback(
+  locale: Locale,
+): Promise<MovieItem[]> {
   try {
     const movies = await getBackendMovies(locale);
     return movies.length > 0 ? movies : getLocalizedMovies(locale);
@@ -133,7 +139,11 @@ function parseUserFromToken(token: string): AuthUser {
   };
 }
 
-async function toMovieItem(movie: BackendMovie, index: number, locale: Locale): Promise<MovieItem> {
+async function toMovieItem(
+  movie: BackendMovie,
+  index: number,
+  locale: Locale,
+): Promise<MovieItem> {
   const fallback = allMovies[index % allMovies.length];
   const showtimes = await getShowtimesForMovie(movie.id, fallback.showtimes);
   const title = movie.title || fallback.title;
@@ -145,10 +155,17 @@ async function toMovieItem(movie: BackendMovie, index: number, locale: Locale): 
     title,
     subtitle: fallback.subtitle,
     genre: formatEnum(movie.genre) || fallback.genre,
-    duration: movie.durationMin ? `${movie.durationMin} ${locale === "vi" ? "phut" : "min"}` : fallback.duration,
+    duration: movie.durationMin
+      ? `${movie.durationMin} ${locale === "vi" ? "phut" : "min"}`
+      : fallback.duration,
     rating: movie.ageRestriction ?? fallback.rating,
     release: movie.releaseDate ?? fallback.release,
-    bookingLabel: movie.status === "NOW_SHOWING" ? (locale === "vi" ? "Dang chieu" : "Now showing") : fallback.bookingLabel,
+    bookingLabel:
+      movie.status === "NOW_SHOWING"
+        ? locale === "vi"
+          ? "Dang chieu"
+          : "Now showing"
+        : fallback.bookingLabel,
     posterImage: movie.posterUrl || fallback.posterImage,
     heroImage: movie.posterUrl || fallback.heroImage,
     synopsis: movie.description || fallback.synopsis,
@@ -160,11 +177,17 @@ async function toMovieItem(movie: BackendMovie, index: number, locale: Locale): 
   };
 }
 
-async function getShowtimesForMovie(movieId: string, fallback: ShowTime[]): Promise<ShowTime[]> {
+async function getShowtimesForMovie(
+  movieId: string,
+  fallback: ShowTime[],
+): Promise<ShowTime[]> {
   try {
-    const showtimes = await request<BackendShowtime[]>(`/showtimes/movie/${movieId}`, {
-      next: { revalidate: 30 },
-    });
+    const showtimes = await request<BackendShowtime[]>(
+      `/showtimes/movie/${movieId}`,
+      {
+        next: { revalidate: 30 },
+      },
+    );
     if (!showtimes.length) {
       return fallback;
     }
@@ -173,7 +196,9 @@ async function getShowtimesForMovie(movieId: string, fallback: ShowTime[]): Prom
       {
         cinemaId: showtimes[0]?.hallId ?? "backend-hall",
         cinemaName: "KCT Cinema",
-        room: showtimes[0]?.hallId ? `Hall ${showtimes[0].hallId}` : "Backend hall",
+        room: showtimes[0]?.hallId
+          ? `Hall ${showtimes[0].hallId}`
+          : "Backend hall",
         dateLabel: "API",
         times: showtimes.map((showtime) => formatTime(showtime.startTime)),
       },
@@ -184,7 +209,12 @@ async function getShowtimesForMovie(movieId: string, fallback: ShowTime[]): Prom
 }
 
 function formatEnum(value?: string) {
-  return value ? value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) : "";
+  return value
+    ? value
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+    : "";
 }
 
 function formatTime(value?: string) {
@@ -205,4 +235,13 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+// Thêm đoạn này vào file lib/cinema-api.ts
+export async function verifyOtpWithBackend(email: string, otpCode: string) {
+  return request<unknown>("/users/verify-otp", {
+    method: "POST",
+    // Gửi email và mã 6 số xuống backend để đối chiếu với Redis
+    body: JSON.stringify({ email, otp: otpCode }),
+  });
 }
