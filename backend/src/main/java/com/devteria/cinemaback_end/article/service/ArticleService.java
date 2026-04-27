@@ -13,6 +13,7 @@ import com.devteria.cinemaback_end.movie.entity.Movie;
 import com.devteria.cinemaback_end.movie.repository.MovieRepository;
 import com.devteria.cinemaback_end.user.entity.User;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
+import com.devteria.cinemaback_end.util.HtmlSanitizerUtil;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -38,12 +39,16 @@ public class ArticleService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public ArticleResponse createArticle(ArticleRequest request) {
+        // 🔥 BƯỚC QUAN TRỌNG: Làm sạch nội dung HTML ngay khi nhận vào
+        String safeContent = HtmlSanitizerUtil.sanitize(request.getContent());
+        request.setContent(safeContent); // Ghi đè lại nội dung đã sạch vào request
+
         User manager = getCurrentUser();
 
+        // Từ đây trở đi MapStruct sẽ dùng dữ liệu an toàn để lưu
         Article article = articleMapper.toArticle(request);
         article.setManager(manager);
 
-        // BỔ SUNG: Kiểm tra và gán Movie nếu Admin có chọn phim
         if (request.getMovieId() != null && !request.getMovieId().trim().isEmpty()) {
             Movie movie = movieRepository.findById(request.getMovieId())
                     .orElseThrow(() -> new AppException(ErrorCode.MOVIE_NOT_EXISTED));
@@ -80,18 +85,21 @@ public class ArticleService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public ArticleResponse updateArticle(String id, ArticleRequest request) {
+        // 🔥 BƯỚC QUAN TRỌNG: Làm sạch nội dung HTML khi update
+        String safeContent = HtmlSanitizerUtil.sanitize(request.getContent());
+        request.setContent(safeContent); // Ghi đè lại nội dung đã sạch vào request
+
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
 
+        // MapStruct sẽ map dữ liệu (bao gồm cả content đã làm sạch) vào Entity cũ
         articleMapper.updateArticle(article, request);
 
-        // BỔ SUNG: Cập nhật lại liên kết Movie
         if (request.getMovieId() != null && !request.getMovieId().trim().isEmpty()) {
             Movie movie = movieRepository.findById(request.getMovieId())
                     .orElseThrow(() -> new AppException(ErrorCode.MOVIE_NOT_EXISTED));
             article.setMovie(movie);
         } else {
-            // Nếu gửi request rỗng -> gỡ bỏ liên kết phim (trở thành bài viết chung chung)
             article.setMovie(null);
         }
 
