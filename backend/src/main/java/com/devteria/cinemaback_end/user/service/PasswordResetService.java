@@ -96,6 +96,10 @@ public class PasswordResetService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_ALREADY_USED);
+        }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 

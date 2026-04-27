@@ -136,6 +136,16 @@ public enum ErrorCode {
     SEATS_PER_ROW_NOT_NULL(1101, "Số lượng ghế mỗi hàng không được để trống", HttpStatus.BAD_REQUEST),
     SEATS_PER_ROW_INVALID(1102, "Số lượng ghế mỗi hàng phải lớn hơn 0", HttpStatus.BAD_REQUEST),
     TOO_MANY_REQUESTS(1103, "Quá nhiều yêu cầu. Vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
+
+    PASSWORD_ALREADY_USED(1104, "Mật khẩu mới không được trùng với mật khẩu cũ", HttpStatus.BAD_REQUEST),
+
+    // Các lỗi cho Article (Bài viết)
+    ARTICLE_TITLE_NOT_BLANK(1105, "Tiêu đề bài viết không được để trống", HttpStatus.BAD_REQUEST),
+    SUMMARY_NOT_BLANK(1106, "Tóm tắt bài viết không được để trống", HttpStatus.BAD_REQUEST),
+    CONTENT_NOT_BLANK(1107, "Nội dung bài viết không được để trống", HttpStatus.BAD_REQUEST),
+    ARTICLE_TYPE_NOT_NULL(1108, "Loại bài viết không được để trống", HttpStatus.BAD_REQUEST),
+    ARTICLE_STATUS_NOT_NULL(1109, "Trạng thái bài viết không được để trống", HttpStatus.BAD_REQUEST),
+    ARTICLE_NOT_EXISTED(1110, "Bài viết không tồn tại", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
