@@ -46,7 +46,11 @@ public class SecurityConfig {
             "/halls", "/halls/**",
             "/banners",
             "/seats/hall/**",
-            "/articles", "/articles/**"
+            "/articles", "/articles/**",
+            "/concessions",
+            "/concessions/**",
+            "/promotions",
+            "/promotions/**"
     };
 
     @Value("${jwt.signerKey}")

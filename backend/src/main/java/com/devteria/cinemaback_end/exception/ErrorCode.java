@@ -146,6 +146,48 @@ public enum ErrorCode {
     ARTICLE_TYPE_NOT_NULL(1108, "Loại bài viết không được để trống", HttpStatus.BAD_REQUEST),
     ARTICLE_STATUS_NOT_NULL(1109, "Trạng thái bài viết không được để trống", HttpStatus.BAD_REQUEST),
     ARTICLE_NOT_EXISTED(1110, "Bài viết không tồn tại", HttpStatus.NOT_FOUND),
+
+    // Các lỗi cho Concession (Đồ ăn/Thức uống)
+    CONCESSION_NAME_NOT_BLANK(1111, "Tên đồ ăn/thức uống không được để trống", HttpStatus.BAD_REQUEST),
+    PRICE_NOT_NULL(1112, "Giá tiền không được để trống", HttpStatus.BAD_REQUEST),
+    PRICE_MIN_INVALID(1113, "Giá tiền không được là số âm", HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_NULL(1114, "Phân loại không được để trống", HttpStatus.BAD_REQUEST),
+
+    // Lỗi logic dùng cho Service
+    CONCESSION_NOT_EXISTED(1115, "Đồ ăn/thức uống không tồn tại", HttpStatus.NOT_FOUND),
+
+    // Các lỗi cho Promotion (Khuyến mãi)
+    PROMO_TITLE_NOT_BLANK(1116, "Tiêu đề khuyến mãi không được để trống", HttpStatus.BAD_REQUEST),
+    PROMO_CODE_NOT_BLANK(1117, "Mã giảm giá không được để trống", HttpStatus.BAD_REQUEST),
+    DISCOUNT_PERCENT_NOT_NULL(1118, "Phần trăm giảm giá không được để trống", HttpStatus.BAD_REQUEST),
+    DISCOUNT_PERCENT_INVALID(1119, "Phần trăm giảm giá phải lớn hơn 0", HttpStatus.BAD_REQUEST),
+    VALID_FROM_NOT_NULL(1120, "Ngày bắt đầu không được để trống", HttpStatus.BAD_REQUEST),
+    VALID_UNTIL_NOT_NULL(1121, "Ngày kết thúc không được để trống", HttpStatus.BAD_REQUEST),
+    MIN_PURCHASE_INVALID(1122, "Giá trị đơn hàng tối thiểu không hợp lệ", HttpStatus.BAD_REQUEST),
+    MAX_DISCOUNT_INVALID(1123, "Mức giảm tối đa không hợp lệ", HttpStatus.BAD_REQUEST),
+    USAGE_LIMIT_INVALID(1124, "Giới hạn số lượt dùng không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    // Lỗi logic dùng cho Service sau này
+    PROMO_CODE_EXISTED(1125, "Mã giảm giá này đã tồn tại", HttpStatus.CONFLICT),
+    PROMO_NOT_EXISTED(1126, "Khuyến mãi không tồn tại", HttpStatus.NOT_FOUND),
+    PROMO_TARGET_NOT_NULL(1127, "Phạm vi áp dụng của mã giảm giá không được để trống", HttpStatus.BAD_REQUEST),
+
+    TICKET_NOT_EXISTED(1128, "Vé không tồn tại", HttpStatus.NOT_FOUND),
+    TICKET_ALREADY_SCANNED(1129, "Vé này đã được quét và sử dụng trước đó", HttpStatus.BAD_REQUEST),
+    TICKET_CANCELLED(1130, "Vé này đã bị hủy, không thể sử dụng", HttpStatus.BAD_REQUEST),
+
+    // Bổ sung các lỗi logic của Promotion (Khuyến mãi) bị thiếu
+    PROMO_EXPIRED(1131, "Mã giảm giá đã hết hạn sử dụng", HttpStatus.BAD_REQUEST),
+    PROMO_OUT_OF_USAGE(1132, "Mã giảm giá đã hết lượt sử dụng", HttpStatus.BAD_REQUEST),
+    PROMO_MIN_PURCHASE_NOT_MET(1133, "Chưa đạt giá trị đơn hàng tối thiểu để áp dụng mã", HttpStatus.BAD_REQUEST),
+
+    // Các lỗi cho Booking (Đặt vé & Thanh toán)
+    SHOWTIME_ID_NOT_BLANK(1134, "Vui lòng chọn suất chiếu", HttpStatus.BAD_REQUEST),
+    SEAT_LIST_NOT_EMPTY(1135, "Vui lòng chọn ít nhất 1 ghế", HttpStatus.BAD_REQUEST),
+    BOOKING_NOT_EXISTED(1136, "Hóa đơn đặt vé không tồn tại", HttpStatus.NOT_FOUND),
+
+    // Lỗi quan trọng nhất của hệ thống đặt vé
+    SEAT_ALREADY_BOOKED(1137, "Rất tiếc, ghế bạn chọn đã có người đặt. Vui lòng chọn ghế khác!", HttpStatus.CONFLICT),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
