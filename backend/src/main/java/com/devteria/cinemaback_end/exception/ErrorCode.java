@@ -188,6 +188,19 @@ public enum ErrorCode {
 
     // Lỗi quan trọng nhất của hệ thống đặt vé
     SEAT_ALREADY_BOOKED(1137, "Rất tiếc, ghế bạn chọn đã có người đặt. Vui lòng chọn ghế khác!", HttpStatus.CONFLICT),
+    // ==========================================
+    // MODULE PAYMENT (THANH TOÁN)
+    // ==========================================
+    BOOKING_ID_NOT_BLANK(1138, "Mã hóa đơn không được để trống", HttpStatus.BAD_REQUEST),
+    PAYMENT_METHOD_NOT_NULL(1139, "Phương thức thanh toán không được để trống", HttpStatus.BAD_REQUEST),
+
+    // Lỗi logic cho Service
+    INVALID_PAYMENT_METHOD(1140, "Phương thức thanh toán không hợp lệ", HttpStatus.BAD_REQUEST),
+    PAYMENT_NOT_EXISTED(1141, "Giao dịch thanh toán không tồn tại", HttpStatus.NOT_FOUND),
+    PAYMENT_FAILED(1142, "Thanh toán thất bại. Vui lòng thử lại", HttpStatus.BAD_REQUEST),
+
+    // 🔥 Lỗi cực kỳ quan trọng để chống "Double Billing" (Khách bị trừ tiền 2 lần)
+    PAYMENT_ALREADY_PROCESSED(1143, "Hóa đơn này đã được thanh toán thành công trước đó", HttpStatus.CONFLICT),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

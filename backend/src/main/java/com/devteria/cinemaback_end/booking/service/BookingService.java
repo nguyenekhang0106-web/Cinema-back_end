@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +48,7 @@ public class BookingService {
     UserRepository userRepository;
     PromotionRepository promotionRepository;
     BookingMapper bookingMapper;
+    BookingRedisService bookingRedisService;
 
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
@@ -58,23 +60,24 @@ public class BookingService {
         Booking booking = Booking.builder()
                 .bookingCode("BKG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .customer(customer)
-                .status(BookingStatus.PAID) // Giả định thanh toán thành công luôn
+                .status(BookingStatus.PENDING) // Hóa đơn đang chờ thanh toán
                 .tickets(new ArrayList<>())
                 .concessions(new ArrayList<>())
                 .build();
 
         // 2. Xử lý Vé (Tickets) và tính TicketTotal
         double ticketTotal = 0.0;
+        List<TicketStatus> activeStatuses = Arrays.asList(TicketStatus.VALID, TicketStatus.SCANNED);
+
         for (String seatId : request.getSeatIds()) {
-            // Kiểm tra ghế đã bị đặt chưa (Double Booking check)
-            if (ticketRepository.existsByShowtimeIdAndSeatId(showtime.getId(), seatId)) {
+            // Kiểm tra ghế đã bị đặt chưa (Bỏ qua những vé đã CANCELLED để có thể mua lại)
+            if (ticketRepository.existsByShowtimeIdAndSeatIdAndStatusIn(showtime.getId(), seatId, activeStatuses)) {
                 throw new AppException(ErrorCode.SEAT_ALREADY_BOOKED);
             }
 
             Seat seat = seatRepository.findById(seatId)
                     .orElseThrow(() -> new AppException(ErrorCode.SEAT_NOT_EXISTED));
 
-            // 🔥 SỬA LỖI Ở ĐÂY: Dùng .doubleValue() để ép kiểu an toàn
             double seatPrice = showtime.getBasePrice().doubleValue();
             ticketTotal += seatPrice;
 
@@ -82,7 +85,7 @@ public class BookingService {
                     .booking(booking)
                     .showtime(showtime)
                     .seat(seat)
-                    .price(seatPrice) // Truyền double vào, Java sẽ tự Auto-boxing thành Double
+                    .price(seatPrice)
                     .status(TicketStatus.VALID)
                     .build();
             booking.getTickets().add(ticket);
@@ -95,7 +98,6 @@ public class BookingService {
                 ConcessionItem item = concessionRepository.findById(choice.getConcessionItemId())
                         .orElseThrow(() -> new AppException(ErrorCode.CONCESSION_NOT_EXISTED));
 
-                // 🔥 SỬA LỖI Ở ĐÂY: Dùng .doubleValue()
                 double itemPrice = item.getPrice().doubleValue();
                 double subTotal = itemPrice * choice.getQuantity();
                 concessionTotal += subTotal;
@@ -119,7 +121,6 @@ public class BookingService {
             // Kiểm tra điều kiện Promo
             validatePromotion(promo, ticketTotal + concessionTotal);
 
-            // 🔥 SỬA LỖI Ở ĐÂY: Ép kiểu an toàn cho phần trăm giảm giá
             double promoPercent = promo.getDiscountPercent().doubleValue();
 
             // Logic tính giảm giá theo Target
@@ -145,7 +146,50 @@ public class BookingService {
         booking.setDiscountAmount(discountAmount);
         booking.setTotalAmount(ticketTotal + concessionTotal - discountAmount);
 
-        return bookingMapper.toBookingResponse(bookingRepository.save(booking));
+        // 6. Lưu xuống Database và Kích hoạt Redis (QUAN TRỌNG)
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // 🔥 Bắt đầu đếm ngược 10 phút trên Redis cho hóa đơn này
+        bookingRedisService.setBookingHold(savedBooking.getId());
+
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    // API Mô phỏng Thanh toán thành công (Sau này ghép VNPay/MoMo vào đây)
+    @Transactional
+    public BookingResponse confirmPayment(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new AppException(ErrorCode.INVALID_REQUEST); // Không thể thanh toán hóa đơn đã hủy/đã thanh toán
+        }
+
+        // 1. Cập nhật DB
+        booking.setStatus(BookingStatus.PAID);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // 2. Dọn dẹp Redis
+        bookingRedisService.clearBookingHold(bookingId);
+
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    // Hàm Hủy hóa đơn (Do người dùng tự bấm nút Hủy hoặc do hết hạn)
+    @Transactional
+    public void cancelBooking(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+
+        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.FAILED) {
+            booking.setStatus(BookingStatus.CANCELLED);
+
+            // Giải phóng toàn bộ vé để ghế trống trở lại
+            booking.getTickets().forEach(ticket -> ticket.setStatus(TicketStatus.CANCELLED));
+
+            bookingRepository.save(booking);
+            bookingRedisService.clearBookingHold(bookingId);
+        }
     }
 
     private void validatePromotion(Promotion promo, double subTotal) {

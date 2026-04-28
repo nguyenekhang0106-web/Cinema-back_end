@@ -33,7 +33,9 @@ public class SecurityConfig {
             "/auth/logout",
             "/auth/refresh",
             "/auth/forgot-password",
-            "/auth/reset-password"
+            "/auth/reset-password",
+            // 🔥 BỔ SUNG CHO MODULE PAYMENT (Để server VNPay/MoMo có thể gọi vào)
+            "/payments/*/execute"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
