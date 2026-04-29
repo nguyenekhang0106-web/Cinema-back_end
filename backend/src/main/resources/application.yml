@@ -4,6 +4,8 @@ server:
     context-path: /cinema #/identity
 
 spring:
+  config:
+    import: optional:file:.env.properties
   data:
     redis:
       host: localhost
@@ -41,3 +43,16 @@ mail:
         auth: true
         starttls:
           enable: true
+
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+    region:
+      static: ap-southeast-2
+
+aws:
+  bucket:
+    name: cinemapbl3

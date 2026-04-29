@@ -47,6 +47,7 @@ public class UserService {
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setAvatarUrl("avatar/DefaultAvatar.png"); // Set default avatar on creation
 
         if (user.getFullName() != null && !user.getFullName().isEmpty()) {
             user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));

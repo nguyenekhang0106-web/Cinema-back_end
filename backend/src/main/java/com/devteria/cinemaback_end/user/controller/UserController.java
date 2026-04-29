@@ -38,6 +38,7 @@ public class UserController {
     private final RegistrationService registrationService;
     private final OtpVerificationService otpVerificationService;
     private final RegistrationOtpService registrationOtpService;
+    private final AvatarService avatarService;
 
 
 
@@ -111,4 +112,39 @@ public class UserController {
         return otpVerificationService.resendOtp(request.getEmail());
     }
 
+    /**
+     * Upload avatar for user
+     * POST /users/{id}/avatar
+     * 
+     * Request body: form-data
+     * - file: MultipartFile
+     * - folder: String (always "avatar")
+     * - filename: String (format: "user{id}Avatar.{ext}")
+     */
+    @PostMapping("/{id}/avatar")
+    public ApiResponse<String> uploadAvatar(
+            @PathVariable String id,
+            @ModelAttribute AvatarUploadRequest request) {
+        String avatarUrl = avatarService.uploadAvatar(id, request);
+        return ApiResponse.<String>builder()
+                .code(1000)
+                .message("Cập nhật ảnh đại diện thành công")
+                .result(avatarUrl)
+                .build();
+    }
+
+    /**
+     * Get user profile with absolute avatar URL
+     * GET /users/{id}/profile
+     * 
+     * Returns user profile with absolute S3 URL for avatar
+     */
+    @GetMapping("/{id}/profile")
+    public ApiResponse<UserResponse> getUserProfile(@PathVariable String id) {
+        UserResponse profile = avatarService.getUserProfile(id);
+        return ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .result(profile)
+                .build();
+    }
 }

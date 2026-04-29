@@ -68,6 +68,7 @@ public class RegistrationService {
             user = userMapper.toUser(request);
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setEmailVerified(false);
+            user.setAvatarUrl("avatar/DefaultAvatar.png"); // Set default avatar on registration
 
             HashSet<Role> roles = new HashSet<>();
             roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
