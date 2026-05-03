@@ -1,32 +1,41 @@
 server:
   port: 9090
   servlet:
-    context-path: /cinema #/identity
+    context-path: /cinema
 
 spring:
   config:
     import: optional:file:.env.properties
+
+  # 🔥 BỔ SUNG CẤU HÌNH UPLOAD FILE (Nâng mức trần lên 5MB cho khớp với S3Service)
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   data:
     redis:
       host: localhost
       port: 6379
       # password: # bật nếu Redis có mật khẩu
+
   datasource:
-    # Tham s? createDatabaseIfNotExist=true s? ra l?nh cho MySQL t? t?o database n?u n� ch?a t?n t?i
+    # Tham số createDatabaseIfNotExist=true sẽ ra lệnh cho MySQL tự tạo database nếu nó chưa tồn tại
     url: "jdbc:mysql://localhost:3308/cinema_db?createDatabaseIfNotExist=true"
     username: root
     password: root
+
   jpa:
     hibernate:
       format_sql: true
       ddl-auto: update
-      #ddl-auto: create # dùng khi update tạo lại bảng từ đầu
+      #ddl-auto: create # dùng khi cần xóa trắng và tạo lại bảng từ đầu
     show-sql: true
 
 jwt:
   signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
-  valid-duration: 6000 #in second
-  refreshable-duration: 12000 #in second
+  valid-duration: 6000 # in seconds
+  refreshable-duration: 12000 # in seconds
 
 app:
   # TTL mã 6 số xác thực email (lưu trong Redis, key prefix cinema:email-verify:)
@@ -43,7 +52,6 @@ mail:
         auth: true
         starttls:
           enable: true
-
 
 cloud:
   aws:

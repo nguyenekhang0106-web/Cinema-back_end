@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 
 @Slf4j
@@ -88,20 +89,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleJsonParseException(HttpMessageNotReadableException ex) {
 
         ErrorCode errorCode = ErrorCode.INVALID_KEY;
-
         Throwable cause = ex.getCause();
 
         if (cause instanceof InvalidFormatException invalidFormatException) {
 
             Class<?> targetType = invalidFormatException.getTargetType();
 
+            // Nhóm User & Chung
             if (targetType.equals(Area.class)) {
                 errorCode = ErrorCode.INVALID_AREA;
             } else if (targetType.equals(Gender.class)) {
                 errorCode = ErrorCode.INVALID_GENDER;
             } else if (targetType.equals(java.time.LocalDate.class)) {
                 errorCode = ErrorCode.INVALID_DOB_FORMAT;
-            } else if (targetType.equals(Genre.class)) {
+            }
+            // Nhóm Movie
+            else if (targetType.equals(Genre.class)) {
                 errorCode = ErrorCode.INVALID_GENRE;
             } else if (targetType.equals(Language.class)) {
                 errorCode = ErrorCode.INVALID_LANGUAGE;
@@ -109,18 +112,18 @@ public class GlobalExceptionHandler {
                 errorCode = ErrorCode.INVALID_AGE_RESTRICTION;
             } else if (targetType.equals(MovieStatus.class)) {
                 errorCode = ErrorCode.INVALID_MOVIE_STATUS;
-            } else if (targetType.equals(MovieStatus.class)) {
-                errorCode = ErrorCode.INVALID_MOVIE_STATUS;
             }
-            // THÊM 2 DÒNG NÀY CHO SHOWTIME
+            // Nhóm Showtime
             else if (targetType.equals(ShowtimeFormat.class)) {
                 errorCode = ErrorCode.INVALID_SHOWTIME_FORMAT;
             } else if (targetType.equals(ShowtimeStatus.class)) {
                 errorCode = ErrorCode.INVALID_SHOWTIME_STATUS;
-            }else if (targetType.equals(Area.class)) {
-                errorCode = ErrorCode.INVALID_AREA;
             }
-
+            // 🔥 BỔ SUNG NHÓM MỚI: Payment
+            else if (targetType.equals(com.devteria.cinemaback_end.booking.entity.enums.PaymentMethod.class)) {
+                errorCode = ErrorCode.INVALID_PAYMENT_METHOD;
+            }
+            // (Nếu bạn có enum BookingStatus thì có thể thêm tương tự ở đây)
         }
 
         return buildResponse(errorCode);
@@ -156,5 +159,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(errorCode.getStatusCode())
                 .body(response);
+    }
+    // =========================
+    // 11. FILE UPLOAD SIZE EXCEEDED
+    // =========================
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
+        log.warn("Upload file size exceeded: ", ex.getMessage());
+
+        // Trả về đúng cái ErrorCode 1146 mà chúng ta đã khai báo trước đó
+        return buildResponse(ErrorCode.FILE_TOO_LARGE);
     }
 }

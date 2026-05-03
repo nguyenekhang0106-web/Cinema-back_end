@@ -169,19 +169,10 @@ public class MovieService {
         // 1. Standardize folder (always "movie")
         String folder = "movie";
 
-        // 2. Extract file extension from original filename
-        String originalName = file.getOriginalFilename();
-        String extension = "jpg"; // Default extension
-        if (originalName != null && originalName.contains(".")) {
-            extension = originalName.substring(originalName.lastIndexOf(".") + 1).toLowerCase();
-        }
+        // 2. Upload file to S3 (S3Service sẽ tự lo việc tạo tên file an toàn bằng UUID)
+        // CÚ PHÁP MỚI: Chỉ truyền 2 tham số
+        String imageKey = s3Service.uploadFile(file, folder);
 
-        // 3. Generate standardized filename: movie{id}poster.{ext} or movie{id}banner.{ext}
-        String imageTypeLower = imageType.toLowerCase();
-        String fixedFilename = "movie" + movieId + imageTypeLower + "." + extension;
-
-        // 4. Upload file to S3
-        String imageKey = s3Service.uploadFile(file, folder, fixedFilename);
         log.info("Movie image uploaded: type={}, movieId={}, key={}", imageType, movieId, imageKey);
 
         return imageKey;

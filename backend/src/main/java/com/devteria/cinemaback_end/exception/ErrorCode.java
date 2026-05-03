@@ -201,6 +201,14 @@ public enum ErrorCode {
 
     // 🔥 Lỗi cực kỳ quan trọng để chống "Double Billing" (Khách bị trừ tiền 2 lần)
     PAYMENT_ALREADY_PROCESSED(1143, "Hóa đơn này đã được thanh toán thành công trước đó", HttpStatus.CONFLICT),
+    // ==========================================
+    // MODULE FILE & AMAZON S3
+    // ==========================================
+    FILE_IS_EMPTY(1144, "File tải lên không được để trống", HttpStatus.BAD_REQUEST),
+    INVALID_FILE_FORMAT(1145, "Định dạng không hợp lệ. Chỉ chấp nhận file hình ảnh (PNG, JPG, JPEG...)", HttpStatus.BAD_REQUEST),
+    FILE_TOO_LARGE(1146, "Dung lượng file quá lớn. Vui lòng chọn file dưới 5MB", HttpStatus.BAD_REQUEST), // Bạn có thể dùng HttpStatus.PAYLOAD_TOO_LARGE cũng được
+    UPLOAD_FILE_FAILED(1147, "Lỗi hệ thống: Không thể tải file lên máy chủ", HttpStatus.INTERNAL_SERVER_ERROR),
+    DELETE_FILE_FAILED(1148, "Lỗi hệ thống: Không thể xóa file trên máy chủ", HttpStatus.INTERNAL_SERVER_ERROR),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

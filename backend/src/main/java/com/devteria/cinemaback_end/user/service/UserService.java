@@ -10,6 +10,7 @@ import com.devteria.cinemaback_end.user.entity.enums.RoleName;
 import com.devteria.cinemaback_end.user.mapper.UserMapper;
 import com.devteria.cinemaback_end.user.repository.RoleRepository;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
+import com.devteria.cinemaback_end.util.S3Service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,9 +33,11 @@ public class UserService {
     RoleRepository roleRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
+    S3Service s3Service; // 🔥 Bổ sung S3Service để xử lý link Avatar
+
+    private static final String DEFAULT_AVATAR_KEY = "avatar/DefaultAvatar.png";
 
     public UserResponse createUser(UserRequest request) {
-        // Đồng bộ ném ra AppException thay vì RuntimeException
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
@@ -47,7 +50,7 @@ public class UserService {
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setAvatarUrl("avatar/DefaultAvatar.png"); // Set default avatar on creation
+        user.setAvatarUrl(DEFAULT_AVATAR_KEY); // 🔥 Dùng hằng số
 
         if (user.getFullName() != null && !user.getFullName().isEmpty()) {
             user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
@@ -59,7 +62,7 @@ public class UserService {
         user.setEmailVerified(true);
 
         user = userRepository.save(user);
-        return userMapper.toUserResponse(user);
+        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -67,15 +70,16 @@ public class UserService {
         log.info("In method get Users");
         return userRepository.findAll()
                 .stream()
-                .map(userMapper::toUserResponse)
+                .map(this::buildUserResponse) // 🔥 Trả về qua hàm map Full URL
                 .toList();
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse getUser(String id) {
         log.info("In method get user by id");
-        return userMapper.toUserResponse(userRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))); // Thay RuntimeException
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
     }
 
     public UserResponse getMyInfo() {
@@ -84,20 +88,16 @@ public class UserService {
 
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return userMapper.toUserResponse(user);
+        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
     }
 
-    // Xóa truyền id trên URL và xóa @PostAuthorize để bảo mật
     public UserResponse updateUser(UserRequest request) {
-        // 1. Định danh chính xác user đang thực hiện request thông qua Token
         var context = SecurityContextHolder.getContext();
         String currentEmail = context.getAuthentication().getName();
 
         User user = userRepository.findByEmail(currentEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        // 2. Kiểm tra tính duy nhất (Unique)
-        // Lưu ý: Chỉ báo lỗi khi user đổi sang một thông tin mới MÀ thông tin đó đã tồn tại trong DB
         if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
@@ -114,18 +114,37 @@ public class UserService {
             throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
         }
 
-        // 3. Map dữ liệu mới vào user hiện tại và lưu xuống DB
         userMapper.updateUser(user, request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        // 🔥 FIX LỖI BẢO MẬT: Chỉ cập nhật Password nếu user thực sự có truyền lên mật khẩu mới
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
 
         if (user.getFullName() != null && !user.getFullName().isEmpty()) {
             user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
         }
-        return userMapper.toUserResponse(userRepository.save(user));
+
+        return buildUserResponse(userRepository.save(user));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(String id) {
         userRepository.deleteById(id);
+    }
+
+    // =========================
+    // HELPER METHOD
+    // =========================
+    // 🔥 Hàm dùng chung để nhúng Full URL từ S3 vào Response
+    private UserResponse buildUserResponse(User user) {
+        UserResponse response = userMapper.toUserResponse(user);
+
+        String key = (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank())
+                ? user.getAvatarUrl()
+                : DEFAULT_AVATAR_KEY;
+
+        response.setAvatarUrl(s3Service.buildS3Url(key));
+        return response;
     }
 }

@@ -1,5 +1,7 @@
 package com.devteria.cinemaback_end.util;
 
+import com.devteria.cinemaback_end.exception.AppException;
+import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -9,12 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,16 +30,33 @@ public class S3Service {
     @Value("${cloud.aws.region.static}")
     String region;
 
+    // Hằng số giới hạn dung lượng file (5MB)
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+
     /**
      * Upload file to S3
      * @param file MultipartFile to upload
      * @param folder Folder path (e.g., "avatar")
-     * @param filename File name (e.g., "user1Avatar.jpg")
-     * @return Full S3 key (e.g., "avatar/user1Avatar.jpg")
+     * @return Full S3 key (e.g., "avatar/123-abc_user1Avatar.jpg")
      */
-    public String uploadFile(MultipartFile file, String folder, String filename) {
+    public String uploadFile(MultipartFile file, String folder) {
+
+        // 🔥 Ném lỗi bằng AppException chuẩn của hệ thống
+        if (file.isEmpty() || file.getContentType() == null) {
+            throw new AppException(ErrorCode.FILE_IS_EMPTY);
+        }
+        if (!file.getContentType().startsWith("image/")) {
+            throw new AppException(ErrorCode.INVALID_FILE_FORMAT);
+        }
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
+        }
+
         try {
-            String key = folder + "/" + filename;
+            String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
+            originalName = originalName.replaceAll("\\s+", "_"); // Bỏ khoảng trắng
+            String safeFilename = UUID.randomUUID() + "_" + originalName;
+            String key = folder + "/" + safeFilename;
 
             byte[] fileBytes = file.getBytes();
 
@@ -47,20 +64,20 @@ public class S3Service {
                     .bucket(bucketName)
                     .key(key)
                     .contentType(file.getContentType())
+                    .acl(ObjectCannedACL.PUBLIC_READ) // Cấp quyền đọc công khai cho file này
                     .build();
 
-            PutObjectResponse response = s3Client.putObject(putObjectRequest,
-                    RequestBody.fromBytes(fileBytes));
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileBytes));
 
             log.info("File uploaded successfully: {} to bucket: {}", key, bucketName);
             return key;
 
         } catch (IOException e) {
             log.error("Error reading file bytes: {}", file.getOriginalFilename(), e);
-            throw new RuntimeException("Failed to upload file: " + file.getOriginalFilename(), e);
+            throw new AppException(ErrorCode.UPLOAD_FILE_FAILED);
         } catch (Exception e) {
             log.error("Error uploading file to S3: {}", file.getOriginalFilename(), e);
-            throw new RuntimeException("Failed to upload file to S3: " + file.getOriginalFilename(), e);
+            throw new AppException(ErrorCode.UPLOAD_FILE_FAILED);
         }
     }
 
@@ -75,20 +92,19 @@ public class S3Service {
                     .key(key)
                     .build();
 
-            DeleteObjectResponse response = s3Client.deleteObject(deleteObjectRequest);
-
+            s3Client.deleteObject(deleteObjectRequest);
             log.info("File deleted successfully: {} from bucket: {}", key, bucketName);
 
         } catch (Exception e) {
             log.error("Error deleting file from S3: {}", key, e);
-            throw new RuntimeException("Failed to delete file from S3: " + key, e);
+            throw new AppException(ErrorCode.DELETE_FILE_FAILED);
         }
     }
 
     /**
      * Build absolute S3 URL for a given key
      * @param key S3 object key
-     * @return Full URL (e.g., https://cinemapbl3.s3.ap-southeast-2.amazonaws.com/avatar/user1Avatar.jpg)
+     * @return Full URL
      */
     public String buildS3Url(String key) {
         if (key == null || key.isEmpty()) {
