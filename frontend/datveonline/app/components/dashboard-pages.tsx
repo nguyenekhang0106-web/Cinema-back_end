@@ -78,6 +78,12 @@ type UserProfile = {
   fullName: string;
   email: string;
   phone: string;
+  gender: string;
+  birthDay: string;
+  birthMonth: string;
+  birthYear: string;
+  province: string;
+  citizenId: string;
   memberTier: string;
   points: number;
 };
@@ -167,9 +173,61 @@ const initialProfile: UserProfile = {
   fullName: "Tran Khach Hang",
   email: "user@kctcinema.vn",
   phone: "0909 123 456",
+  gender: "male",
+  birthDay: "15",
+  birthMonth: "08",
+  birthYear: "1998",
+  province: "Thành phố Hồ Chí Minh",
+  citizenId: "012345678901",
   memberTier: "Gold",
   points: 1280,
 };
+
+// Bổ sung các hằng số cần thiết cho Form (đặt ngay dưới initialProfile)
+const days = Array.from({ length: 31 }, (_, index) =>
+  String(index + 1).padStart(2, "0"),
+);
+const months = Array.from({ length: 12 }, (_, index) =>
+  String(index + 1).padStart(2, "0"),
+);
+const years = Array.from({ length: 87 }, (_, index) => String(2025 - index));
+
+const VIETNAM_PROVINCES = [
+  "An Giang",
+  "Bắc Ninh",
+  "Cà Mau",
+  "Cao Bằng",
+  "Cần Thơ",
+  "Đà Nẵng",
+  "Đắk Lắk",
+  "Điện Biên",
+  "Đồng Nai",
+  "Đồng Tháp",
+  "Gia Lai",
+  "Hà Nội",
+  "Hà Tĩnh",
+  "Hải Phòng",
+  "Hưng Yên",
+  "Huế",
+  "Khánh Hòa",
+  "Lai Châu",
+  "Lâm Đồng",
+  "Lạng Sơn",
+  "Lào Cai",
+  "Nghệ An",
+  "Ninh Bình",
+  "Phú Thọ",
+  "Quảng Ngãi",
+  "Quảng Ninh",
+  "Quảng Trị",
+  "Sơn La",
+  "Tây Ninh",
+  "Thái Nguyên",
+  "Thanh Hóa",
+  "Thành phố Hồ Chí Minh",
+  "Tuyên Quang",
+  "Vĩnh Long",
+] as const;
 
 const initialUpcomingTickets: TicketRecord[] = [
   {
@@ -1209,20 +1267,28 @@ export function UserDashboardPage() {
                       {dictionary.pages.user.sections[0].desc}
                     </Typography.Paragraph>
                     <div className="space-y-2 rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4">
-                      <Typography.Text strong>
+                      <Typography.Text strong style={{ fontSize: 16 }}>
                         {profile.fullName}
                       </Typography.Text>
                       <Typography.Text
                         style={{ display: "block", color: "#6d5a46" }}
                       >
-                        {profile.email}
+                        {profile.email} • {profile.phone}
                       </Typography.Text>
                       <Typography.Text
                         style={{ display: "block", color: "#6d5a46" }}
                       >
-                        {profile.phone}
+                        {copy.profileDob}: {profile.birthDay}/
+                        {profile.birthMonth}/{profile.birthYear}
                       </Typography.Text>
-                      <div className="flex flex-wrap gap-2">
+                      <Typography.Text
+                        style={{ display: "block", color: "#6d5a46" }}
+                      >
+                        {copy.profileCitizenId}: {profile.citizenId} •{" "}
+                        {profile.province}
+                      </Typography.Text>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {/* Hạng thành viên và Điểm hiển thị ở đây dưới dạng Tag (Không cho sửa) */}
                         <Tag color="gold">{profile.memberTier}</Tag>
                         <Tag color="red">
                           {copy.pointsLabel}: {profile.points}
@@ -1284,6 +1350,7 @@ export function UserDashboardPage() {
                       dataSource={vouchers}
                       columns={voucherColumns}
                       size="small"
+                      scroll={{ x: "max-content" }}
                     />
                   </Space>
                 </Card>
@@ -1300,47 +1367,113 @@ export function UserDashboardPage() {
             cancelText={copy.cancel}
           >
             <Form form={profileForm} layout="vertical" onFinish={saveProfile}>
-              <Form.Item
-                name="fullName"
-                label={copy.profileName}
-                rules={[{ required: true }]}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                name="email"
-                label={copy.profileEmail}
-                rules={[{ required: true }]}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                name="phone"
-                label={copy.profilePhone}
-                rules={[{ required: true }]}
-              >
-                <Input />
-              </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
                 <Form.Item
-                  name="memberTier"
-                  label={copy.profileTier}
+                  name="fullName"
+                  label={copy.profileName}
+                  rules={[{ required: true }]}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  name="gender"
+                  label={copy.profileGender}
                   rules={[{ required: true }]}
                 >
                   <Select
                     options={[
-                      { value: "Silver", label: "Silver" },
-                      { value: "Gold", label: "Gold" },
-                      { value: "Platinum", label: "Platinum" },
+                      { label: copy.male, value: "male" },
+                      { label: copy.female, value: "female" },
+                      { label: copy.other, value: "other" },
                     ]}
                   />
                 </Form.Item>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <Form.Item
-                  name="points"
-                  label={copy.pointsLabel}
+                  name="email"
+                  label={copy.profileEmail}
                   rules={[{ required: true }]}
                 >
-                  <Input type="number" />
+                  {/* Disable email vì đây là tài khoản đăng nhập chính */}
+                  <Input disabled />
+                </Form.Item>
+                <Form.Item
+                  name="phone"
+                  label={copy.profilePhone}
+                  rules={[{ required: true }]}
+                >
+                  <Input />
+                </Form.Item>
+              </div>
+
+              <Form.Item
+                label={copy.profileDob}
+                required
+                style={{ marginBottom: 16 }}
+              >
+                <div className="grid gap-4 grid-cols-3">
+                  <Form.Item
+                    name="birthDay"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      placeholder={copy.day}
+                      options={days.map((day) => ({ label: day, value: day }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="birthMonth"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      placeholder={copy.month}
+                      options={months.map((month) => ({
+                        label: month,
+                        value: month,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="birthYear"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      placeholder={copy.year}
+                      options={years.map((year) => ({
+                        label: year,
+                        value: year,
+                      }))}
+                      showSearch
+                    />
+                  </Form.Item>
+                </div>
+              </Form.Item>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Form.Item
+                  name="province"
+                  label={copy.profileProvince}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    options={VIETNAM_PROVINCES.map((p) => ({
+                      label: p,
+                      value: p,
+                    }))}
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="citizenId"
+                  label={copy.profileCitizenId}
+                  rules={[{ required: true }]}
+                >
+                  <Input maxLength={12} />
                 </Form.Item>
               </div>
             </Form>
@@ -1540,6 +1673,18 @@ const userCopy = {
     profilePhone: "So dien thoai",
     profileTier: "Hang thanh vien",
     pointsLabel: "Diem",
+    // === CÁC TỪ VỰNG MỚI ĐƯỢC BỔ SUNG CHO FORM ===
+    profileGender: "Giới tính",
+    profileDob: "Ngày sinh",
+    profileProvince: "Tỉnh/Thành phố",
+    profileCitizenId: "CCCD",
+    male: "Nam",
+    female: "Nữ",
+    other: "Khác",
+    day: "Ngày",
+    month: "Tháng",
+    year: "Năm",
+    // ===========================================
     totalOrders: "Tong don hang",
     paidTickets: "Ve da thanh toan",
     voucherCode: "Ma",
@@ -1586,6 +1731,18 @@ const userCopy = {
     profilePhone: "Phone number",
     profileTier: "Member tier",
     pointsLabel: "Points",
+    // === CÁC TỪ VỰNG MỚI ĐƯỢC BỔ SUNG CHO FORM ===
+    profileGender: "Gender",
+    profileDob: "Date of Birth",
+    profileProvince: "Province/City",
+    profileCitizenId: "Citizen ID",
+    male: "Male",
+    female: "Female",
+    other: "Other",
+    day: "Day",
+    month: "Month",
+    year: "Year",
+    // ===========================================
     totalOrders: "Total orders",
     paidTickets: "Paid tickets",
     voucherCode: "Code",

@@ -8,13 +8,29 @@ import {
   StarFilled,
   TrophyOutlined,
 } from "@ant-design/icons";
-import { Button, Card, Col, Empty, List, Row, Space, Tabs, Tag, Typography } from "antd";
+// THÊM Import Carousel từ antd vào đây
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  List,
+  Row,
+  Space,
+  Tabs,
+  Tag,
+  Typography,
+  Carousel,
+} from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type MovieItem } from "../data/cgv-template";
 import { getMoviesWithFallback } from "../lib/cinema-api";
-import { getLocalizedCinemas, getLocalizedPromotions } from "../lib/localized-data";
+import {
+  getLocalizedCinemas,
+  getLocalizedPromotions,
+} from "../lib/localized-data";
 import { localizeHref } from "../lib/i18n";
 import { useDictionary, useLocale } from "./locale-provider";
 import { MovieGrid } from "./movie-grid";
@@ -75,7 +91,11 @@ function HeroSection() {
                     </Space>
                     <Typography.Title
                       level={1}
-                      style={{ color: "#fff", marginBottom: 0, lineHeight: 1.06 }}
+                      style={{
+                        color: "#fff",
+                        marginBottom: 0,
+                        lineHeight: 1.06,
+                      }}
                     >
                       {banner.title}
                     </Typography.Title>
@@ -126,7 +146,10 @@ function HeroSection() {
             >
               <Space direction="vertical" size={12} className="w-full">
                 <Tag color="red">{dictionary.home.loginRegister}</Tag>
-                <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                <Typography.Title
+                  level={4}
+                  style={{ margin: 0, color: "#4a3426" }}
+                >
                   {dictionary.home.clubAccountTitle}
                 </Typography.Title>
                 <Typography.Paragraph style={{ margin: 0, color: "#6d5a46" }}>
@@ -168,23 +191,35 @@ function MovieTabsSection() {
     };
   }, [locale]);
 
-  const nowShowingMovies = movies.filter((movie) => movie.bookingLabel.toLowerCase().includes("showing") || movie.bookingLabel.toLowerCase().includes("chieu"));
-  const upcomingMovies = movies.filter((movie) => !nowShowingMovies.includes(movie));
+  const nowShowingMovies = movies.filter(
+    (movie) =>
+      movie.bookingLabel.toLowerCase().includes("showing") ||
+      movie.bookingLabel.toLowerCase().includes("chieu"),
+  );
+  const upcomingMovies = movies.filter(
+    (movie) => !nowShowingMovies.includes(movie),
+  );
 
   const tabItems = [
     {
       key: "now",
       label: dictionary.home.nowShowing,
-      children: (
-        nowShowingMovies.length > 0 ? <MovieGrid movies={nowShowingMovies} /> : <MovieFeedEmpty />
-      ),
+      children:
+        nowShowingMovies.length > 0 ? (
+          <MovieGrid movies={nowShowingMovies} />
+        ) : (
+          <MovieFeedEmpty />
+        ),
     },
     {
       key: "upcoming",
       label: dictionary.home.comingSoon,
-      children: (
-        upcomingMovies.length > 0 ? <MovieGrid movies={upcomingMovies} /> : <MovieFeedEmpty />
-      ),
+      children:
+        upcomingMovies.length > 0 ? (
+          <MovieGrid movies={upcomingMovies} />
+        ) : (
+          <MovieFeedEmpty />
+        ),
     },
   ];
 
@@ -224,7 +259,9 @@ function MovieFeedEmpty() {
       <Empty
         description={
           <Space direction="vertical" size={6}>
-            <Typography.Text strong>{dictionary.home.movieFeedTitle}</Typography.Text>
+            <Typography.Text strong>
+              {dictionary.home.movieFeedTitle}
+            </Typography.Text>
             <Typography.Text style={{ color: "#6d5a46" }}>
               {dictionary.home.movieFeedDescription}
             </Typography.Text>
@@ -255,7 +292,9 @@ function CinemaAndPromoSection() {
                 >
                   {dictionary.home.cinemaTitle}
                 </Typography.Title>
-                <Typography.Paragraph style={{ color: "#6d5a46", marginTop: 16 }}>
+                <Typography.Paragraph
+                  style={{ color: "#6d5a46", marginTop: 16 }}
+                >
                   {dictionary.home.cinemaDescription}
                 </Typography.Paragraph>
               </div>
@@ -274,7 +313,10 @@ function CinemaAndPromoSection() {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <Space wrap size={10}>
-                          <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+                          <Typography.Title
+                            level={4}
+                            style={{ margin: 0, color: "#4a3426" }}
+                          >
                             {cinema.name}
                           </Typography.Title>
                           <Tag color="red">
@@ -335,12 +377,19 @@ function CinemaAndPromoSection() {
                       }}
                     >
                       <Space align="start">
-                        <GiftOutlined style={{ fontSize: 22, color: "#a61d24" }} />
+                        <GiftOutlined
+                          style={{ fontSize: 22, color: "#a61d24" }}
+                        />
                         <div>
-                          <Typography.Title level={5} style={{ margin: 0, color: "#4a3426" }}>
+                          <Typography.Title
+                            level={5}
+                            style={{ margin: 0, color: "#4a3426" }}
+                          >
                             {promotion.title}
                           </Typography.Title>
-                          <Typography.Paragraph style={{ margin: "6px 0 0", color: "#6d5a46" }}>
+                          <Typography.Paragraph
+                            style={{ margin: "6px 0 0", color: "#6d5a46" }}
+                          >
                             {promotion.description}
                           </Typography.Paragraph>
                         </div>
@@ -352,7 +401,10 @@ function CinemaAndPromoSection() {
             </Card>
 
             <Card bordered={false} className="cinema-paper rounded-[28px]">
-              <Typography.Title level={4} style={{ marginTop: 0, color: "#4a3426" }}>
+              <Typography.Title
+                level={4}
+                style={{ marginTop: 0, color: "#4a3426" }}
+              >
                 {dictionary.home.sitePartsTitle}
               </Typography.Title>
               <List
@@ -427,10 +479,40 @@ function NewsStrip() {
   );
 }
 
+// === MAIN COMPONENT ===
 export function CgvHomePage() {
   return (
     <div className="cinema-page">
       <SiteShell>
+        {/* KHỐI CAROUSEL BANNER ĐƯỢC CHÈN VÀO ĐÂY */}
+        <div className="w-full">
+          {/* Thêm arrows={true} để hiện mũi tên Next/Prev giống Metiz */}
+          <Carousel autoplay effect="fade" arrows={true}>
+            <div className="relative h-[300px] md:h-[450px] w-full focus:outline-none">
+              <img
+                // Đã đổi sang link ảnh Unsplash để chắc chắn load được trên localhost
+                src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop"
+                alt="Banner 1"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="relative h-[300px] md:h-[450px] w-full focus:outline-none">
+              <img
+                src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop"
+                alt="Banner 2"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="relative h-[300px] md:h-[450px] w-full focus:outline-none">
+              <img
+                src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop"
+                alt="Banner 3"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </Carousel>
+        </div>
+
         <main className="cinema-shell px-4 pb-8 sm:px-6">
           <HeroSection />
           <MovieTabsSection />
