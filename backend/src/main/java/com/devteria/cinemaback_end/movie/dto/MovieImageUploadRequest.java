@@ -12,14 +12,9 @@ import org.springframework.web.multipart.MultipartFile;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MovieImageUploadRequest {
 
-    @NotNull(message = "File không được để trống")
-    MultipartFile file;
+    @NotNull(message = "POSTER_IS_EMPTY")
+    MultipartFile posterFile;
 
-    @NotNull(message = "Loại ảnh không được để trống (poster hoặc banner)")
-    ImageType imageType; // POSTER hoặc BANNER
-
-    public enum ImageType {
-        POSTER,
-        BANNER
-    }
+    @NotNull(message = "BANNER_IS_EMPTY")
+    MultipartFile bannerFile;
 }

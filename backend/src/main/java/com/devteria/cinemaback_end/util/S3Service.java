@@ -60,11 +60,11 @@ public class S3Service {
 
             byte[] fileBytes = file.getBytes();
 
+            // 🔥 ĐÃ XÓA DÒNG .acl(...) THEO ĐÚNG CẤU HÌNH CỦA TEAM
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
                     .contentType(file.getContentType())
-                    .acl(ObjectCannedACL.PUBLIC_READ) // Cấp quyền đọc công khai cho file này
                     .build();
 
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileBytes));

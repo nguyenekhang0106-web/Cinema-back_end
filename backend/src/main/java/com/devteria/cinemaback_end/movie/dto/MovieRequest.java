@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDate;
 import java.util.Set;
 
@@ -37,10 +37,7 @@ public class MovieRequest {
     @NotNull(message = "AGE_RESTRICTION_NOT_NULL")
     AgeRestriction ageRestriction;
 
-    MultipartFile posterFile;
     String trailerUrl;
-
-    MultipartFile bannerFile;
 
     String description;
 

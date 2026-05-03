@@ -16,21 +16,36 @@ import java.util.List;
 @RestController
 @RequestMapping("/movies")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true) // Đồng bộ phong cách code
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class MovieController {
-    MovieService movieService; // Đã bỏ private final nhờ FieldDefaults
+
+    MovieService movieService;
 
     /**
-     * Create movie with optional poster and banner upload
-     * Request: form-data with fields: title, durationMin, genre, language, ageRestriction,
-     *          trailerUrl, description, releaseDate, directors, actors, posterFile (optional), bannerFile (optional)
+     * BƯỚC 1: Tạo phim mới (Chỉ nhận JSON)
+     * Request Body: JSON chứa title, durationMin, genre, language, directors, actors...
      */
     @PostMapping
-    public ApiResponse<MovieResponse> createMovie(@ModelAttribute @Valid MovieRequest request) {
+    public ApiResponse<MovieResponse> createMovie(@RequestBody @Valid MovieRequest request) {
         return ApiResponse.<MovieResponse>builder()
-                .code(1000) // Trả về mã thành công chuẩn
-                .message("Thêm phim mới thành công")
+                .code(1000)
+                .message("Thêm thông tin phim mới thành công")
                 .result(movieService.createMovie(request))
+                .build();
+    }
+
+    /**
+     * BƯỚC 2: Upload Poster và Banner (Nhận Form-Data)
+     * Request: form-data chứa posterFile và bannerFile
+     */
+    @PostMapping("/{id}/images")
+    public ApiResponse<MovieResponse> uploadMovieImages(
+            @PathVariable String id,
+            @ModelAttribute @Valid MovieImageUploadRequest request) {
+        return ApiResponse.<MovieResponse>builder()
+                .code(1000)
+                .message("Cập nhật ảnh phim thành công")
+                .result(movieService.uploadMovieImages(id, request))
                 .build();
     }
 
@@ -48,16 +63,18 @@ public class MovieController {
         return ApiResponse.<MovieResponse>builder()
                 .code(1000)
                 .message("Lấy thông tin phim thành công")
-                .result(movieService.getMovieWithImages(id))
+                // Gọi hàm getMovie chuẩn (Service đã tự động map Full URL ảnh)
+                .result(movieService.getMovie(id))
                 .build();
     }
 
     /**
-     * Update movie with optional image upload
-     * Request: form-data with fields same as createMovie
+     * Cập nhật thông tin phim (Chỉ nhận JSON)
      */
     @PutMapping("/{id}")
-    public ApiResponse<MovieResponse> updateMovie(@PathVariable String id, @ModelAttribute @Valid MovieRequest request) {
+    public ApiResponse<MovieResponse> updateMovie(
+            @PathVariable String id,
+            @RequestBody @Valid MovieRequest request) {
         return ApiResponse.<MovieResponse>builder()
                 .code(1000)
                 .message("Cập nhật thông tin phim thành công")
@@ -68,31 +85,9 @@ public class MovieController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteMovie(@PathVariable String id) {
         movieService.deleteMovie(id);
-
         return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("Xóa phim thành công")
-                // Không cần truyền .result() vì hàm xóa trả về void
-                .build();
-    }
-
-    /**
-     * Upload poster or banner image for movie (separate endpoint)
-     * POST /movies/{id}/image
-     *
-     * Request body: form-data
-     * - file: MultipartFile
-     * - imageType: String (POSTER hoặc BANNER)
-     */
-    @PostMapping("/{id}/image")
-    public ApiResponse<String> uploadMovieImage(
-            @PathVariable String id,
-            @ModelAttribute @Valid MovieImageUploadRequest request) {
-        String imageUrl = movieService.uploadMovieImageViaApi(id, request);
-        return ApiResponse.<String>builder()
-                .code(1000)
-                .message("Cập nhật ảnh phim thành công")
-                .result(imageUrl)
                 .build();
     }
 }

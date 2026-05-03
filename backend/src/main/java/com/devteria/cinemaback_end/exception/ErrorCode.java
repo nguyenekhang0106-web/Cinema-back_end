@@ -209,6 +209,22 @@ public enum ErrorCode {
     FILE_TOO_LARGE(1146, "Dung lượng file quá lớn. Vui lòng chọn file dưới 5MB", HttpStatus.BAD_REQUEST), // Bạn có thể dùng HttpStatus.PAYLOAD_TOO_LARGE cũng được
     UPLOAD_FILE_FAILED(1147, "Lỗi hệ thống: Không thể tải file lên máy chủ", HttpStatus.INTERNAL_SERVER_ERROR),
     DELETE_FILE_FAILED(1148, "Lỗi hệ thống: Không thể xóa file trên máy chủ", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    POSTER_IS_EMPTY(1149, "File ảnh poster không được để trống", HttpStatus.BAD_REQUEST),
+    BANNER_IS_EMPTY(1150, "File ảnh banner không được để trống", HttpStatus.BAD_REQUEST),
+    DIRECTOR_NOT_EMPTY(1151, "Danh sách đạo diễn không được để trống", HttpStatus.BAD_REQUEST),
+    ACTORS_NOT_EMPTY(1152, "Danh sách diễn viên không được để trống", HttpStatus.BAD_REQUEST),
+    // ==========================================
+    // MODULE BOOKING & PAYMENT (Bổ sung nâng cao)
+    // ==========================================
+    // Khi người dùng thanh toán quá chậm, qua 10 phút giữ ghế thì ghế bị nhả ra
+    SEAT_HOLD_EXPIRED(1153, "Thời gian giữ ghế đã hết. Vui lòng chọn lại ghế", HttpStatus.BAD_REQUEST),
+    // Khi cố tình thanh toán/truy cập một hóa đơn đã bị hệ thống hủy (do hết giờ hoặc user tự hủy)
+    BOOKING_ALREADY_CANCELLED(1154, "Hóa đơn này đã bị hủy trước đó", HttpStatus.BAD_REQUEST),
+    // Khi rạp phim có sự cố (ví dụ: cúp điện) và cần hủy vé + hoàn tiền cho khách
+    REFUND_FAILED(1155, "Lỗi hệ thống: Không thể hoàn tiền cho giao dịch này", HttpStatus.INTERNAL_SERVER_ERROR),
+    // Dành cho giỏ hàng (Concession) khi đặt vé
+    CONCESSION_QUANTITY_INVALID(1156, "Số lượng đồ ăn/thức uống không hợp lệ", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
