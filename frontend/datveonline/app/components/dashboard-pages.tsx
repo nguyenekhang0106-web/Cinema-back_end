@@ -1,7 +1,9 @@
 "use client";
 
+import { CameraOutlined } from "@ant-design/icons"; // <-- Bổ sung dòng này cho Icon máy ảnh
 import {
   App,
+  Avatar, // <-- Bổ sung Avatar
   Button,
   Card,
   Col,
@@ -15,6 +17,7 @@ import {
   Table,
   Tag,
   Typography,
+  Upload, // <-- Bổ sung Upload
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import Image from "next/image";
@@ -86,6 +89,7 @@ type UserProfile = {
   citizenId: string;
   memberTier: string;
   points: number;
+  avatarUrl: string;
 };
 
 const initialMovies: MovieRecord[] = [
@@ -181,6 +185,7 @@ const initialProfile: UserProfile = {
   citizenId: "012345678901",
   memberTier: "Gold",
   points: 1280,
+  avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
 };
 
 // Bổ sung các hằng số cần thiết cho Form (đặt ngay dưới initialProfile)
@@ -1181,6 +1186,21 @@ export function UserDashboardPage() {
     message.success(copy.voucherApplied);
   }
 
+  // Xử lý upload Avatar cục bộ (có thể cần thay đổi nếu muốn lưu lên backend thật)
+  const handleAvatarUpload = (info: any) => {
+    if (info.file.status === "done" || info.file.originFileObj) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfile((prev) => ({
+          ...prev,
+          avatarUrl: e.target?.result as string,
+        }));
+        message.success("Cập nhật ảnh đại diện thành công!");
+      };
+      reader.readAsDataURL(info.file.originFileObj);
+    }
+  };
+
   return (
     <div className="cinema-page">
       <SiteShell>
@@ -1192,6 +1212,122 @@ export function UserDashboardPage() {
             image="https://images.pexels.com/photos/7234256/pexels-photo-7234256.jpeg?auto=compress&cs=tinysrgb&w=1200"
             stats={stats}
           />
+
+          {/* KHỐI 1: THÔNG TIN TÀI KHOẢN & AVATAR (Nằm to trên cùng giống Metiz) */}
+          <Row gutter={[24, 24]} className="mt-8">
+            <Col xs={24}>
+              <Card bordered={false} className="cinema-paper rounded-[24px]">
+                <Row gutter={[32, 24]} align="middle">
+                  {/* Cột trái: Avatar + Hạng thành viên */}
+                  <Col
+                    xs={24}
+                    md={8}
+                    className="flex flex-col items-center justify-center border-[#ead6bb] md:border-r md:border-dashed"
+                  >
+                    <Upload
+                      name="avatar"
+                      showUploadList={false}
+                      customRequest={({ onSuccess }) =>
+                        setTimeout(() => onSuccess?.("ok"), 0)
+                      }
+                      onChange={handleAvatarUpload}
+                    >
+                      <div className="relative inline-block cursor-pointer group rounded-full overflow-hidden border-4 border-white shadow-md">
+                        <Avatar size={140} src={profile.avatarUrl} />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <CameraOutlined
+                            style={{ color: "white", fontSize: 28 }}
+                          />
+                        </div>
+                      </div>
+                    </Upload>
+                    <Typography.Title
+                      level={4}
+                      style={{
+                        marginTop: 16,
+                        marginBottom: 4,
+                        color: "#4a3426",
+                      }}
+                    >
+                      {profile.fullName}
+                    </Typography.Title>
+                    <Tag
+                      color="gold"
+                      style={{
+                        fontSize: 14,
+                        padding: "4px 12px",
+                        borderRadius: 16,
+                      }}
+                    >
+                      {profile.memberTier}
+                    </Tag>
+                    <Typography.Text
+                      style={{
+                        color: "#a61d24",
+                        fontWeight: "bold",
+                        marginTop: 8,
+                      }}
+                    >
+                      {copy.pointsLabel}: {profile.points}
+                    </Typography.Text>
+                  </Col>
+
+                  {/* Cột phải: Thông tin chi tiết + Nút Edit */}
+                  <Col xs={24} md={16}>
+                    <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
+                        {dictionary.pages.user.sections[0].title}
+                      </Typography.Title>
+                      <Button type="primary" onClick={openProfileEditor}>
+                        {copy.editProfile}
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] text-[#6d5a46]">
+                      <div>
+                        <strong style={{ color: "#4a3426" }}>
+                          {copy.profileEmail}:
+                        </strong>{" "}
+                        {profile.email}
+                      </div>
+                      <div>
+                        <strong style={{ color: "#4a3426" }}>
+                          {copy.profilePhone}:
+                        </strong>{" "}
+                        {profile.phone}
+                      </div>
+                      <div>
+                        <strong style={{ color: "#4a3426" }}>
+                          {copy.profileDob}:
+                        </strong>{" "}
+                        {profile.birthDay}/{profile.birthMonth}/
+                        {profile.birthYear}
+                      </div>
+                      <div>
+                        <strong style={{ color: "#4a3426" }}>
+                          {copy.profileGender}:
+                        </strong>{" "}
+                        {profile.gender === "male"
+                          ? copy.male
+                          : profile.gender === "female"
+                            ? copy.female
+                            : copy.other}
+                      </div>
+                      <div className="md:col-span-2">
+                        <strong style={{ color: "#4a3426" }}>
+                          {copy.profileCitizenId}:
+                        </strong>{" "}
+                        {profile.citizenId} ({profile.province})
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
+          </Row>
 
           <Row gutter={[24, 24]} className="mt-8">
             <Col xs={24} lg={15}>
@@ -1248,56 +1384,6 @@ export function UserDashboardPage() {
 
             <Col xs={24} lg={9}>
               <Space direction="vertical" size={24} className="w-full">
-                <Card bordered={false} className="cinema-paper rounded-[24px]">
-                  <Space direction="vertical" size={14} className="w-full">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <Typography.Title
-                        level={4}
-                        style={{ margin: 0, color: "#4a3426" }}
-                      >
-                        {dictionary.pages.user.sections[0].title}
-                      </Typography.Title>
-                      <Button size="small" onClick={openProfileEditor}>
-                        {copy.editProfile}
-                      </Button>
-                    </div>
-                    <Typography.Paragraph
-                      style={{ marginBottom: 0, color: "#6d5a46" }}
-                    >
-                      {dictionary.pages.user.sections[0].desc}
-                    </Typography.Paragraph>
-                    <div className="space-y-2 rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4">
-                      <Typography.Text strong style={{ fontSize: 16 }}>
-                        {profile.fullName}
-                      </Typography.Text>
-                      <Typography.Text
-                        style={{ display: "block", color: "#6d5a46" }}
-                      >
-                        {profile.email} • {profile.phone}
-                      </Typography.Text>
-                      <Typography.Text
-                        style={{ display: "block", color: "#6d5a46" }}
-                      >
-                        {copy.profileDob}: {profile.birthDay}/
-                        {profile.birthMonth}/{profile.birthYear}
-                      </Typography.Text>
-                      <Typography.Text
-                        style={{ display: "block", color: "#6d5a46" }}
-                      >
-                        {copy.profileCitizenId}: {profile.citizenId} •{" "}
-                        {profile.province}
-                      </Typography.Text>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {/* Hạng thành viên và Điểm hiển thị ở đây dưới dạng Tag (Không cho sửa) */}
-                        <Tag color="gold">{profile.memberTier}</Tag>
-                        <Tag color="red">
-                          {copy.pointsLabel}: {profile.points}
-                        </Tag>
-                      </div>
-                    </div>
-                  </Space>
-                </Card>
-
                 <Card bordered={false} className="cinema-paper rounded-[24px]">
                   <Space direction="vertical" size={14} className="w-full">
                     <Typography.Title
