@@ -11,6 +11,7 @@ type AuthSession = {
   loading: boolean;
   signIn: (token: string, user: AuthUser) => void;
   signOut: () => void;
+  logout: () => void; // 🔥 Bổ sung thêm logout để khớp với code Dashboard
 };
 
 const STORAGE_KEY = "kct-auth-session";
@@ -23,9 +24,14 @@ const AuthSessionContext = createContext<AuthSession>({
   loading: true,
   signIn: () => undefined,
   signOut: () => undefined,
+  logout: () => undefined, // 🔥 Bổ sung giá trị mặc định
 });
 
-export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
+export function AuthSessionProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState<AuthRole | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -57,8 +63,17 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  const value = useMemo<AuthSession>(
-    () => ({
+  const value = useMemo<AuthSession>(() => {
+    // Tách logic đăng xuất ra 1 hàm dùng chung
+    const handleSignOut = () => {
+      setIsAuthenticated(false);
+      setRole(null);
+      setToken(null);
+      setUser(null);
+      window.localStorage.removeItem(STORAGE_KEY);
+    };
+
+    return {
       isAuthenticated,
       role,
       token,
@@ -79,16 +94,10 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
           }),
         );
       },
-      signOut: () => {
-        setIsAuthenticated(false);
-        setRole(null);
-        setToken(null);
-        setUser(null);
-        window.localStorage.removeItem(STORAGE_KEY);
-      },
-    }),
-    [isAuthenticated, loading, role, token, user],
-  );
+      signOut: handleSignOut,
+      logout: handleSignOut, // 🔥 Gán chung logic vào cả 2 tên gọi
+    };
+  }, [isAuthenticated, loading, role, token, user]);
 
   return (
     <AuthSessionContext.Provider value={value}>

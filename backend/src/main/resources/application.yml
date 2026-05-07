@@ -34,8 +34,8 @@ spring:
 
 jwt:
   signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
-  valid-duration: 6000 # in seconds
-  refreshable-duration: 12000 # in seconds
+  valid-duration: 3600 # in seconds
+  refreshable-duration: 86400 # in seconds
 
 app:
   # TTL mã 6 số xác thực email (lưu trong Redis, key prefix cinema:email-verify:)

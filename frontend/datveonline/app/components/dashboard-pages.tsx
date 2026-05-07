@@ -1,7 +1,12 @@
 "use client";
-import { getMyProfile, updateMyProfile } from "../lib/cinema-api";
+import {
+  getMyProfile,
+  updateMyProfile,
+  uploadAvatarApi,
+} from "../lib/cinema-api";
 import { useAuthSession } from "./auth-session-provider";
 import { CameraOutlined } from "@ant-design/icons"; // <-- Bổ sung dòng này cho Icon máy ảnh
+import { useRouter } from "next/navigation";
 import {
   App,
   Avatar, // <-- Bổ sung Avatar
@@ -1091,8 +1096,11 @@ export function UserDashboardPage() {
   const locale = useLocale();
   const copy = locale === "en" ? userCopy.en : userCopy.vi;
 
-  // 1. SỬA TẠI ĐÂY: Lấy thẳng chữ 'token' ra thay vì 'session'
-  const { token } = useAuthSession();
+  // 1. Thêm router để chuyển trang
+  const router = useRouter();
+
+  // 2. Lấy thêm hàm đăng xuất (giả sử tên là logout) từ session của bạn
+  const { token, user, logout } = useAuthSession();
 
   const [profile, setProfile] = useState(initialProfile);
   const [upcomingTickets, setUpcomingTickets] = useState(
@@ -1142,11 +1150,33 @@ export function UserDashboardPage() {
             });
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error("Lỗi khi tải thông tin user:", error);
-          message.error(
-            "Không thể tải thông tin cá nhân. Vui lòng thử lại sau.",
-          );
+
+          // Kiểm tra xem lỗi có phải do Token hết hạn không (dựa vào câu báo lỗi 1006 của Backend)
+          if (
+            error.message?.includes("Unauthenticated") ||
+            error.message?.includes("Token Invalid")
+          ) {
+            message.warning(
+              "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!",
+            );
+
+            // Xóa session/token cũ đi (để thanh Header hiện lại nút Đăng nhập)
+            if (logout) {
+              logout();
+            } else {
+              // Nếu bạn không có hàm logout trong AuthSession, hãy tự xóa token trong storage (Ví dụ:)
+              // localStorage.removeItem("token");
+            }
+
+            // Tự động đá người dùng về trang chủ
+            router.push("/");
+          } else {
+            message.error(
+              "Không thể tải thông tin cá nhân. Vui lòng thử lại sau.",
+            );
+          }
         });
     }
   }, [token, message]);
@@ -1255,9 +1285,9 @@ export function UserDashboardPage() {
         // Ép kiểu giới tính về Enum chuẩn. (Nếu BE của bạn khai báo khác, hãy đổi MALE/FEMALE thành NAM/NU cho khớp)
         gender:
           values.gender === "male"
-            ? "nam"
+            ? "Nam"
             : values.gender === "female"
-              ? "nữ"
+              ? "Nữ"
               : "khác",
         // Dịch tên tiếng Việt có dấu về mã không dấu
         area: REVERSE_AREA_MAP[values.province] || values.province,
@@ -1324,21 +1354,6 @@ export function UserDashboardPage() {
     message.success(copy.voucherApplied);
   }
 
-  // Xử lý upload Avatar cục bộ (có thể cần thay đổi nếu muốn lưu lên backend thật)
-  const handleAvatarUpload = (info: any) => {
-    if (info.file.status === "done" || info.file.originFileObj) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setProfile((prev) => ({
-          ...prev,
-          avatarUrl: e.target?.result as string,
-        }));
-        message.success("Cập nhật ảnh đại diện thành công!");
-      };
-      reader.readAsDataURL(info.file.originFileObj);
-    }
-  };
-
   return (
     <div className="cinema-page">
       <SiteShell>
@@ -1365,10 +1380,41 @@ export function UserDashboardPage() {
                     <Upload
                       name="avatar"
                       showUploadList={false}
-                      customRequest={({ onSuccess }) =>
-                        setTimeout(() => onSuccess?.("ok"), 0)
-                      }
-                      onChange={handleAvatarUpload}
+                      // Dùng customRequest để tự điều khiển việc gọi API bằng Fetch thay vì mặc định của Antd
+                      customRequest={async (options) => {
+                        const { file, onSuccess, onError } = options;
+                        try {
+                          if (!token || !user?.id) {
+                            message.error(
+                              "Lỗi xác thực. Vui lòng đăng nhập lại!",
+                            );
+                            onError?.(new Error("No user id"));
+                            return;
+                          }
+
+                          // 1. Gọi API gửi File ảnh lên Backend
+                          const newAvatarUrl = await uploadAvatarApi(
+                            token,
+                            user.id,
+                            file as File,
+                          );
+
+                          // 2. Backend lưu xong, trả về link mới -> Cập nhật lên UI
+                          setProfile((prev) => ({
+                            ...prev,
+                            avatarUrl: newAvatarUrl, // Link ảnh thật (S3 hoặc server)
+                          }));
+
+                          message.success("Cập nhật ảnh đại diện thành công!");
+                          onSuccess?.("ok");
+                        } catch (error) {
+                          console.error("Lỗi upload ảnh:", error);
+                          message.error(
+                            "Cập nhật ảnh thất bại. Vui lòng thử lại!",
+                          );
+                          onError?.(error as Error);
+                        }
+                      }}
                     >
                       <div className="relative inline-block cursor-pointer group rounded-full overflow-hidden border-4 border-white shadow-md">
                         <Avatar size={140} src={profile.avatarUrl} />
