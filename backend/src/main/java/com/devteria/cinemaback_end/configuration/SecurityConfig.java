@@ -75,10 +75,16 @@ public class SecurityConfig {
         // Kích hoạt CORS
         httpSecurity.cors(Customizer.withDefaults());
 
+        // 🔥 BỔ SUNG EXCEPTION HANDLING CHO SPRING SECURITY Ở ĐÂY
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+
+        // Thêm dòng này để xử lý lỗi 403 Forbidden
+        httpSecurity.exceptionHandling(exceptions -> exceptions
+                .accessDeniedHandler(new CustomAccessDeniedHandler()));
+
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
 
         return httpSecurity.build();

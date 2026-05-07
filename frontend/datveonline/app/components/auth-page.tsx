@@ -540,11 +540,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         }}
       >
         <Form.Item
-          name="email"
-          label="Email"
+          name="email" // Giữ nguyên name="email" để code cũ chạy được
+          label={locale === "vi" ? "Email / Số điện thoại" : "Email / Phone"}
           rules={[{ required: true, message: dictionary.auth.emailRequired }]}
         >
-          <Input size="large" placeholder="ban@kctcinema.vn" />
+          <Input size="large" placeholder="ban@kctcinema.vn hoặc 0901234567" />
         </Form.Item>
         <Form.Item
           name="password"

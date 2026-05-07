@@ -14,6 +14,7 @@ type ApiResponse<T> = {
 export type AuthRole = "admin" | "user";
 
 export type AuthUser = {
+  id?: string; // <-- BẠN THÊM DÒNG NÀY VÀO LÀ HẾT LỖI NGAY
   email?: string;
   role: AuthRole;
 };
@@ -79,10 +80,16 @@ async function request<T>(
   return payload.result as T;
 }
 
-export async function loginWithBackend(username: string, password: string) {
+export async function loginWithBackend(
+  usernameOrEmail: string,
+  password: string,
+) {
   const result = await request<LoginResult>("/auth/token", {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({
+      username: usernameOrEmail, // Gửi giá trị user nhập vào trường "username" của BE
+      password: password,
+    }),
   });
 
   if (!result?.authenticated || !result.token) {
@@ -127,13 +134,17 @@ export async function getMovieBySlugWithFallback(locale: Locale, slug: string) {
   return movies.find((movie) => movie.slug === slug);
 }
 
+// Trong file lib/cinema-api.ts
 function parseUserFromToken(token: string): AuthUser {
   const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
     sub?: string;
     scope?: string;
+    userId?: string; // 🔥 Cấu trúc Payload giờ đã có thêm userId từ Spring Boot
   };
   const scope = payload.scope ?? "";
+
   return {
+    id: payload.userId, // 🔥 Lấy ID thực tế từ Token
     email: payload.sub,
     role: scope.includes("ROLE_ADMIN") ? "admin" : "user",
   };
@@ -244,4 +255,51 @@ export async function verifyOtpWithBackend(email: string, otpCode: string) {
     // Gửi email và mã 6 số xuống backend để đối chiếu với Redis
     body: JSON.stringify({ email, otp: otpCode }),
   });
+}
+
+// Lấy thông tin cá nhân (Map tới: GET /users/myInfo)
+export async function getMyProfile(token: string) {
+  return request<any>("/users/myInfo", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+// Cập nhật thông tin cá nhân (Map tới: PUT /users/my-info)
+export async function updateMyProfile(token: string, payload: any) {
+  return request<any>("/users/my-info", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// Upload Avatar
+export async function uploadAvatarApi(
+  token: string,
+  userId: string,
+  file: File,
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/users/${userId}/avatar`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok || (payload.code && payload.code !== 1000)) {
+    throw new Error(payload.message ?? "Tải ảnh lên thất bại");
+  }
+
+  return payload.result;
 }

@@ -1,5 +1,6 @@
 "use client";
-
+import { getMyProfile, updateMyProfile } from "../lib/cinema-api";
+import { useAuthSession } from "./auth-session-provider";
 import { CameraOutlined } from "@ant-design/icons"; // <-- Bổ sung dòng này cho Icon máy ảnh
 import {
   App,
@@ -21,7 +22,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SiteShell } from "./site-shell";
 import { useDictionary, useLocale } from "./locale-provider";
 
@@ -233,6 +234,43 @@ const VIETNAM_PROVINCES = [
   "Tuyên Quang",
   "Vĩnh Long",
 ] as const;
+
+const AREA_MAP: Record<string, string> = {
+  HA_NOI: "Hà Nội",
+  TUYEN_QUANG: "Tuyên Quang",
+  LAO_CAI: "Lào Cai",
+  THAI_NGUYEN: "Thái Nguyên",
+  PHU_THO: "Phú Thọ",
+  BAC_NINH: "Bắc Ninh",
+  HUNG_YEN: "Hưng Yên",
+  HAI_PHONG: "Hải Phòng",
+  NINH_BINH: "Ninh Bình",
+  QUANG_TRI: "Quảng Trị",
+  DA_NANG: "Đà Nẵng",
+  QUANG_NGAI: "Quảng Ngãi",
+  GIA_LAI: "Gia Lai",
+  KHANH_HOA: "Khánh Hòa",
+  LAM_DONG: "Lâm Đồng",
+  DAK_LAK: "Đắk Lắk",
+  HO_CHI_MINH: "Thành phố Hồ Chí Minh",
+  DONG_NAI: "Đồng Nai",
+  TAY_NINH: "Tây Ninh",
+  CAN_THO: "Cần Thơ",
+  VINH_LONG: "Vĩnh Long",
+  DONG_THAP: "Đồng Tháp",
+  CA_MAU: "Cà Mau",
+  AN_GIANG: "An Giang",
+  HUE: "Huế",
+  LAI_CHAU: "Lai Châu",
+  DIEN_BIEN: "Điện Biên",
+  SON_LA: "Sơn La",
+  LANG_SON: "Lạng Sơn",
+  QUANG_NINH: "Quảng Ninh",
+  THANH_HOA: "Thanh Hóa",
+  NGHE_AN: "Nghệ An",
+  HA_TINH: "Hà Tĩnh",
+  CAO_BANG: "Cao Bằng",
+};
 
 const initialUpcomingTickets: TicketRecord[] = [
   {
@@ -1053,6 +1091,9 @@ export function UserDashboardPage() {
   const locale = useLocale();
   const copy = locale === "en" ? userCopy.en : userCopy.vi;
 
+  // 1. SỬA TẠI ĐÂY: Lấy thẳng chữ 'token' ra thay vì 'session'
+  const { token } = useAuthSession();
+
   const [profile, setProfile] = useState(initialProfile);
   const [upcomingTickets, setUpcomingTickets] = useState(
     initialUpcomingTickets,
@@ -1061,6 +1102,54 @@ export function UserDashboardPage() {
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileForm] = Form.useForm<UserProfile>();
+
+  // ==========================================
+  // 2. THÊM ĐOẠN USE-EFFECT NÀY ĐỂ GỌI API LẤY DATA THẬT
+  // ==========================================
+  useEffect(() => {
+    if (token) {
+      getMyProfile(token)
+        .then((data) => {
+          // data lúc này chính là cục dữ liệu thật chứ không cần data.result nữa
+          if (data) {
+            const dobParts = data.dateOfBirth
+              ? data.dateOfBirth.split("-")
+              : ["", "", ""];
+
+            setProfile({
+              fullName: data.fullName || "",
+              email: data.email || "",
+              phone: data.phone || "",
+              gender:
+                data.gender === "Nam"
+                  ? "male"
+                  : data.gender === "Nữ"
+                    ? "female"
+                    : "other",
+              birthYear: dobParts[0] || "",
+              birthMonth: dobParts[1] || "",
+              birthDay: dobParts[2] || "",
+
+              // 🔴 SỬA TẠI ĐÂY: Dùng AREA_MAP để dịch mã DA_NANG thành Đà Nẵng
+              province: data.area ? AREA_MAP[data.area] || data.area : "",
+
+              citizenId: data.citizenIdNumber || "",
+              memberTier: data.memberTier || "Gold",
+              points: data.points || 0,
+              avatarUrl:
+                data.avatarUrl ||
+                "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Lỗi khi tải thông tin user:", error);
+          message.error(
+            "Không thể tải thông tin cá nhân. Vui lòng thử lại sau.",
+          );
+        });
+    }
+  }, [token, message]);
 
   const stats = [
     {
@@ -1152,11 +1241,60 @@ export function UserDashboardPage() {
     setProfileModalOpen(true);
   }
 
-  function saveProfile(values: UserProfile) {
-    setProfile(values);
-    setProfileModalOpen(false);
-    message.success(copy.profileUpdated);
-  }
+  const saveProfile = async (values: any) => {
+    // 1. Tạo bảng tra cứu ngược để dịch "Đà Nẵng" -> "DA_NANG"
+    const REVERSE_AREA_MAP: Record<string, string> = Object.fromEntries(
+      Object.entries(AREA_MAP).map(([key, value]) => [value, key]),
+    );
+
+    try {
+      // 2. Định dạng lại payload chuẩn với các trường của Backend (UserRequest)
+      const payload = {
+        fullName: values.fullName,
+        phone: values.phone,
+        // Ép kiểu giới tính về Enum chuẩn. (Nếu BE của bạn khai báo khác, hãy đổi MALE/FEMALE thành NAM/NU cho khớp)
+        gender:
+          values.gender === "male"
+            ? "nam"
+            : values.gender === "female"
+              ? "nữ"
+              : "khác",
+        // Dịch tên tiếng Việt có dấu về mã không dấu
+        area: REVERSE_AREA_MAP[values.province] || values.province,
+        // Map đúng tên field CCCD của Backend
+        citizenIdNumber: values.citizenId,
+        // Đảm bảo format ngày sinh chuẩn yyyy-MM-dd (thêm số 0 vào trước nếu là tháng/ngày < 10)
+        dateOfBirth: `${values.birthYear}-${String(values.birthMonth).padStart(2, "0")}-${String(values.birthDay).padStart(2, "0")}`,
+      };
+
+      if (token) {
+        // 3. Gọi API cập nhật
+        await updateMyProfile(token, payload);
+
+        // 4. Cập nhật lại local state để UI thay đổi ngay lập tức (không cần tải lại trang)
+        setProfile((prev) => ({
+          ...prev,
+          fullName: values.fullName,
+          phone: values.phone,
+          gender: values.gender,
+          province: values.province,
+          citizenId: values.citizenId,
+          birthDay: values.birthDay,
+          birthMonth: values.birthMonth,
+          birthYear: values.birthYear,
+        }));
+
+        // 5. Đóng Modal và báo thành công
+        setProfileModalOpen(false);
+        message.success(
+          copy.profileUpdated || "Cập nhật thông tin thành công!",
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật Profile:", error);
+      message.error("Cập nhật thất bại. Vui lòng kiểm tra lại thông tin!");
+    }
+  };
 
   function markTicketPaid(key: string) {
     setUpcomingTickets((current) =>
