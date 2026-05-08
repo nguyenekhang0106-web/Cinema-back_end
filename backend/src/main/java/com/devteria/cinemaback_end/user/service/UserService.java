@@ -3,6 +3,7 @@ package com.devteria.cinemaback_end.user.service;
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.user.dto.UserRequest;
+import com.devteria.cinemaback_end.user.dto.UserUpdateRequest; // 🔥 THÊM IMPORT
 import com.devteria.cinemaback_end.user.dto.UserResponse;
 import com.devteria.cinemaback_end.user.entity.Role;
 import com.devteria.cinemaback_end.user.entity.User;
@@ -33,9 +34,11 @@ public class UserService {
     RoleRepository roleRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
-    S3Service s3Service; // 🔥 Bổ sung S3Service để xử lý link Avatar
+    S3Service s3Service;
 
     private static final String DEFAULT_AVATAR_KEY = "avatar/DefaultAvatar.png";
+
+    // ... (Giữ nguyên createUser, getUsers, getUser, getMyInfo) ...
 
     public UserResponse createUser(UserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -50,7 +53,7 @@ public class UserService {
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setAvatarUrl(DEFAULT_AVATAR_KEY); // 🔥 Dùng hằng số
+        user.setAvatarUrl(DEFAULT_AVATAR_KEY); // Dùng hằng số
 
         if (user.getFullName() != null && !user.getFullName().isEmpty()) {
             user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
@@ -62,7 +65,7 @@ public class UserService {
         user.setEmailVerified(true);
 
         user = userRepository.save(user);
-        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
+        return buildUserResponse(user);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -70,7 +73,7 @@ public class UserService {
         log.info("In method get Users");
         return userRepository.findAll()
                 .stream()
-                .map(this::buildUserResponse) // 🔥 Trả về qua hàm map Full URL
+                .map(this::buildUserResponse)
                 .toList();
     }
 
@@ -79,7 +82,7 @@ public class UserService {
         log.info("In method get user by id");
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
+        return buildUserResponse(user);
     }
 
     public UserResponse getMyInfo() {
@@ -88,19 +91,18 @@ public class UserService {
 
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return buildUserResponse(user); // 🔥 Trả về qua hàm map Full URL
+        return buildUserResponse(user);
     }
 
-    public UserResponse updateUser(UserRequest request) {
+    // 🔥 SỬA THAM SỐ THÀNH UserUpdateRequest
+    public UserResponse updateUser(UserUpdateRequest request) {
         var context = SecurityContextHolder.getContext();
         String currentEmail = context.getAuthentication().getName();
 
         User user = userRepository.findByEmail(currentEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
-            throw new AppException(ErrorCode.EMAIL_EXISTED);
-        }
+        // Bỏ logic check Email vì chúng ta không cho đổi email trong form này nữa
 
         if (request.getPhone() != null
                 && !request.getPhone().equals(user.getPhone())
@@ -114,12 +116,8 @@ public class UserService {
             throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
         }
 
-        userMapper.updateUser(user, request);
-
-        // 🔥 FIX LỖI BẢO MẬT: Chỉ cập nhật Password nếu user thực sự có truyền lên mật khẩu mới
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-        }
+        // 🔥 GỌI HÀM MAP MỚI TẠO Ở UserMapper
+        userMapper.updateUserFromRequest(user, request);
 
         if (user.getFullName() != null && !user.getFullName().isEmpty()) {
             user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
@@ -136,7 +134,6 @@ public class UserService {
     // =========================
     // HELPER METHOD
     // =========================
-    // 🔥 Hàm dùng chung để nhúng Full URL từ S3 vào Response
     private UserResponse buildUserResponse(User user) {
         UserResponse response = userMapper.toUserResponse(user);
 

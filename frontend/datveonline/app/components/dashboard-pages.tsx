@@ -5,7 +5,13 @@ import {
   uploadAvatarApi,
 } from "../lib/cinema-api";
 import { useAuthSession } from "./auth-session-provider";
-import { CameraOutlined } from "@ant-design/icons"; // <-- Bổ sung dòng này cho Icon máy ảnh
+import {
+  CameraOutlined,
+  UserOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  IdcardOutlined,
+} from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import {
   App,
@@ -24,6 +30,8 @@ import {
   Tag,
   Typography,
   Upload, // <-- Bổ sung Upload
+  Tabs,
+  type TabsProps
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import Image from "next/image";
@@ -1096,102 +1104,57 @@ export function UserDashboardPage() {
   const locale = useLocale();
   const copy = locale === "en" ? userCopy.en : userCopy.vi;
 
-  // 1. Thêm router để chuyển trang
   const router = useRouter();
-
-  // 2. Lấy thêm hàm đăng xuất (giả sử tên là logout) từ session của bạn
   const { token, user, logout } = useAuthSession();
 
   const [profile, setProfile] = useState(initialProfile);
-  const [upcomingTickets, setUpcomingTickets] = useState(
-    initialUpcomingTickets,
-  );
+  const [upcomingTickets, setUpcomingTickets] = useState(initialUpcomingTickets);
   const [bookingHistory, setBookingHistory] = useState(initialBookingHistory);
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileForm] = Form.useForm<UserProfile>();
 
-  // ==========================================
-  // 2. THÊM ĐOẠN USE-EFFECT NÀY ĐỂ GỌI API LẤY DATA THẬT
-  // ==========================================
   useEffect(() => {
     if (token) {
       getMyProfile(token)
         .then((data) => {
-          // data lúc này chính là cục dữ liệu thật chứ không cần data.result nữa
           if (data) {
-            const dobParts = data.dateOfBirth
-              ? data.dateOfBirth.split("-")
-              : ["", "", ""];
+            const dobParts = data.dateOfBirth ? data.dateOfBirth.split("-") : ["", "", ""];
 
-            setProfile({
+            const mappedData = {
               fullName: data.fullName || "",
               email: data.email || "",
               phone: data.phone || "",
-              gender:
-                data.gender === "Nam"
-                  ? "male"
-                  : data.gender === "Nữ"
-                    ? "female"
-                    : "other",
+              gender: data.gender === "Nam" ? "male" : data.gender === "Nữ" ? "female" : "other",
               birthYear: dobParts[0] || "",
               birthMonth: dobParts[1] || "",
               birthDay: dobParts[2] || "",
-
-              // 🔴 SỬA TẠI ĐÂY: Dùng AREA_MAP để dịch mã DA_NANG thành Đà Nẵng
               province: data.area ? AREA_MAP[data.area] || data.area : "",
-
               citizenId: data.citizenIdNumber || "",
               memberTier: data.memberTier || "Gold",
               points: data.points || 0,
-              avatarUrl:
-                data.avatarUrl ||
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-            });
+              avatarUrl: data.avatarUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+            };
+
+            setProfile(mappedData);
+            
+            // 🔥 THÊM DÒNG NÀY: Điền dữ liệu vào form trực tiếp
+            profileForm.setFieldsValue(mappedData); 
           }
         })
         .catch((error: any) => {
           console.error("Lỗi khi tải thông tin user:", error);
-
-          // Kiểm tra xem lỗi có phải do Token hết hạn không (dựa vào câu báo lỗi 1006 của Backend)
-          if (
-            error.message?.includes("Unauthenticated") ||
-            error.message?.includes("Token Invalid")
-          ) {
-            message.warning(
-              "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!",
-            );
-
-            // Xóa session/token cũ đi (để thanh Header hiện lại nút Đăng nhập)
-            if (logout) {
-              logout();
-            } else {
-              // Nếu bạn không có hàm logout trong AuthSession, hãy tự xóa token trong storage (Ví dụ:)
-              // localStorage.removeItem("token");
-            }
-
-            // Tự động đá người dùng về trang chủ
+          if (error.message?.includes("Unauthenticated") || error.message?.includes("Token Invalid")) {
+            message.warning("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+            if (logout) logout();
             router.push("/");
           } else {
-            message.error(
-              "Không thể tải thông tin cá nhân. Vui lòng thử lại sau.",
-            );
+            message.error("Không thể tải thông tin cá nhân. Vui lòng thử lại sau.");
           }
         });
     }
-  }, [token, message]);
+  }, [token, message, logout, router]);
 
-  const stats = [
-    {
-      label: dictionary.pages.user.stats[0].label,
-      value: upcomingTickets.length + bookingHistory.length,
-    },
-    {
-      label: dictionary.pages.user.stats[1].label,
-      value: vouchers.filter((item) => item.status === "available").length,
-    },
-    { label: dictionary.pages.user.stats[2].label, value: profile.points },
-  ];
 
   const upcomingColumns: ColumnsType<TicketRecord> = [
     { title: copy.ticketMovie, dataIndex: "movie", key: "movie" },
@@ -1203,11 +1166,7 @@ export function UserDashboardPage() {
       dataIndex: "status",
       key: "status",
       render: (value: TicketRecord["status"]) => (
-        <Tag
-          color={
-            value === "paid" ? "green" : value === "reserved" ? "gold" : "blue"
-          }
-        >
+        <Tag color={value === "paid" ? "green" : value === "reserved" ? "gold" : "blue"}>
           {copy.ticketStatusMap[value]}
         </Tag>
       ),
@@ -1272,36 +1231,23 @@ export function UserDashboardPage() {
   }
 
   const saveProfile = async (values: any) => {
-    // 1. Tạo bảng tra cứu ngược để dịch "Đà Nẵng" -> "DA_NANG"
     const REVERSE_AREA_MAP: Record<string, string> = Object.fromEntries(
-      Object.entries(AREA_MAP).map(([key, value]) => [value, key]),
+      Object.entries(AREA_MAP).map(([key, value]) => [value, key])
     );
 
     try {
-      // 2. Định dạng lại payload chuẩn với các trường của Backend (UserRequest)
       const payload = {
         fullName: values.fullName,
+        email: profile.email,
         phone: values.phone,
-        // Ép kiểu giới tính về Enum chuẩn. (Nếu BE của bạn khai báo khác, hãy đổi MALE/FEMALE thành NAM/NU cho khớp)
-        gender:
-          values.gender === "male"
-            ? "Nam"
-            : values.gender === "female"
-              ? "Nữ"
-              : "khác",
-        // Dịch tên tiếng Việt có dấu về mã không dấu
+        gender: values.gender === "male" ? "Nam" : values.gender === "female" ? "Nữ" : "khác",
         area: REVERSE_AREA_MAP[values.province] || values.province,
-        // Map đúng tên field CCCD của Backend
         citizenIdNumber: values.citizenId,
-        // Đảm bảo format ngày sinh chuẩn yyyy-MM-dd (thêm số 0 vào trước nếu là tháng/ngày < 10)
         dateOfBirth: `${values.birthYear}-${String(values.birthMonth).padStart(2, "0")}-${String(values.birthDay).padStart(2, "0")}`,
       };
 
       if (token) {
-        // 3. Gọi API cập nhật
         await updateMyProfile(token, payload);
-
-        // 4. Cập nhật lại local state để UI thay đổi ngay lập tức (không cần tải lại trang)
         setProfile((prev) => ({
           ...prev,
           fullName: values.fullName,
@@ -1313,24 +1259,18 @@ export function UserDashboardPage() {
           birthMonth: values.birthMonth,
           birthYear: values.birthYear,
         }));
-
-        // 5. Đóng Modal và báo thành công
         setProfileModalOpen(false);
-        message.success(
-          copy.profileUpdated || "Cập nhật thông tin thành công!",
-        );
+        message.success(copy.profileUpdated || "Cập nhật thông tin thành công!");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi cập nhật Profile:", error);
-      message.error("Cập nhật thất bại. Vui lòng kiểm tra lại thông tin!");
+      message.error(error.message || "Cập nhật thất bại. Vui lòng kiểm tra lại thông tin!");
     }
   };
 
   function markTicketPaid(key: string) {
     setUpcomingTickets((current) =>
-      current.map((item) =>
-        item.key === key ? { ...item, status: "paid" } : item,
-      ),
+      current.map((item) => (item.key === key ? { ...item, status: "paid" } : item))
     );
     setProfile((current) => ({ ...current, points: current.points + 30 }));
     message.success(copy.paymentDone);
@@ -1347,407 +1287,245 @@ export function UserDashboardPage() {
 
   function applyVoucher(key: string) {
     setVouchers((current) =>
-      current.map((item) =>
-        item.key === key ? { ...item, status: "used" } : item,
-      ),
+      current.map((item) => (item.key === key ? { ...item, status: "used" } : item))
     );
     message.success(copy.voucherApplied);
   }
+
+  // ==========================================
+  // CẤU HÌNH CÁC TABS GIAO DIỆN CHÍNH
+  // ==========================================
+  const tabItems: TabsProps["items"] = [
+    {
+      key: "1",
+      label: dictionary.pages.user.sections[0].title || "Thông tin tài khoản",
+      children: (
+        <div className="py-4">
+          <Form form={profileForm} layout="vertical" onFinish={saveProfile}>
+            
+            {/* HÀNG 1: Họ tên & Email */}
+            <div className="grid gap-x-8 md:grid-cols-2">
+              <Form.Item name="fullName" label={<strong className="text-gray-600">{copy.profileName}</strong>} rules={[{ required: true }]}>
+                <Input size="large" prefix={<UserOutlined className="text-gray-400 mr-2" />} className="rounded-lg bg-gray-50/50" />
+              </Form.Item>
+              <Form.Item name="email" label={<strong className="text-gray-600">{copy.profileEmail}</strong>}>
+                {/* Email không cho sửa */}
+                <Input size="large" prefix={<MailOutlined className="text-gray-400 mr-2" />} disabled className="rounded-lg" />
+              </Form.Item>
+            </div>
+
+            {/* HÀNG 2: Ngày sinh & Số điện thoại */}
+            <div className="grid gap-x-8 md:grid-cols-2 mt-2">
+              <Form.Item label={<strong className="text-gray-600">{copy.profileDob}</strong>} required className="mb-6">
+                <div className="grid gap-3 grid-cols-3">
+                  <Form.Item name="birthDay" noStyle rules={[{ required: true }]}>
+                    <Select size="large" placeholder={copy.day} options={days.map((day) => ({ label: day, value: day }))} />
+                  </Form.Item>
+                  <Form.Item name="birthMonth" noStyle rules={[{ required: true }]}>
+                    <Select size="large" placeholder={copy.month} options={months.map((month) => ({ label: month, value: month }))} />
+                  </Form.Item>
+                  <Form.Item name="birthYear" noStyle rules={[{ required: true }]}>
+                    <Select size="large" placeholder={copy.year} options={years.map((year) => ({ label: year, value: year }))} showSearch />
+                  </Form.Item>
+                </div>
+              </Form.Item>
+              <Form.Item name="phone" label={<strong className="text-gray-600">{copy.profilePhone}</strong>} rules={[{ required: true }]}>
+                <Input size="large" prefix={<PhoneOutlined className="text-gray-400 mr-2" />} className="rounded-lg bg-gray-50/50" />
+              </Form.Item>
+            </div>
+
+            {/* HÀNG 3: CCCD & Địa chỉ (Tỉnh/Thành) - ĐÃ TÁCH RIÊNG */}
+            <div className="grid gap-x-8 md:grid-cols-2 mt-2">
+              <Form.Item name="citizenId" label={<strong className="text-gray-600">{copy.profileCitizenId}</strong>} rules={[{ required: true }]}>
+                <Input size="large" prefix={<IdcardOutlined className="text-gray-400 mr-2" />} maxLength={12} className="rounded-lg bg-gray-50/50" />
+              </Form.Item>
+              <Form.Item name="province" label={<strong className="text-gray-600">{copy.profileProvince}</strong>} rules={[{ required: true }]}>
+                <Select size="large" showSearch options={VIETNAM_PROVINCES.map((p) => ({ label: p, value: p }))} />
+              </Form.Item>
+            </div>
+
+            {/* HÀNG 4: Giới tính & Nút Cập Nhật */}
+            <div className="grid gap-x-8 md:grid-cols-2 mt-2 items-end">
+              <Form.Item name="gender" label={<strong className="text-gray-600">{copy.profileGender}</strong>} rules={[{ required: true }]} className="mb-0">
+                <Select
+                  size="large"
+                  options={[
+                    { label: copy.male, value: "male" },
+                    { label: copy.female, value: "female" },
+                    { label: copy.other, value: "other" },
+                  ]}
+                />
+              </Form.Item>
+              
+              <div className="flex justify-end pt-6 md:pt-0">
+                {/* Nút màu xanh lơ giống Metiz */}
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  size="large" 
+                  style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} 
+                  className="px-10 font-bold rounded-lg shadow-md hover:opacity-80 transition-opacity"
+                >
+                  Cập nhật
+                </Button>
+              </div>
+            </div>
+            
+          </Form>
+        </div>
+      ),
+    },
+    {
+      key: "2",
+      label: copy.ticketTitle || "Vé sắp tới của bạn",
+      children: (
+        <div className="py-2">
+          <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+            {copy.ticketTitle}
+          </Typography.Title>
+          <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 16px" }}>
+            {copy.ticketDesc}
+          </Typography.Paragraph>
+          <Table
+            rowKey="key"
+            pagination={false}
+            dataSource={upcomingTickets}
+            columns={upcomingColumns}
+            scroll={{ x: "max-content" }}
+          />
+        </div>
+      ),
+    },
+    {
+      key: "3",
+      label: copy.historyTitle || "Lịch sử đặt vé",
+      children: (
+        <div className="py-2">
+          <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+            {copy.historyTitle}
+          </Typography.Title>
+          <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 16px" }}>
+            {copy.historyDesc}
+          </Typography.Paragraph>
+
+          {/* Khối thống kê đơn hàng gom vào Lịch sử */}
+          <div className="rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4 text-[#6d5a46] mb-6 max-w-sm">
+            <div className="flex items-center justify-between">
+              <span>{copy.totalOrders}</span>
+              <strong style={{ color: "#4a3426" }}>
+                {upcomingTickets.length + bookingHistory.length}
+              </strong>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span>{copy.paidTickets}</span>
+              <strong style={{ color: "#4a3426" }}>
+                {bookingHistory.length + upcomingTickets.filter((item) => item.status === "paid").length}
+              </strong>
+            </div>
+          </div>
+
+          <Table
+            rowKey="key"
+            pagination={false}
+            dataSource={bookingHistory}
+            columns={historyColumns}
+            scroll={{ x: "max-content" }}
+          />
+        </div>
+      ),
+    },
+    {
+      key: "4",
+      label: dictionary.pages.user.sections[2].title || "Voucher & Điểm thưởng",
+      children: (
+        <div className="py-2">
+          <Typography.Title level={4} style={{ margin: 0, color: "#4a3426" }}>
+            {dictionary.pages.user.sections[2].title}
+          </Typography.Title>
+          <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 16px" }}>
+            {dictionary.pages.user.sections[2].desc}
+          </Typography.Paragraph>
+          <Table
+            rowKey="key"
+            pagination={false}
+            dataSource={vouchers}
+            columns={voucherColumns}
+            size="small"
+            scroll={{ x: "max-content" }}
+          />
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="cinema-page">
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
-          <DashboardHero
-            eyebrow={dictionary.pages.user.eyebrow}
-            title={dictionary.pages.user.title}
-            description={dictionary.pages.user.description}
-            image="https://images.pexels.com/photos/7234256/pexels-photo-7234256.jpeg?auto=compress&cs=tinysrgb&w=1200"
-            stats={stats}
-          />
-
-          {/* KHỐI 1: THÔNG TIN TÀI KHOẢN & AVATAR (Nằm to trên cùng giống Metiz) */}
+          {/* LAYOUT CHIA 2 CỘT MỚI */}
           <Row gutter={[24, 24]} className="mt-8">
-            <Col xs={24}>
-              <Card bordered={false} className="cinema-paper rounded-[24px]">
-                <Row gutter={[32, 24]} align="middle">
-                  {/* Cột trái: Avatar + Hạng thành viên */}
-                  <Col
-                    xs={24}
-                    md={8}
-                    className="flex flex-col items-center justify-center border-[#ead6bb] md:border-r md:border-dashed"
-                  >
-                    <Upload
-                      name="avatar"
-                      showUploadList={false}
-                      // Dùng customRequest để tự điều khiển việc gọi API bằng Fetch thay vì mặc định của Antd
-                      customRequest={async (options) => {
-                        const { file, onSuccess, onError } = options;
-                        try {
-                          if (!token || !user?.id) {
-                            message.error(
-                              "Lỗi xác thực. Vui lòng đăng nhập lại!",
-                            );
-                            onError?.(new Error("No user id"));
-                            return;
-                          }
-
-                          // 1. Gọi API gửi File ảnh lên Backend
-                          const newAvatarUrl = await uploadAvatarApi(
-                            token,
-                            user.id,
-                            file as File,
-                          );
-
-                          // 2. Backend lưu xong, trả về link mới -> Cập nhật lên UI
-                          setProfile((prev) => ({
-                            ...prev,
-                            avatarUrl: newAvatarUrl, // Link ảnh thật (S3 hoặc server)
-                          }));
-
-                          message.success("Cập nhật ảnh đại diện thành công!");
-                          onSuccess?.("ok");
-                        } catch (error) {
-                          console.error("Lỗi upload ảnh:", error);
-                          message.error(
-                            "Cập nhật ảnh thất bại. Vui lòng thử lại!",
-                          );
-                          onError?.(error as Error);
+            
+            {/* CỘT TRÁI: SIDEBAR (Avatar, Điểm) */}
+            <Col xs={24} lg={7} xl={6}>
+              <Card bordered={false} className="cinema-paper rounded-[24px] h-full">
+                <div className="flex flex-col items-center text-center">
+                  <Upload
+                    name="avatar"
+                    showUploadList={false}
+                    customRequest={async (options) => {
+                      const { file, onSuccess, onError } = options;
+                      try {
+                        if (!token || !user?.id) {
+                          message.error("Lỗi xác thực. Vui lòng đăng nhập lại!");
+                          onError?.(new Error("No user id"));
+                          return;
                         }
-                      }}
-                    >
-                      <div className="relative inline-block cursor-pointer group rounded-full overflow-hidden border-4 border-white shadow-md">
-                        <Avatar size={140} src={profile.avatarUrl} />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <CameraOutlined
-                            style={{ color: "white", fontSize: 28 }}
-                          />
-                        </div>
-                      </div>
-                    </Upload>
-                    <Typography.Title
-                      level={4}
-                      style={{
-                        marginTop: 16,
-                        marginBottom: 4,
-                        color: "#4a3426",
-                      }}
-                    >
-                      {profile.fullName}
-                    </Typography.Title>
-                    <Tag
-                      color="gold"
-                      style={{
-                        fontSize: 14,
-                        padding: "4px 12px",
-                        borderRadius: 16,
-                      }}
-                    >
-                      {profile.memberTier}
-                    </Tag>
-                    <Typography.Text
-                      style={{
-                        color: "#a61d24",
-                        fontWeight: "bold",
-                        marginTop: 8,
-                      }}
-                    >
-                      {copy.pointsLabel}: {profile.points}
-                    </Typography.Text>
-                  </Col>
-
-                  {/* Cột phải: Thông tin chi tiết + Nút Edit */}
-                  <Col xs={24} md={16}>
-                    <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
-                      <Typography.Title
-                        level={3}
-                        style={{ margin: 0, color: "#4a3426" }}
-                      >
-                        {dictionary.pages.user.sections[0].title}
-                      </Typography.Title>
-                      <Button type="primary" onClick={openProfileEditor}>
-                        {copy.editProfile}
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] text-[#6d5a46]">
-                      <div>
-                        <strong style={{ color: "#4a3426" }}>
-                          {copy.profileEmail}:
-                        </strong>{" "}
-                        {profile.email}
-                      </div>
-                      <div>
-                        <strong style={{ color: "#4a3426" }}>
-                          {copy.profilePhone}:
-                        </strong>{" "}
-                        {profile.phone}
-                      </div>
-                      <div>
-                        <strong style={{ color: "#4a3426" }}>
-                          {copy.profileDob}:
-                        </strong>{" "}
-                        {profile.birthDay}/{profile.birthMonth}/
-                        {profile.birthYear}
-                      </div>
-                      <div>
-                        <strong style={{ color: "#4a3426" }}>
-                          {copy.profileGender}:
-                        </strong>{" "}
-                        {profile.gender === "male"
-                          ? copy.male
-                          : profile.gender === "female"
-                            ? copy.female
-                            : copy.other}
-                      </div>
-                      <div className="md:col-span-2">
-                        <strong style={{ color: "#4a3426" }}>
-                          {copy.profileCitizenId}:
-                        </strong>{" "}
-                        {profile.citizenId} ({profile.province})
+                        const newAvatarUrl = await uploadAvatarApi(token, user.id, file as File);
+                        setProfile((prev) => ({ ...prev, avatarUrl: newAvatarUrl }));
+                        message.success("Cập nhật ảnh đại diện thành công!");
+                        onSuccess?.("ok");
+                      } catch (error) {
+                        console.error("Lỗi upload ảnh:", error);
+                        message.error("Cập nhật ảnh thất bại. Vui lòng thử lại!");
+                        onError?.(error as Error);
+                      }
+                    }}
+                  >
+                    <div className="relative inline-block cursor-pointer group rounded-full overflow-hidden border-4 border-white shadow-md">
+                      <Avatar size={140} src={profile.avatarUrl} />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CameraOutlined style={{ color: "white", fontSize: 28 }} />
                       </div>
                     </div>
-                  </Col>
-                </Row>
+                  </Upload>
+                  
+                  <Typography.Title level={4} style={{ marginTop: 16, marginBottom: 4, color: "#4a3426" }}>
+                    {profile.fullName}
+                  </Typography.Title>
+                  <Tag color="gold" style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}>
+                    {profile.memberTier}
+                  </Tag>
+                  <Typography.Text style={{ color: "#a61d24", fontWeight: "bold", marginTop: 12, display: 'block' }}>
+                    {copy.pointsLabel}: {profile.points}
+                  </Typography.Text>
+                </div>
               </Card>
             </Col>
-          </Row>
 
-          <Row gutter={[24, 24]} className="mt-8">
-            <Col xs={24} lg={15}>
-              <Space direction="vertical" size={24} className="w-full">
-                <Card bordered={false} className="cinema-paper rounded-[24px]">
-                  <Space direction="vertical" size={18} className="w-full">
-                    <div>
-                      <Typography.Title
-                        level={3}
-                        style={{ margin: 0, color: "#4a3426" }}
-                      >
-                        {copy.ticketTitle}
-                      </Typography.Title>
-                      <Typography.Paragraph
-                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
-                      >
-                        {copy.ticketDesc}
-                      </Typography.Paragraph>
-                    </div>
-                    <Table
-                      rowKey="key"
-                      pagination={false}
-                      dataSource={upcomingTickets}
-                      columns={upcomingColumns}
-                    />
-                  </Space>
-                </Card>
-
-                <Card bordered={false} className="cinema-paper rounded-[24px]">
-                  <Space direction="vertical" size={18} className="w-full">
-                    <div>
-                      <Typography.Title
-                        level={3}
-                        style={{ margin: 0, color: "#4a3426" }}
-                      >
-                        {copy.historyTitle}
-                      </Typography.Title>
-                      <Typography.Paragraph
-                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
-                      >
-                        {copy.historyDesc}
-                      </Typography.Paragraph>
-                    </div>
-                    <Table
-                      rowKey="key"
-                      pagination={false}
-                      dataSource={bookingHistory}
-                      columns={historyColumns}
-                    />
-                  </Space>
-                </Card>
-              </Space>
+            {/* CỘT PHẢI: TABS NỘI DUNG CHÍNH */}
+            <Col xs={24} lg={17} xl={18}>
+              <Card bordered={false} className="cinema-paper rounded-[24px] min-h-[400px]">
+                <Tabs 
+                  defaultActiveKey="1" 
+                  items={tabItems} 
+                  type="card" 
+                  size="large"
+                />
+              </Card>
             </Col>
 
-            <Col xs={24} lg={9}>
-              <Space direction="vertical" size={24} className="w-full">
-                <Card bordered={false} className="cinema-paper rounded-[24px]">
-                  <Space direction="vertical" size={14} className="w-full">
-                    <Typography.Title
-                      level={4}
-                      style={{ margin: 0, color: "#4a3426" }}
-                    >
-                      {dictionary.pages.user.sections[1].title}
-                    </Typography.Title>
-                    <Typography.Paragraph
-                      style={{ marginBottom: 0, color: "#6d5a46" }}
-                    >
-                      {dictionary.pages.user.sections[1].desc}
-                    </Typography.Paragraph>
-                    <div className="rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4 text-[#6d5a46]">
-                      <div className="flex items-center justify-between">
-                        <span>{copy.totalOrders}</span>
-                        <strong style={{ color: "#4a3426" }}>
-                          {upcomingTickets.length + bookingHistory.length}
-                        </strong>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span>{copy.paidTickets}</span>
-                        <strong style={{ color: "#4a3426" }}>
-                          {bookingHistory.length +
-                            upcomingTickets.filter(
-                              (item) => item.status === "paid",
-                            ).length}
-                        </strong>
-                      </div>
-                    </div>
-                  </Space>
-                </Card>
-
-                <Card bordered={false} className="cinema-paper rounded-[24px]">
-                  <Space direction="vertical" size={14} className="w-full">
-                    <Typography.Title
-                      level={4}
-                      style={{ margin: 0, color: "#4a3426" }}
-                    >
-                      {dictionary.pages.user.sections[2].title}
-                    </Typography.Title>
-                    <Typography.Paragraph
-                      style={{ marginBottom: 0, color: "#6d5a46" }}
-                    >
-                      {dictionary.pages.user.sections[2].desc}
-                    </Typography.Paragraph>
-                    <Table
-                      rowKey="key"
-                      pagination={false}
-                      dataSource={vouchers}
-                      columns={voucherColumns}
-                      size="small"
-                      scroll={{ x: "max-content" }}
-                    />
-                  </Space>
-                </Card>
-              </Space>
-            </Col>
           </Row>
 
-          <Modal
-            open={profileModalOpen}
-            title={copy.editProfile}
-            onCancel={() => setProfileModalOpen(false)}
-            onOk={() => profileForm.submit()}
-            okText={copy.save}
-            cancelText={copy.cancel}
-          >
-            <Form form={profileForm} layout="vertical" onFinish={saveProfile}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item
-                  name="fullName"
-                  label={copy.profileName}
-                  rules={[{ required: true }]}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="gender"
-                  label={copy.profileGender}
-                  rules={[{ required: true }]}
-                >
-                  <Select
-                    options={[
-                      { label: copy.male, value: "male" },
-                      { label: copy.female, value: "female" },
-                      { label: copy.other, value: "other" },
-                    ]}
-                  />
-                </Form.Item>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item
-                  name="email"
-                  label={copy.profileEmail}
-                  rules={[{ required: true }]}
-                >
-                  {/* Disable email vì đây là tài khoản đăng nhập chính */}
-                  <Input disabled />
-                </Form.Item>
-                <Form.Item
-                  name="phone"
-                  label={copy.profilePhone}
-                  rules={[{ required: true }]}
-                >
-                  <Input />
-                </Form.Item>
-              </div>
-
-              <Form.Item
-                label={copy.profileDob}
-                required
-                style={{ marginBottom: 16 }}
-              >
-                <div className="grid gap-4 grid-cols-3">
-                  <Form.Item
-                    name="birthDay"
-                    noStyle
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      placeholder={copy.day}
-                      options={days.map((day) => ({ label: day, value: day }))}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    name="birthMonth"
-                    noStyle
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      placeholder={copy.month}
-                      options={months.map((month) => ({
-                        label: month,
-                        value: month,
-                      }))}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    name="birthYear"
-                    noStyle
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      placeholder={copy.year}
-                      options={years.map((year) => ({
-                        label: year,
-                        value: year,
-                      }))}
-                      showSearch
-                    />
-                  </Form.Item>
-                </div>
-              </Form.Item>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item
-                  name="province"
-                  label={copy.profileProvince}
-                  rules={[{ required: true }]}
-                >
-                  <Select
-                    showSearch
-                    options={VIETNAM_PROVINCES.map((p) => ({
-                      label: p,
-                      value: p,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="citizenId"
-                  label={copy.profileCitizenId}
-                  rules={[{ required: true }]}
-                >
-                  <Input maxLength={12} />
-                </Form.Item>
-              </div>
-            </Form>
-          </Modal>
         </main>
       </SiteShell>
     </div>

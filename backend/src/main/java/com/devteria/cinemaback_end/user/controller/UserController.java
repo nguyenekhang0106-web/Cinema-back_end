@@ -37,7 +37,7 @@ public class UserController {
     }
 
     @PutMapping("/my-info")
-    public ApiResponse<UserResponse> updateMyInfo(@RequestBody @Valid UserRequest request) {
+    public ApiResponse<UserResponse> updateMyInfo(@RequestBody @Valid UserUpdateRequest request) { // Sửa tham số ở đây
         return ApiResponse.<UserResponse>builder()
                 .code(1000)
                 .message("Cập nhật thông tin thành công")
