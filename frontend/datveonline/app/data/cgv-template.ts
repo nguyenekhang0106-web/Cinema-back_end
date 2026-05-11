@@ -18,14 +18,19 @@ export type MovieItem = {
   bookingLabel: string;
   gradient: string;
   formats: string[];
-  posterImage: string;
-  heroImage: string;
+
+  // 🔥 Đổi tên 2 trường này cho khớp với Backend Java
+  posterUrl: string;
+  bannerUrl: string;
+
   synopsis: string;
   director: string;
   cast: string[];
   language: string;
   trailerLabel: string;
   showtimes: ShowTime[];
+  featured?: boolean;
+  trailerUrl?: string;
 };
 
 export type CinemaItem = {
@@ -87,9 +92,9 @@ export const nowShowingMovies: MovieItem[] = [
     bookingLabel: "Best seller",
     gradient: "linear-gradient(135deg, #111827, #7c2d12)",
     formats: ["2D", "IMAX", "4DX"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/22908923/pexels-photo-22908923.jpeg?cs=srgb&dl=pexels-matt-richmond-314917881-22908923.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/12661846/pexels-photo-12661846.jpeg?cs=srgb&dl=pexels-hussain-haqq-262050061-12661846.jpg&fm=jpg",
     synopsis:
       "Sau mot vu trom kim cuong bat thanh, mot doi cuu dieu tra vien va mot tay hacker tre buoc vao cuoc truy duoi xuyen dem trong thanh pho khong bao gio ngu.",
@@ -126,9 +131,9 @@ export const nowShowingMovies: MovieItem[] = [
     bookingLabel: "Hot",
     gradient: "linear-gradient(135deg, #1f2937, #7c2d12)",
     formats: ["2D", "ScreenX"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/7991320/pexels-photo-7991320.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991320.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/7991257/pexels-photo-7991257.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991257.jpg&fm=jpg",
     synopsis:
       "Mot nhom ban quay tro lai rap phim bo hoang noi ho da tung lon len, nhung man dem do dan bien thanh chuoi ky uc va ao giac khong ai muon doi mat.",
@@ -165,9 +170,9 @@ export const nowShowingMovies: MovieItem[] = [
     bookingLabel: "Dat truoc",
     gradient: "linear-gradient(135deg, #b45309, #be123c)",
     formats: ["2D", "Gold Class"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/8261816/pexels-photo-8261816.jpeg?cs=srgb&dl=pexels-cottonbro-8261816.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/7991320/pexels-photo-7991320.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991320.jpg&fm=jpg",
     synopsis:
       "Hai nguoi tre gap lai nhau tai mot cum rap giua thanh pho, va chuyen tinh muon mang cua ho duoc dan dat bang am nhac, ky uc va nhung buoi chieu cuoi he.",
@@ -204,9 +209,9 @@ export const nowShowingMovies: MovieItem[] = [
     bookingLabel: "IMAX",
     gradient: "linear-gradient(135deg, #0f766e, #1d4ed8)",
     formats: ["2D", "IMAX", "Laser"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/7991257/pexels-photo-7991257.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991257.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/8261823/pexels-photo-8261823.jpeg?cs=srgb&dl=pexels-cottonbro-8261823.jpg&fm=jpg",
     synopsis:
       "Trong mot tuong lai can kiem nang luong, nhom ky su tre phai lao vao he thong duong ham ngam de kich hoat lai nguon sang cuoi cung cho thanh pho.",
@@ -246,9 +251,9 @@ export const upcomingMovies: MovieItem[] = [
     bookingLabel: "Coming soon",
     gradient: "linear-gradient(135deg, #312e81, #9f1239)",
     formats: ["2D", "IMAX"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/8261823/pexels-photo-8261823.jpeg?cs=srgb&dl=pexels-cottonbro-8261823.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/12661846/pexels-photo-12661846.jpeg?cs=srgb&dl=pexels-hussain-haqq-262050061-12661846.jpg&fm=jpg",
     synopsis:
       "Khi mot ve tinh phat hien hien tuong quang hoc la tren bau troi, mot phi hanh doan buoc vao su that co the thay doi hanh tinh.",
@@ -270,9 +275,9 @@ export const upcomingMovies: MovieItem[] = [
     bookingLabel: "Sap mo ban",
     gradient: "linear-gradient(135deg, #0f766e, #0f172a)",
     formats: ["2D"],
-    posterImage:
+    posterUrl:
       "https://images.pexels.com/photos/7991320/pexels-photo-7991320.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991320.jpg&fm=jpg",
-    heroImage:
+    bannerUrl:
       "https://images.pexels.com/photos/7991257/pexels-photo-7991257.jpeg?cs=srgb&dl=pexels-tima-miroshnichenko-7991257.jpg&fm=jpg",
     synopsis:
       "Sau bien co gia dinh, mot nghe si piano tro ve thanh pho cu de tim lai am thanh va con nguoi da thay doi cuoc doi minh.",
@@ -289,7 +294,8 @@ export const allMovies = [...nowShowingMovies, ...upcomingMovies];
 export const heroBanners: BannerItem[] = [
   {
     id: "banner-1",
-    title: "Dat ve xem phim tai KCT Cinema nhanh, dep va ro rang tren moi man hinh",
+    title:
+      "Dat ve xem phim tai KCT Cinema nhanh, dep va ro rang tren moi man hinh",
     subtitle:
       "Template duoc mo rong tu homepage sang chi tiet phim, chon ghe, checkout va auth pages de tao thanh mot flow dat ve tron ven.",
     cta: "Dat ve ngay",
@@ -300,7 +306,8 @@ export const heroBanners: BannerItem[] = [
   },
   {
     id: "banner-2",
-    title: "Them trailer, poster, uu dai va membership vao mot bo cuc ban ve co chuyen doi tot",
+    title:
+      "Them trailer, poster, uu dai va membership vao mot bo cuc ban ve co chuyen doi tot",
     subtitle:
       "Moi button chinh deu da duoc noi route, giup nguoi dung di tu homepage sang trang phim, dat ghe va thanh toan.",
     cta: "Xem phim hot",
@@ -311,7 +318,8 @@ export const heroBanners: BannerItem[] = [
   },
   {
     id: "banner-3",
-    title: "Su dung san bo anh cinema de demo truoc khi ban gui poster va banner that",
+    title:
+      "Su dung san bo anh cinema de demo truoc khi ban gui poster va banner that",
     subtitle:
       "Toi da dung anh remote co san de lap day giao dien, ban co the doi sang tai nguyen cua rieng minh bat ky luc nao.",
     cta: "Mo trang phim",
@@ -336,7 +344,8 @@ export const promotions = [
   {
     id: "promo-3",
     title: "Sinh vien di rap",
-    description: "Gia uu dai cho xuat truoc 17:00 khi xac minh tai khoan thanh vien.",
+    description:
+      "Gia uu dai cho xuat truoc 17:00 khi xac minh tai khoan thanh vien.",
   },
 ];
 

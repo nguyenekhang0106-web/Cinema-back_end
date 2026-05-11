@@ -1,14 +1,16 @@
 import { Suspense } from "react";
 import { AuthPage } from "../components/auth-page";
+import { SiteShell } from "../components/site-shell"; 
 
 export default function LoginPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl items-center px-4 py-16">
-      <div className="w-full">
+    <SiteShell>
+      {/* Đã xóa max-w-3xl và min-h-screen để giao diện bung full màn hình */}
+      <main className="w-full bg-[#fffaf4]">
         <Suspense fallback={null}>
           <AuthPage mode="login" />
         </Suspense>
-      </div>
-    </main>
+      </main>
+    </SiteShell>
   );
 }

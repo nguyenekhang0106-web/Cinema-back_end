@@ -65,7 +65,7 @@ public class MovieService {
     }
 
     /**
-     * BƯỚC 2: UPLOAD ẢNH (Poster & Banner) - Tương tự AvatarService
+     * BƯỚC 2: UPLOAD ẢNH (Poster & Banner)
      */
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
@@ -76,23 +76,46 @@ public class MovieService {
         String oldPosterKey = movie.getPosterUrl();
         String oldBannerKey = movie.getBannerUrl();
 
-        // 2. Upload file mới lên S3
-        String newPosterKey = s3Service.uploadFile(request.getPosterFile(), MOVIE_FOLDER);
-        String newBannerKey = s3Service.uploadFile(request.getBannerFile(), MOVIE_FOLDER);
+        // Biến lưu giữ key mới (mặc định là key cũ nếu không có file mới)
+        String newPosterKey = oldPosterKey;
+        String newBannerKey = oldBannerKey;
 
-        // 3. Cập nhật DB
-        movie.setPosterUrl(newPosterKey);
-        movie.setBannerUrl(newBannerKey);
+        boolean isPosterChanged = false;
+        boolean isBannerChanged = false;
+
+        // 2. Chỉ Upload nếu Admin có gửi Poster mới
+        if (request.getPosterFile() != null && !request.getPosterFile().isEmpty()) {
+            newPosterKey = s3Service.uploadFile(request.getPosterFile(), MOVIE_FOLDER);
+            movie.setPosterUrl(newPosterKey);
+            isPosterChanged = true;
+        }
+
+        // 3. Chỉ Upload nếu Admin có gửi Banner mới
+        if (request.getBannerFile() != null && !request.getBannerFile().isEmpty()) {
+            newBannerKey = s3Service.uploadFile(request.getBannerFile(), MOVIE_FOLDER);
+            movie.setBannerUrl(newBannerKey);
+            isBannerChanged = true;
+        }
+
+        // Nếu không có ảnh nào thay đổi thì không cần làm gì thêm
+        if (!isPosterChanged && !isBannerChanged) {
+            return buildMovieResponse(movie);
+        }
+
         movieRepository.save(movie);
-
         log.info("Movie {} updated images. Poster: [{}], Banner: [{}]", movieId, newPosterKey, newBannerKey);
 
-        // 4. Xóa ảnh cũ an toàn với TransactionSynchronization
+        // 4. Xóa ảnh cũ an toàn sau khi DB đã commit thành công
+        final String finalNewPoster = newPosterKey;
+        final String finalNewBanner = newBannerKey;
+        final boolean finalIsPosterChanged = isPosterChanged;
+        final boolean finalIsBannerChanged = isBannerChanged;
+
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteOldImageSafely(oldPosterKey, newPosterKey);
-                deleteOldImageSafely(oldBannerKey, newBannerKey);
+                if (finalIsPosterChanged) deleteOldImageSafely(oldPosterKey, finalNewPoster);
+                if (finalIsBannerChanged) deleteOldImageSafely(oldBannerKey, finalNewBanner);
             }
         });
 
@@ -131,12 +154,19 @@ public class MovieService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteMovie(String id) {
-        if (!movieRepository.existsById(id)) {
-            throw new AppException(ErrorCode.MOVIE_NOT_EXISTED);
-        }
-        movieRepository.deleteById(id);
-        log.info("Movie deleted: {}", id);
-        // Lưu ý: Nếu muốn xóa cả ảnh trên S3 khi xóa phim, bạn có thể implement thêm logic ở đây
+        // Tìm phim trước khi xóa để lấy đường dẫn ảnh
+        Movie movie = getMovieEntity(id);
+
+        String posterKey = movie.getPosterUrl();
+        String bannerKey = movie.getBannerUrl();
+
+        // Xóa trong Database
+        movieRepository.delete(movie);
+        log.info("Movie deleted from DB: {}", id);
+
+        // Gọi hàm dọn rác S3 (Truyền null vào newKey để báo là muốn xóa hẳn)
+        deleteOldImageSafely(posterKey, null);
+        deleteOldImageSafely(bannerKey, null);
     }
 
     // =====================================
@@ -149,7 +179,7 @@ public class MovieService {
     }
 
     /**
-     * Build UserResponse với fallback mượt mà cho ảnh mặc định & chuyển thành Full URL
+     * Build MovieResponse: Trả về link tĩnh (Public) của S3
      */
     private MovieResponse buildMovieResponse(Movie movie) {
         MovieResponse response = movieMapper.toMovieResponse(movie);
@@ -160,6 +190,7 @@ public class MovieService {
         String bannerKey = (movie.getBannerUrl() != null && !movie.getBannerUrl().isBlank())
                 ? movie.getBannerUrl() : DEFAULT_BANNER;
 
+        // 🔥 DÙNG buildS3Url ĐỂ TẠO LINK TĨNH CHO FRONTEND CACHE MƯỢT MÀ
         response.setPosterUrl(s3Service.buildS3Url(posterKey));
         response.setBannerUrl(s3Service.buildS3Url(bannerKey));
 

@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/photos/**",
       },
+      // 🔥 BỔ SUNG CẤU HÌNH CHO AWS S3 Ở ĐÂY
+      {
+        protocol: "https",
+        hostname: "**.amazonaws.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };

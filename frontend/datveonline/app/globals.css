@@ -477,3 +477,20 @@ button {
 ::selection {
   background: rgba(200, 154, 43, 0.35);
 }
+
+/* Chia đôi chiều rộng của Tab Đăng nhập / Đăng ký */
+.metiz-auth-tabs .ant-tabs-nav-list {
+  width: 100%;
+}
+.metiz-auth-tabs .ant-tabs-tab {
+  width: 50%;
+  justify-content: center;
+  margin: 0 !important;
+  background-color: #f3f4f6; /* Màu xám nhạt cho tab chưa chọn */
+}
+.metiz-auth-tabs .ant-tabs-tab-active {
+  background-color: #4a4a4a !important; /* Màu xám đậm cho tab đang chọn giống Metiz */
+}
+.metiz-auth-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: white !important;
+}

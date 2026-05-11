@@ -225,6 +225,7 @@ public enum ErrorCode {
     REFUND_FAILED(1155, "Lỗi hệ thống: Không thể hoàn tiền cho giao dịch này", HttpStatus.INTERNAL_SERVER_ERROR),
     // Dành cho giỏ hàng (Concession) khi đặt vé
     CONCESSION_QUANTITY_INVALID(1156, "Số lượng đồ ăn/thức uống không hợp lệ", HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_CORRECT(1157, "Mật khẩu cũ không chính xác", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

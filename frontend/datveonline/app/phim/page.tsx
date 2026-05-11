@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Space, Tag, Typography } from "antd";
+import { Card, Tabs, Empty, Typography, ConfigProvider } from "antd"
 import { useEffect, useState } from "react";
 import { MovieGrid } from "../components/movie-grid";
 import { useDictionary, useLocale } from "../components/locale-provider";
@@ -15,36 +15,100 @@ export default function MoviesPage() {
 
   useEffect(() => {
     let mounted = true;
-
     getMoviesWithFallback(locale).then((items) => {
-      if (mounted) {
-        setMovies(items);
-      }
+      if (mounted) setMovies(items);
     });
-
     return () => {
       mounted = false;
     };
   }, [locale]);
 
+  const nowShowingMovies = movies.filter(
+    (movie) =>
+      movie.bookingLabel.toLowerCase().includes("showing") ||
+      movie.bookingLabel.toLowerCase().includes("chieu"),
+  );
+  const upcomingMovies = movies.filter(
+    (movie) => !nowShowingMovies.includes(movie),
+  );
+
+  const tabItems = [
+    {
+      key: "now",
+      label: dictionary.home.nowShowing,
+      children: nowShowingMovies.length > 0 ? (
+        <MovieGrid movies={nowShowingMovies} showBooking={true} />
+      ) : (
+        <Empty description="Hiện không có phim đang chiếu" className="my-10" />
+      ),
+    },
+    {
+      key: "upcoming",
+      label: dictionary.home.comingSoon,
+      children: upcomingMovies.length > 0 ? (
+        <MovieGrid movies={upcomingMovies} showBooking={false} />
+      ) : (
+        <Empty description="Hiện không có phim sắp chiếu" className="my-10" />
+      ),
+    },
+  ];
+
   return (
     <div className="cinema-page">
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
-          <Card bordered={false} className="cinema-paper rounded-[28px]">
-            <Space direction="vertical" size={12} className="w-full">
-              <Tag color="red">{dictionary.pages.movies.eyebrow}</Tag>
-              <Typography.Title level={1} style={{ margin: 0, color: "#4a3426" }}>
-                {dictionary.pages.movies.title}
-              </Typography.Title>
-              <Typography.Paragraph style={{ color: "#6d5a46", marginBottom: 0 }}>
-                {dictionary.pages.movies.description}
-              </Typography.Paragraph>
-            </Space>
+          
+          {/* 🔥 TIÊU ĐỀ "PHIM" VỚI HIỆU ỨNG VẠCH ĐỎ ĐỒNG BỘ TRANG CHỦ 🔥 */}
+          <div className="mb-10 mt-4" style={{ borderLeft: '5px solid #a61d24', paddingLeft: '18px' }}>
+            <Typography.Title
+              level={1}
+              style={{ 
+                margin: 0, 
+                color: "#4a3426", 
+                textTransform: "uppercase",
+                fontSize: "2.5rem",
+                lineHeight: '1.2',
+                fontWeight: 800
+              }}
+            >
+              {locale === "vi" ? "PHIM" : "MOVIES"}
+            </Typography.Title>
+            
+            {/* Thanh gạch dưới chân có hiệu ứng mờ dần (Gradient) */}
+            <div style={{
+              height: '4px',
+              width: '150px',
+              background: 'linear-gradient(90deg, #a61d24 0%, rgba(166, 29, 36, 0) 100%)',
+              marginTop: '4px'
+            }}></div>
+          </div>
+
+          {/* KHUNG TRẮNG CHỨA TAB VÀ DANH SÁCH PHIM */}
+          <Card bordered={false} className="cinema-paper rounded-[28px]" styles={{ body: { padding: '24px' } }}>
+            <ConfigProvider
+              theme={{
+                components: {
+                  Tabs: {
+                    itemSelectedColor: '#a61d24',
+                    itemHoverColor: '#a61d24',
+                    itemActiveColor: '#a61d24',
+                    inkBarColor: '#a61d24',
+                  },
+                },
+              }}
+            >
+              <Tabs 
+                items={tabItems} 
+                size="large"
+                tabBarStyle={{ 
+                  marginBottom: 24, 
+                  fontWeight: 600,
+                  fontSize: '18px'
+                }} 
+              />
+            </ConfigProvider>
           </Card>
-          <Card bordered={false} className="cinema-paper mt-8 rounded-[28px]">
-            <MovieGrid movies={movies} />
-          </Card>
+          
         </main>
       </SiteShell>
     </div>

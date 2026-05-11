@@ -1,17 +1,7 @@
 "use client";
 
 import { ReloadOutlined } from "@ant-design/icons";
-import {
-  App,
-  Button,
-  Card,
-  Form,
-  Input,
-  Radio,
-  Select,
-  Space,
-  Typography,
-} from "antd";
+import { App, Button, Card, Form, Input, Radio, Select, Space, Typography, Tabs, Modal } from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,10 +10,13 @@ import {
   loginWithBackend,
   registerWithBackend,
   verifyOtpWithBackend,
+  forgotPasswordApi, // 🔥 THÊM DÒNG NÀY
 } from "../lib/cinema-api";
 import { localizeHref } from "../lib/i18n";
 import { useAuthSession } from "./auth-session-provider";
 import { useDictionary, useLocale } from "./locale-provider";
+
+import { MailOutlined, LockOutlined, UserOutlined, PhoneOutlined } from "@ant-design/icons";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -32,562 +25,334 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const dictionary = useDictionary();
   const { message } = App.useApp();
   const { signIn } = useAuthSession();
-  const isLogin = mode === "login";
-  const registerCopy =
-    locale === "en" ? registerContent.en : registerContent.vi;
+  
+  // Thiết lập Tab mặc định dựa trên URL
+  const [activeTab, setActiveTab] = useState(mode); 
+
+  const registerCopy = locale === "en" ? registerContent.en : registerContent.vi;
   const loginCopy = locale === "en" ? loginContent.en : loginContent.vi;
+  
   const [loginForm] = Form.useForm();
+  const [registerForm] = Form.useForm();
+  
   const [captchaCode, setCaptchaCode] = useState(() => createCaptchaCode());
   const [submitting, setSubmitting] = useState(false);
 
-  const [isOtpStep, setIsOtpStep] = useState(false); // Biến kiểm tra xem có đang ở bước OTP không
-  const [registeredEmail, setRegisteredEmail] = useState(""); // Lưu email vừa đăng ký
+  const [isOtpStep, setIsOtpStep] = useState(false); 
+  const [registeredEmail, setRegisteredEmail] = useState(""); 
   const [otpForm] = Form.useForm();
 
-  // THÊM NGUYÊN ĐOẠN NÀY VÀO NGAY TRƯỚC: if (!isLogin) { return ... }
+  // State cho Quên mật khẩu
+  const [forgotPwdModalOpen, setForgotPwdModalOpen] = useState(false);
+  const [forgotPwdForm] = Form.useForm();
+  const [forgotPwdLoading, setForgotPwdLoading] = useState(false);
+
+  // Đổi trạng thái Tab và URL trên trình duyệt nhưng không tải lại trang
+  const handleTabChange = (key: string) => {
+    setActiveTab(key as "login" | "register");
+    const targetUrl = key === "login" ? "/dang-nhap" : "/dang-ky";
+    window.history.replaceState(null, "", localizeHref(targetUrl, locale));
+  };
+
+  // ==========================================
+  // XỬ LÝ: GIAO DIỆN XÁC THỰC OTP
+  // ==========================================
   if (isOtpStep) {
     return (
-      <Card
-        bordered={false}
-        className="cinema-paper mx-auto max-w-[560px] rounded-[28px]"
-      >
-        <div className="text-center mb-6">
-          <Typography.Title
-            level={2}
-            style={{ color: "#4a3426", marginTop: 0 }}
-          >
-            Xác thực Email
-          </Typography.Title>
-          <Typography.Paragraph style={{ color: "#6d5a46" }}>
-            Hệ thống đã gửi một mã gồm 6 chữ số tới email{" "}
-            <strong style={{ color: "#a61d24" }}>{registeredEmail}</strong>.
-            <br />
-            Vui lòng kiểm tra hộp thư (và mục Spam) để hoàn tất.
-          </Typography.Paragraph>
-        </div>
-
-        <Form
-          form={otpForm}
-          layout="vertical"
-          onFinish={async (values) => {
-            setSubmitting(true);
-            try {
-              // Gọi API xác thực xuống Spring Boot (kiểm tra Redis)
-              await verifyOtpWithBackend(registeredEmail, values.otp);
-              message.success("Xác thực thành công! Bạn có thể đăng nhập.");
-              // Thành công mới chuyển hướng về trang đăng nhập
-              router.push(localizeHref("/dang-nhap", locale));
-            } catch (error) {
-              message.error("Mã OTP không chính xác hoặc đã hết hạn.");
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-        >
-          <Form.Item
-            name="otp"
-            style={{ display: "flex", justifyContent: "center" }}
-            rules={[
-              { required: true, message: "Vui lòng nhập mã OTP." },
-              { len: 6, message: "Mã OTP phải gồm đúng 6 chữ số." },
-            ]}
-          >
-            {/* Nếu bạn đang dùng Ant Design phiên bản mới (>5.14), dùng Input.OTP */}
-            <Input.OTP length={6} size="large" />
-
-            {/* LƯU Ý: Nếu Ant Design bản cũ báo lỗi Input.OTP, hãy xóa dòng trên và dùng dòng dưới:
-             <Input size="large" maxLength={6} placeholder="Nhập mã 6 số..." style={{ textAlign: "center", fontSize: 24, letterSpacing: 8 }} />
-            */}
-          </Form.Item>
-
-          <Button
-            type="primary"
-            size="large"
-            htmlType="submit"
-            block
-            loading={submitting}
-          >
-            Xác nhận mã
-          </Button>
-        </Form>
-      </Card>
-    );
-  }
-
-  if (!isLogin) {
-    return (
-      <Card
-        bordered={false}
-        className="auth-register-card cinema-paper mx-auto max-w-[760px] rounded-[32px]"
-      >
-        <div className="auth-register-banner cinema-hero-banner">
-          <Image
-            src="/register-visual.svg"
-            alt={registerCopy.bannerAlt}
-            width={960}
-            height={1200}
-            priority
-            className="auth-register-banner-art"
-          />
-          <div className="auth-register-banner-overlay">
-            <Typography.Text className="auth-register-kicker">
-              {registerCopy.kicker}
-            </Typography.Text>
-            <Typography.Title
-              level={2}
-              style={{ margin: 0, color: "#fff7ea", maxWidth: 420 }}
-            >
-              {registerCopy.bannerTitle}
+      <div className="w-full flex justify-center items-center py-12">
+        <Card bordered={false} className="cinema-paper mx-auto max-w-[560px] w-full rounded-[28px] shadow-lg border border-[#ead6bb]">
+          <div className="text-center mb-6">
+            <Typography.Title level={2} style={{ color: "#4a3426", marginTop: 0 }}>
+              Xác thực Email
             </Typography.Title>
-            <Typography.Paragraph
-              style={{
-                marginBottom: 0,
-                maxWidth: 440,
-                color: "rgba(255, 247, 234, 0.82)",
-              }}
-            >
-              {registerCopy.bannerDescription}
+            <Typography.Paragraph style={{ color: "#6d5a46" }}>
+              Hệ thống đã gửi một mã gồm 6 chữ số tới email <strong style={{ color: "#a61d24" }}>{registeredEmail}</strong>.<br />
+              Vui lòng kiểm tra hộp thư (và mục Spam) để hoàn tất.
             </Typography.Paragraph>
           </div>
-        </div>
-        <div className="auth-register-header">
-          <Typography.Text className="auth-register-kicker">
-            {registerCopy.kicker}
-          </Typography.Text>
-          <Typography.Title level={2} style={{ margin: 0, color: "#4a3426" }}>
-            {registerCopy.title}
-          </Typography.Title>
-          <Typography.Paragraph style={{ marginBottom: 0, color: "#6d5a46" }}>
-            {registerCopy.description}
-          </Typography.Paragraph>
-        </div>
-        <Form
-          layout="vertical"
-          className="auth-register-form"
-          onFinish={async (values) => {
-            setSubmitting(true);
-            try {
-              await registerWithBackend({
-                fullName: String(values.fullName),
-                email: String(values.email).trim().toLowerCase(),
-                phone: String(values.phone),
-                password: String(values.password),
-                citizenIdNumber: String(values.citizenId),
-                gender: values.gender === "male" ? "Nam" : undefined,
-                dateOfBirth: buildBirthDate(
-                  values.birthYear,
-                  values.birthMonth,
-                  values.birthDay,
-                ),
-                area: provinceToArea(String(values.province)),
-              });
-              // SỬA TỪ ĐÂY: Thay vì chuyển trang, ta bật bước OTP lên
-              setRegisteredEmail(String(values.email).trim().toLowerCase());
-              setIsOtpStep(true);
-              message.success(registerCopy.registerSuccess); // "Đăng kí thành công. Hãy kiểm tra email..."
-            } catch (error) {
-              message.error(
-                error instanceof Error
-                  ? error.message
-                  : registerCopy.registerFailed,
-              );
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-        >
-          <div className="auth-register-grid auth-register-grid--two">
-            <Form.Item
-              name="fullName"
-              label={registerCopy.fullName}
-              rules={[
-                { required: true, message: registerCopy.fullNameRequired },
-              ]}
-            >
-              <Input
-                size="large"
-                placeholder={registerCopy.fullNamePlaceholder}
-              />
-            </Form.Item>
-            <Form.Item
-              name="gender"
-              label={registerCopy.gender}
-              rules={[{ required: true, message: registerCopy.genderRequired }]}
-            >
-              <Radio.Group
-                optionType="button"
-                buttonStyle="solid"
-                className="auth-register-gender"
-                options={[
-                  { label: registerCopy.male, value: "male" },
-                  { label: registerCopy.female, value: "female" },
-                  { label: registerCopy.other, value: "other" },
-                ]}
-              />
-            </Form.Item>
-          </div>
-
-          <div className="auth-register-grid auth-register-grid--two">
-            <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: dictionary.auth.emailRequired },
-                { type: "email", message: dictionary.auth.emailRequired },
-              ]}
-            >
-              <Input size="large" placeholder="ban@kctcinema.vn" />
-            </Form.Item>
-            <Form.Item
-              name="phone"
-              label={registerCopy.phone}
-              rules={[
-                { required: true, message: registerCopy.phoneRequired },
-                {
-                  pattern: /^(84|0[35789])\d{8}$/,
-                  message: registerCopy.phoneInvalid,
-                },
-              ]}
-            >
-              <Input size="large" inputMode="tel" placeholder="0901234567" />
-            </Form.Item>
-          </div>
-
-          <Form.Item
-            label={registerCopy.birthDate}
-            required
-            style={{ marginBottom: 16 }}
+          <Form
+            form={otpForm}
+            layout="vertical"
+            onFinish={async (values) => {
+              setSubmitting(true);
+              try {
+                await verifyOtpWithBackend(registeredEmail, values.otp);
+                message.success("Xác thực thành công! Bạn có thể đăng nhập.");
+                setIsOtpStep(false);
+                handleTabChange("login");
+              } catch (error) {
+                message.error("Mã OTP không chính xác hoặc đã hết hạn.");
+              } finally {
+                setSubmitting(false);
+              }
+            }}
           >
-            <div className="auth-register-grid auth-register-grid--three">
-              <Form.Item
-                name="birthDay"
-                noStyle={false}
-                rules={[
-                  { required: true, message: registerCopy.birthDateRequired },
-                ]}
-              >
-                <Select
-                  size="large"
-                  placeholder={registerCopy.day}
-                  options={days.map((day) => ({ label: day, value: day }))}
-                />
-              </Form.Item>
-              <Form.Item
-                name="birthMonth"
-                noStyle={false}
-                rules={[
-                  { required: true, message: registerCopy.birthDateRequired },
-                ]}
-              >
-                <Select
-                  size="large"
-                  placeholder={registerCopy.month}
-                  options={months.map((month) => ({
-                    label: month,
-                    value: month,
-                  }))}
-                />
-              </Form.Item>
-              <Form.Item
-                name="birthYear"
-                noStyle={false}
-                rules={[
-                  { required: true, message: registerCopy.birthDateRequired },
-                ]}
-              >
-                <Select
-                  size="large"
-                  placeholder={registerCopy.year}
-                  options={years.map((year) => ({ label: year, value: year }))}
-                  showSearch
-                  optionFilterProp="label"
-                />
-              </Form.Item>
-            </div>
-          </Form.Item>
-
-          <Form.Item
-            name="province"
-            label={registerCopy.province}
-            rules={[{ required: true, message: registerCopy.provinceRequired }]}
-          >
-            <Select
-              size="large"
-              placeholder={registerCopy.provincePlaceholder}
-              showSearch
-              optionFilterProp="label"
-              options={VIETNAM_PROVINCES.map((province) => ({
-                label: province,
-                value: province,
-              }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="citizenId"
-            label={registerCopy.citizenId}
-            rules={[
-              { required: true, message: registerCopy.citizenIdRequired },
-              {
-                pattern: /^\d{12}$/,
-                message: registerCopy.citizenIdInvalid,
-              },
-            ]}
-          >
-            <Input
-              size="large"
-              inputMode="numeric"
-              maxLength={12}
-              placeholder="012345678901"
-            />
-          </Form.Item>
-
-          <div className="auth-register-grid auth-register-grid--two">
             <Form.Item
-              name="password"
-              label={registerCopy.password}
-              rules={[
-                { required: true, message: registerCopy.passwordRequired },
-                { min: 8, message: registerCopy.passwordTooShort },
-                {
-                  pattern:
-                    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-                  message: registerCopy.passwordWeak,
-                },
-              ]}
+              name="otp"
+              style={{ display: "flex", justifyContent: "center" }}
+              rules={[{ required: true, message: "Vui lòng nhập mã OTP." }, { len: 6, message: "Mã OTP phải gồm đúng 6 chữ số." }]}
             >
-              <Input.Password size="large" placeholder="••••••••" />
+              <Input.OTP length={6} size="large" />
             </Form.Item>
-            <Form.Item
-              name="confirmPassword"
-              label={registerCopy.confirmPassword}
-              dependencies={["password"]}
-              rules={[
-                {
-                  required: true,
-                  message: registerCopy.confirmPasswordRequired,
-                },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue("password") === value) {
-                      return Promise.resolve();
-                    }
-
-                    return Promise.reject(
-                      new Error(registerCopy.confirmPasswordMismatch),
-                    );
-                  },
-                }),
-              ]}
-            >
-              <Input.Password size="large" placeholder="••••••••" />
-            </Form.Item>
-          </div>
-
-          <Form.Item
-            label={registerCopy.captcha}
-            required
-            style={{ marginBottom: 12 }}
-          >
-            <div className="auth-register-captcha-wrap">
-              <Image
-                alt={registerCopy.captchaAlt}
-                src={buildCaptchaDataUri(captchaCode)}
-                width={220}
-                height={78}
-                className="auth-register-captcha-image"
-              />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => setCaptchaCode(createCaptchaCode())}
-                size="large"
-              >
-                {registerCopy.refreshCaptcha}
-              </Button>
-            </div>
-          </Form.Item>
-
-          <Form.Item
-            name="captchaInput"
-            rules={[
-              { required: true, message: registerCopy.captchaRequired },
-              () => ({
-                validator(_, value) {
-                  if (
-                    typeof value === "string" &&
-                    value.trim().toUpperCase() === captchaCode
-                  ) {
-                    return Promise.resolve();
-                  }
-
-                  return Promise.reject(
-                    new Error(registerCopy.captchaMismatch),
-                  );
-                },
-              }),
-            ]}
-          >
-            <Input
-              size="large"
-              maxLength={6}
-              placeholder={registerCopy.captchaPlaceholder}
-              onPaste={(event) => event.preventDefault()}
-            />
-          </Form.Item>
-
-          <Button
-            type="primary"
-            size="large"
-            htmlType="submit"
-            block
-            loading={submitting}
-          >
-            {registerCopy.submit}
-          </Button>
-        </Form>
-        <Space className="mt-4" wrap>
-          <Typography.Text style={{ color: "#6d5a46" }}>
-            {dictionary.auth.hasAccount}
-          </Typography.Text>
-          <Link href={localizeHref("/dang-nhap", locale)}>
-            {dictionary.auth.login}
-          </Link>
-        </Space>
-      </Card>
+            <Button type="primary" size="large" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }}>
+              Xác nhận mã
+            </Button>
+          </Form>
+        </Card>
+      </div>
     );
   }
 
-  return (
-    <Card
-      bordered={false}
-      className="cinema-paper mx-auto max-w-[560px] rounded-[28px]"
+  // ==========================================
+  // FORM 1: ĐĂNG NHẬP
+  // ==========================================
+  const loginContentForm = (
+    <Form
+      form={loginForm}
+      layout="vertical"
+      size="large"
+      onFinish={async (values) => {
+        setSubmitting(true);
+        try {
+          const auth = await loginWithBackend(String(values.email).trim().toLowerCase(), String(values.password));
+          signIn(auth.token, auth.user);
+          message.success(loginCopy.loginSuccess);
+          const nextPath = searchParams.get("next");
+          router.push(nextPath || localizeHref(auth.user.role === "admin" ? "/admin" : "/user", locale));
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : loginCopy.invalidCredentials);
+        } finally {
+          setSubmitting(false);
+        }
+      }}
     >
-      <Typography.Title level={2} style={{ marginTop: 0, color: "#4a3426" }}>
-        {isLogin ? dictionary.auth.loginTitle : dictionary.auth.registerTitle}
-      </Typography.Title>
-      <Typography.Paragraph style={{ color: "#6d5a46" }}>
-        {isLogin
-          ? dictionary.auth.loginDescription
-          : dictionary.auth.registerDescription}
-      </Typography.Paragraph>
-      <div className="auth-demo-accounts">
-        <Typography.Text className="auth-demo-accounts-title">
-          {loginCopy.demoTitle}
-        </Typography.Text>
-        <div className="auth-demo-accounts-grid">
-          {DEMO_ACCOUNTS.map((account) => (
-            <div key={account.email} className="auth-demo-account">
-              <div>
-                <Typography.Text
-                  strong
-                  style={{ color: "#4a3426", display: "block" }}
-                >
-                  {locale === "en" ? account.labelEn : account.labelVi}
-                </Typography.Text>
-                <Typography.Text style={{ color: "#6d5a46", display: "block" }}>
-                  {account.email}
-                </Typography.Text>
-                <Typography.Text style={{ color: "#8c6b45", display: "block" }}>
-                  {loginCopy.passwordLabel}: {account.password}
-                </Typography.Text>
-              </div>
-              <Button
-                size="middle"
-                onClick={() => {
-                  loginForm.setFieldsValue({
-                    email: account.email,
-                    password: account.password,
-                    role: account.role,
-                  });
-                }}
-              >
-                {loginCopy.useAccount}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
-      <Form
-        form={loginForm}
-        layout="vertical"
-        initialValues={{ role: "user" }}
-        onFinish={async (values) => {
-          setSubmitting(true);
-          try {
-            const auth = await loginWithBackend(
-              String(values.email).trim().toLowerCase(),
-              String(values.password),
-            );
-            signIn(auth.token, auth.user);
-            message.success(loginCopy.loginSuccess);
-            const nextPath = searchParams.get("next");
-            router.push(
-              nextPath ||
-                localizeHref(
-                  auth.user.role === "admin" ? "/admin" : "/user",
-                  locale,
-                ),
-            );
-          } catch (error) {
-            message.error(
-              error instanceof Error
-                ? error.message
-                : loginCopy.invalidCredentials,
-            );
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-      >
-        <Form.Item
-          name="email" // Giữ nguyên name="email" để code cũ chạy được
-          label={locale === "vi" ? "Email / Số điện thoại" : "Email / Phone"}
-          rules={[{ required: true, message: dictionary.auth.emailRequired }]}
-        >
-          <Input size="large" placeholder="ban@kctcinema.vn hoặc 0901234567" />
-        </Form.Item>
-        <Form.Item
-          name="password"
-          label={dictionary.auth.password}
-          rules={[
-            { required: true, message: dictionary.auth.passwordRequired },
-          ]}
-        >
-          <Input.Password size="large" placeholder="********" />
-        </Form.Item>
-        <Form.Item
-          name="role"
-          label={dictionary.auth.roleLabel}
-          extra={dictionary.auth.roleDescription}
-        >
-          <Radio.Group className="w-full">
-            <Space direction="vertical">
-              <Radio value="admin">{dictionary.auth.roleAdmin}</Radio>
-              <Radio value="user">{dictionary.auth.roleUser}</Radio>
-            </Space>
-          </Radio.Group>
-        </Form.Item>
-        <Button
-          type="primary"
-          size="large"
-          htmlType="submit"
-          block
-          loading={submitting}
-        >
-          {isLogin ? dictionary.auth.login : dictionary.auth.register}
+      <Form.Item name="email" rules={[{ required: true, message: dictionary.auth.emailRequired }]}>
+        <Input prefix={<MailOutlined className="text-gray-400 mr-2" />} placeholder={locale === "vi" ? "Email / Số điện thoại" : "Email / Phone"} className="rounded-lg bg-gray-50/50" />
+      </Form.Item>
+
+      <Form.Item name="password" rules={[{ required: true, message: dictionary.auth.passwordRequired }]}>
+        <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={dictionary.auth.password} className="rounded-lg bg-gray-50/50" />
+      </Form.Item>
+
+      <div className="flex justify-center mt-6">
+        <Button type="primary" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} className="font-bold rounded-lg h-12 text-lg">
+          {dictionary.auth.login}
         </Button>
-      </Form>
-      <Space className="mt-4" wrap>
-        <Typography.Text style={{ color: "#6d5a46" }}>
-          {isLogin ? dictionary.auth.noAccount : dictionary.auth.hasAccount}
-        </Typography.Text>
-        <Link href={localizeHref(isLogin ? "/dang-ky" : "/dang-nhap", locale)}>
-          {isLogin ? dictionary.auth.registerNow : dictionary.auth.login}
-        </Link>
-      </Space>
-    </Card>
+      </div>
+
+      <div className="text-center mt-4">
+        <span 
+          className="text-[#a61d24] cursor-pointer hover:underline font-medium"
+          onClick={() => setForgotPwdModalOpen(true)} // 🔥 BẬT POPUP TẠI ĐÂY
+        >
+          Quên mật khẩu?
+        </span>
+      </div>
+    </Form>
+  );
+
+  // ==========================================
+  // FORM 2: ĐĂNG KÝ
+  // ==========================================
+  const registerContentForm = (
+    <Form
+      form={registerForm}
+      layout="vertical"
+      size="large"
+      onFinish={async (values) => {
+        setSubmitting(true);
+        try {
+          await registerWithBackend({
+            fullName: String(values.fullName),
+            email: String(values.email).trim().toLowerCase(),
+            phone: String(values.phone),
+            password: String(values.password),
+            citizenIdNumber: String(values.citizenId),
+            gender: values.gender === "male" ? "Nam" : undefined,
+            dateOfBirth: buildBirthDate(values.birthYear, values.birthMonth, values.birthDay),
+            area: provinceToArea(String(values.province)),
+          });
+          setRegisteredEmail(String(values.email).trim().toLowerCase());
+          setIsOtpStep(true);
+          message.success(registerCopy.registerSuccess);
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : registerCopy.registerFailed);
+        } finally {
+          setSubmitting(false);
+        }
+      }}
+    >
+      <div className="grid gap-x-4 md:grid-cols-2">
+        <Form.Item name="fullName" rules={[{ required: true, message: registerCopy.fullNameRequired }]}>
+          <Input prefix={<UserOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.fullName} className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+        <Form.Item name="gender" rules={[{ required: true, message: registerCopy.genderRequired }]}>
+          <Select placeholder={registerCopy.gender} options={[{ label: registerCopy.male, value: "male" }, { label: registerCopy.female, value: "female" }, { label: registerCopy.other, value: "other" }]} />
+        </Form.Item>
+      </div>
+
+      <div className="grid gap-x-4 md:grid-cols-2">
+        <Form.Item name="email" rules={[{ required: true, message: dictionary.auth.emailRequired }, { type: "email", message: dictionary.auth.emailRequired }]}>
+          <Input prefix={<MailOutlined className="text-gray-400 mr-2" />} placeholder="Email" className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+        <Form.Item name="phone" rules={[{ required: true, message: registerCopy.phoneRequired }, { pattern: /^(84|0[35789])\d{8}$/, message: registerCopy.phoneInvalid }]}>
+          <Input prefix={<PhoneOutlined className="text-gray-400 mr-2" />} inputMode="tel" placeholder={registerCopy.phone} className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+      </div>
+
+      <div className="grid gap-x-2 grid-cols-3 mb-6">
+        <Form.Item name="birthDay" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
+          <Select placeholder={registerCopy.day} options={days.map((day) => ({ label: day, value: day }))} />
+        </Form.Item>
+        <Form.Item name="birthMonth" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
+          <Select placeholder={registerCopy.month} options={months.map((month) => ({ label: month, value: month }))} />
+        </Form.Item>
+        <Form.Item name="birthYear" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
+          <Select placeholder={registerCopy.year} options={years.map((year) => ({ label: year, value: year }))} showSearch optionFilterProp="label" />
+        </Form.Item>
+      </div>
+
+      <div className="grid gap-x-4 md:grid-cols-2">
+        <Form.Item name="province" rules={[{ required: true, message: registerCopy.provinceRequired }]}>
+          <Select placeholder={registerCopy.province} showSearch optionFilterProp="label" options={VIETNAM_PROVINCES.map((province) => ({ label: province, value: province }))} />
+        </Form.Item>
+        <Form.Item name="citizenId" rules={[{ required: true, message: registerCopy.citizenIdRequired }, { pattern: /^\d{12}$/, message: registerCopy.citizenIdInvalid }]}>
+          <Input inputMode="numeric" maxLength={12} placeholder={registerCopy.citizenId} className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+      </div>
+
+      <div className="grid gap-x-4 md:grid-cols-2">
+        <Form.Item name="password" rules={[{ required: true, message: registerCopy.passwordRequired }, { min: 8, message: registerCopy.passwordTooShort }, { pattern: /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, message: registerCopy.passwordWeak }]}>
+          <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.password} className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+        <Form.Item name="confirmPassword" dependencies={["password"]} rules={[{ required: true, message: registerCopy.confirmPasswordRequired }, ({ getFieldValue }) => ({ validator(_, value) { if (!value || getFieldValue("password") === value) { return Promise.resolve(); } return Promise.reject(new Error(registerCopy.confirmPasswordMismatch)); } })]}>
+          <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.confirmPassword} className="rounded-lg bg-gray-50/50" />
+        </Form.Item>
+      </div>
+
+      <Form.Item required className="mb-2">
+        <div className="auth-register-captcha-wrap border border-gray-200 p-2 rounded-lg bg-gray-50 flex items-center justify-between">
+          <Image alt={registerCopy.captchaAlt} src={buildCaptchaDataUri(captchaCode)} width={220} height={78} className="rounded" />
+          <Button icon={<ReloadOutlined />} onClick={() => setCaptchaCode(createCaptchaCode())} size="middle" type="dashed">
+            {registerCopy.refreshCaptcha}
+          </Button>
+        </div>
+      </Form.Item>
+
+      <Form.Item name="captchaInput" rules={[{ required: true, message: registerCopy.captchaRequired }, () => ({ validator(_, value) { if (typeof value === "string" && value.trim().toUpperCase() === captchaCode) { return Promise.resolve(); } return Promise.reject(new Error(registerCopy.captchaMismatch)); } })]}>
+        <Input maxLength={6} placeholder={registerCopy.captchaPlaceholder} onPaste={(event) => event.preventDefault()} className="rounded-lg bg-gray-50/50 text-center uppercase tracking-[0.25em]" />
+      </Form.Item>
+
+      <div className="flex justify-center mt-6">
+        <Button type="primary" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} className="font-bold rounded-lg h-12 text-lg">
+          {dictionary.auth.register}
+        </Button>
+      </div>
+    </Form>
+  );
+
+  return (
+    <div className="w-full flex flex-col justify-center items-center py-10 md:py-16">
+      
+      {/* Khối bọc Tabs: Đây mới là nơi giới hạn chiều rộng (chỉ giới hạn cái form) */}
+      <div 
+         className="w-full bg-white rounded-xl shadow-lg overflow-hidden border border-[#ead6bb] metiz-auth-container mx-auto"
+         style={{ 
+           maxWidth: activeTab === 'register' ? '800px' : '500px',
+           transition: 'max-width 0.3s ease' 
+         }}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          centered
+          size="large"
+          className="metiz-auth-tabs m-0"
+          items={[
+            {
+              key: "login",
+              label: <span className="px-6 md:px-12 font-bold text-base">{dictionary.auth.login}</span>,
+              children: <div className="p-6 md:p-10">{loginContentForm}</div>,
+            },
+            {
+              key: "register",
+              label: <span className="px-6 md:px-12 font-bold text-base">{dictionary.auth.register}</span>,
+              children: <div className="p-6 md:p-10">{registerContentForm}</div>,
+            },
+          ]}
+        />
+      </div>
+
+      {/* KHỐI MODAL QUÊN MẬT KHẨU */}
+      <Modal
+        title={
+          <div className="text-center w-full pb-2">
+            <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
+              Quên mật khẩu?
+            </Typography.Title>
+            <p className="text-gray-500 text-sm mt-2 font-normal">
+              Nhập email đăng ký của bạn để nhận liên kết đặt lại mật khẩu.
+            </p>
+          </div>
+        }
+        open={forgotPwdModalOpen}
+        onCancel={() => {
+          setForgotPwdModalOpen(false);
+          forgotPwdForm.resetFields();
+        }}
+        footer={null}
+        centered
+      >
+        <Form
+          form={forgotPwdForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            setForgotPwdLoading(true);
+            try {
+              await forgotPasswordApi(values.email);
+              message.success("Đã gửi liên kết! Vui lòng kiểm tra email của bạn.");
+              setForgotPwdModalOpen(false);
+              forgotPwdForm.resetFields();
+            } catch (error: any) {
+              message.error(error.message);
+            } finally {
+              setForgotPwdLoading(false);
+            }
+          }}
+        >
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: "Vui lòng nhập email!" },
+              { type: "email", message: "Email không đúng định dạng!" },
+            ]}
+          >
+            <Input 
+              prefix={<MailOutlined className="text-gray-400 mr-2" />} 
+              size="large" 
+              placeholder="Nhập email của bạn" 
+              className="rounded-lg bg-gray-50/50"
+            />
+          </Form.Item>
+          
+          <Button 
+            type="primary" 
+            htmlType="submit" 
+            size="large" 
+            block 
+            loading={forgotPwdLoading}
+            style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} 
+            className="font-bold rounded-lg h-12"
+          >
+            Gửi yêu cầu
+          </Button>
+        </Form>
+      </Modal>
+
+    </div>
   );
 }
+//... GIỮ NGUYÊN CODE TỪ CONST DAYS TRỞ XUỐNG
 
 const days = Array.from({ length: 31 }, (_, index) =>
   String(index + 1).padStart(2, "0"),

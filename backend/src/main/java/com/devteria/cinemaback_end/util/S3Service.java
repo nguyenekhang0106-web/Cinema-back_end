@@ -12,8 +12,12 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -23,6 +27,7 @@ import java.util.UUID;
 public class S3Service {
 
     final S3Client s3Client;
+    final S3Presigner s3Presigner; // 🔥 BỔ SUNG BEAN NÀY ĐỂ TẠO LINK BẢO MẬT
 
     @Value("${aws.bucket.name}")
     String bucketName;
@@ -35,13 +40,9 @@ public class S3Service {
 
     /**
      * Upload file to S3
-     * @param file MultipartFile to upload
-     * @param folder Folder path (e.g., "avatar")
-     * @return Full S3 key (e.g., "avatar/123-abc_user1Avatar.jpg")
      */
     public String uploadFile(MultipartFile file, String folder) {
-
-        // 🔥 Ném lỗi bằng AppException chuẩn của hệ thống
+        // Validation chuẩn của bạn
         if (file.isEmpty() || file.getContentType() == null) {
             throw new AppException(ErrorCode.FILE_IS_EMPTY);
         }
@@ -60,7 +61,6 @@ public class S3Service {
 
             byte[] fileBytes = file.getBytes();
 
-            // 🔥 ĐÃ XÓA DÒNG .acl(...) THEO ĐÚNG CẤU HÌNH CỦA TEAM
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
@@ -83,7 +83,6 @@ public class S3Service {
 
     /**
      * Delete file from S3
-     * @param key S3 object key (e.g., "avatar/user1Avatar.jpg")
      */
     public void deleteFile(String key) {
         try {
@@ -102,14 +101,49 @@ public class S3Service {
     }
 
     /**
-     * Build absolute S3 URL for a given key
-     * @param key S3 object key
-     * @return Full URL
+     * Build absolute static S3 URL (Dành cho bucket Public)
      */
     public String buildS3Url(String key) {
         if (key == null || key.isEmpty()) {
             return null;
         }
+
+        // 🔥 BỔ SUNG ĐOẠN NÀY:
+        // Nếu database đang lưu sẵn một link web ngoài (bắt đầu bằng http), thì giữ nguyên không nối S3 nữa!
+        if (key.startsWith("http://") || key.startsWith("https://")) {
+            return key;
+        }
+
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
+    }
+
+    /**
+     * 🔥 HÀM MỚI: Tạo URL có chữ ký bảo mật (Presigned URL)
+     * Frontend sẽ dùng link này để hiển thị ảnh từ Bucket Private.
+     */
+    public String generatePresignedUrl(String key, Duration expiration) {
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+
+        try {
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(expiration)
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+            return presignedRequest.url().toString();
+
+        } catch (Exception e) {
+            log.error("Error generating pre-signed URL for key: {}", key, e);
+            // Fallback: Nếu lỗi tạo link bảo mật, trả về link tĩnh bình thường
+            return buildS3Url(key);
+        }
     }
 }

@@ -69,8 +69,9 @@ public class PasswordResetService {
                 email,
                 SecurityUtils.hashSensitiveData(email)
         );
-        
-        String resetLink = "http://localhost:9090/cinema/auth/reset-password?token=" + rawToken;
+
+        // Đổi cổng 9090 thành 3000 và trỏ về trang giao diện Frontend
+        String resetLink = "http://localhost:3000/dat-lai-mat-khau?token=" + rawToken;
         emailSenderService.sendPasswordResetLink(email, resetLink);
     }
 

@@ -4,6 +4,7 @@ import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.user.dto.UserRequest;
 import com.devteria.cinemaback_end.user.dto.UserUpdateRequest; // 🔥 THÊM IMPORT
+import com.devteria.cinemaback_end.user.dto.ChangePasswordRequest;
 import com.devteria.cinemaback_end.user.dto.UserResponse;
 import com.devteria.cinemaback_end.user.entity.Role;
 import com.devteria.cinemaback_end.user.entity.User;
@@ -143,5 +144,26 @@ public class UserService {
 
         response.setAvatarUrl(s3Service.buildS3Url(key));
         return response;
+    }
+
+    public void changePassword(ChangePasswordRequest request) {
+        var context = SecurityContextHolder.getContext();
+        String currentEmail = context.getAuthentication().getName();
+
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Kiểm tra mật khẩu cũ có đúng không
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_NOT_CORRECT); // Nhớ thêm mã lỗi này vào ErrorCode nếu chưa có
+        }
+
+        // Kiểm tra mật khẩu mới có trùng mật khẩu cũ không
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_ALREADY_USED);
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }

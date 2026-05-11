@@ -111,4 +111,13 @@ public class UserController {
                 .result(avatarService.getUserProfile(id))
                 .build();
     }
+
+    @PutMapping("/my-info/change-password")
+    public ApiResponse<String> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        userService.changePassword(request);
+        return ApiResponse.<String>builder()
+                .code(1000)
+                .message("Đổi mật khẩu thành công")
+                .build();
+    }
 }

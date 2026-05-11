@@ -10,8 +10,8 @@ spring:
   # 🔥 BỔ SUNG CẤU HÌNH UPLOAD FILE (Nâng mức trần lên 5MB cho khớp với S3Service)
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+      max-file-size: 20MB      # Nâng lên 20MB
+      max-request-size: 20MB   # Nâng lên 20MB
 
   data:
     redis:

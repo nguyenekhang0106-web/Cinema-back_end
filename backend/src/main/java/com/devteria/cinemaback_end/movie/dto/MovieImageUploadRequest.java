@@ -1,6 +1,5 @@
 package com.devteria.cinemaback_end.movie.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,9 +11,9 @@ import org.springframework.web.multipart.MultipartFile;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MovieImageUploadRequest {
 
-    @NotNull(message = "POSTER_IS_EMPTY")
+    // 🔥 Đã xóa @NotNull để cho phép update 1 ảnh hoặc không up ảnh nào
     MultipartFile posterFile;
 
-    @NotNull(message = "BANNER_IS_EMPTY")
+    // 🔥 Đã xóa @NotNull
     MultipartFile bannerFile;
 }

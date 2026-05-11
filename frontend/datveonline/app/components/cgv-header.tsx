@@ -11,7 +11,7 @@ export function CgvHeader() {
   const { message } = App.useApp();
   const locale = useLocale();
   const dictionary = useDictionary();
-  const pathname = usePathname();
+  const pathname = usePathname(); // 🔥 Lấy đường dẫn hiện tại để xử lý Active Link
   const router = useRouter();
   const { isAuthenticated, loading, role, signOut } = useAuthSession();
   const topLinks = [
@@ -49,8 +49,18 @@ export function CgvHeader() {
     router.push(localizeHref("/", locale));
   };
 
+  // 🔥 Hàm kiểm tra xem Link hiện tại có đang Active hay không
+  const isActive = (href: string) => {
+    // 1. Trường hợp đặc biệt: Trang chủ ("/" hoặc "/en")
+    if (href === "/") {
+      return pathname === "/" || pathname === "/en";
+    }
+    // 2. Các trang khác: So sánh xem pathname có chứa href đó không
+    return pathname.includes(href);
+  };
+
   return (
-    <header className="sticky top-0 z-40">
+    <header className="sticky top-0 z-40 shadow-sm">
       <div className="cinema-top-stripe text-white">
         <div className="cinema-shell flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
@@ -166,12 +176,18 @@ export function CgvHeader() {
                 </Link>
               </div>
             </div>
-            <nav className="flex flex-wrap gap-5 text-sm font-semibold text-[#4a3426]">
+            
+            {/* 🔥 PHẦN RENDER MENU CHÍNH VỚI HIỆU ỨNG ACTIVE 🔥 */}
+            <nav className="flex flex-wrap gap-6 text-sm md:text-base font-semibold">
               {dictionary.header.nav.map((item) => (
                 <Link
                   key={item.href}
                   href={localizeHref(item.href, locale)}
-                  className="hover:text-[#a61d24]"
+                  className={`transition-all duration-300 pb-1 transform origin-bottom ${
+                    isActive(item.href)
+                      ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110" 
+                      : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
+                  }`}
                 >
                   {item.label}
                 </Link>

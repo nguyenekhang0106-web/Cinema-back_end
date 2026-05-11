@@ -37,4 +37,5 @@ public class MovieResponse {
 
     Set<String> directors;
     Set<String> actors;
+    Boolean featured;
 }

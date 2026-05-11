@@ -82,4 +82,7 @@ public class Movie {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id", nullable = false)
     User manager;
+
+    @Column(columnDefinition = "boolean default false")
+    Boolean featured;
 }

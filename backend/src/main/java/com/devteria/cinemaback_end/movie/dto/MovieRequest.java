@@ -6,7 +6,6 @@ import com.devteria.cinemaback_end.movie.entity.enums.Language;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -37,6 +36,7 @@ public class MovieRequest {
     @NotNull(message = "AGE_RESTRICTION_NOT_NULL")
     AgeRestriction ageRestriction;
 
+    // Các trường này không có @NotNull nên đã được phép rỗng (null)
     String trailerUrl;
 
     String description;
@@ -45,9 +45,11 @@ public class MovieRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate releaseDate;
 
-    @NotEmpty(message = "DIRECTOR_NOT_EMPTY")
+    // 🔥 Đã xóa @NotEmpty để Admin có thể để trống đạo diễn nếu chưa biết
     Set<String> directors;
 
-    @NotEmpty(message = "ACTORS_NOT_EMPTY")
+    // 🔥 Đã xóa @NotEmpty để Admin có thể để trống diễn viên
     Set<String> actors;
+
+    Boolean featured;
 }
