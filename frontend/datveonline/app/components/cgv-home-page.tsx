@@ -7,6 +7,10 @@ import {
   GiftOutlined,
   TrophyOutlined,
   StarFilled,
+  SettingOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -18,22 +22,261 @@ import {
   Tag,
   Typography,
   Carousel,
+  Modal,
+  Table,
+  Form,
+  Input,
+  InputNumber,
+  Switch,
+  Popconfirm,
+  message,
+  Image as AntImage,
 } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type MovieItem } from "../data/cgv-template";
 import { getMoviesWithFallback } from "../lib/cinema-api";
-import {
-  getLocalizedCinemas,
-  getLocalizedPromotions,
-} from "../lib/localized-data";
+import { getLocalizedCinemas, getLocalizedPromotions } from "../lib/localized-data";
 import { localizeHref } from "../lib/i18n";
 import { useDictionary, useLocale } from "./locale-provider";
 import { MovieGrid } from "./movie-grid";
 import { SiteShell } from "./site-shell";
 import { TemplatePage } from "./template-page";
+import { useAuthSession } from "./auth-session-provider";
+import { BannerItem, getActiveBanners } from "../lib/cinema-api"; // Đảm bảo bạn đã có hàm getActiveBanners ở file api
 
-// 🔥 ĐÃ XÓA HOÀN TOÀN CÁC HÀM MovieTabsSection VÀ MovieFeedEmpty DƯ THỪA 🔥
+// ============================================================================
+// 🔥 COMPONENT: TRÌNH QUẢN LÝ BANNER DÀNH RIÊNG CHO ADMIN 🔥
+// ============================================================================
+function BannerManagerModal({
+  open,
+  onCancel,
+  onSuccess,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<BannerItem | null>(null);
+  const [form] = Form.useForm();
+
+  // 🔥 HÀM TÌM TOKEN THÔNG MINH
+  const getAuthToken = () => {
+    let token = localStorage.getItem("token") 
+             || localStorage.getItem("accessToken") 
+             || sessionStorage.getItem("token");
+
+    if (!token) {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key) {
+                const value = localStorage.getItem(key);
+                if (value && value.includes('"token"')) {
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (parsed.token) token = parsed.token;
+                        if (parsed.accessToken) token = parsed.accessToken;
+                    } catch(e) {}
+                }
+            }
+        }
+    }
+    
+    if (!token) {
+        alert("🚨 KHÔNG TÌM THẤY TOKEN ĐĂNG NHẬP! Hãy kiểm tra lại hàm Login xem token đang được lưu ở đâu.");
+        return "";
+    }
+    return token;
+  };
+
+  const fetchBanners = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+          setLoading(false);
+          return;
+      }
+      const res = await fetch("http://localhost:9090/cinema/banners/all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+          const data = await res.json();
+          setBanners(data.result || []);
+      } else {
+           message.error(`Lỗi tải dữ liệu (Mã ${res.status})`);
+      }
+    } catch (err) {
+      message.error("Lỗi mạng khi tải banner!");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (open) fetchBanners();
+  }, [open]);
+
+  // 🔥 HÀM MỞ FORM THÊM MỚI (Đã được khôi phục)
+  const handleAdd = () => {
+    setEditingBanner(null);
+    form.resetFields();
+    form.setFieldsValue({ active: true, displayOrder: 0 }); 
+    setFormModalOpen(true);
+  };
+
+  // 🔥 HÀM MỞ FORM CẬP NHẬT (Đã được khôi phục)
+  const handleEdit = (record: BannerItem) => {
+    setEditingBanner(record);
+    form.setFieldsValue(record);
+    setFormModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch(`http://localhost:9090/cinema/banners/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+          message.success("Đã xóa banner!");
+          fetchBanners();
+          onSuccess(); 
+      } else {
+          message.error(`Xóa thất bại (Mã lỗi ${res.status})`);
+      }
+    } catch (error) {
+      message.error("Lỗi mạng khi xóa!");
+    }
+  };
+
+  const handleSave = async (values: any) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return; 
+      
+      const isUpdate = !!editingBanner;
+      const url = isUpdate
+        ? `http://localhost:9090/cinema/banners/${editingBanner.id}`
+        : "http://localhost:9090/cinema/banners";
+
+      const res = await fetch(url, {
+        method: isUpdate ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, 
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (res.ok) {
+        message.success(isUpdate ? "Cập nhật thành công!" : "Thêm mới thành công!");
+        setFormModalOpen(false);
+        fetchBanners();
+        onSuccess(); 
+      } else {
+        const errorData = await res.json();
+        const errorMsg = errorData.message || errorData.error || `Lỗi HTTP ${res.status}`;
+        
+        if (res.status === 401 && errorMsg.includes('JWT')) {
+            message.error("Phiên đăng nhập đã HẾT HẠN. Vui lòng Đăng xuất và Đăng nhập lại!");
+        } else {
+            message.error(`Từ chối thao tác: ${errorMsg}`);
+        }
+      }
+    } catch (error) {
+      message.error("Lỗi mạng! Máy chủ đang tắt hoặc bị lỗi CORS.");
+    }
+  };
+
+  const columns = [
+    {
+      title: "Hình ảnh",
+      dataIndex: "imageUrl",
+      key: "imageUrl",
+      render: (url: string) => (
+        <AntImage src={url} width={100} className="rounded object-cover aspect-[21/9]" />
+      ),
+    },
+    { title: "Tiêu đề", dataIndex: "title", key: "title" },
+    { title: "Thứ tự", dataIndex: "displayOrder", key: "displayOrder", align: "center" as const },
+    {
+      title: "Trạng thái",
+      dataIndex: "active",
+      key: "active",
+      render: (active: boolean) => (
+        <Tag color={active ? "green" : "red"}>{active ? "Đang hiện" : "Đã ẩn"}</Tag>
+      ),
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      render: (_: any, record: BannerItem) => (
+        <Space>
+          <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Xóa banner này?" onConfirm={() => handleDelete(record.id)}>
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Modal
+        title={<Typography.Title level={4}>Quản lý Banner Trang Chủ</Typography.Title>}
+        open={open}
+        onCancel={onCancel}
+        width={900}
+        footer={null}
+        destroyOnClose
+      >
+        <div className="mb-4 flex justify-end">
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} className="bg-[#a61d24]">
+            Thêm Banner Mới
+          </Button>
+        </div>
+        <Table dataSource={banners} columns={columns} rowKey="id" loading={loading} pagination={false} />
+      </Modal>
+
+      <Modal
+        title={editingBanner ? "Cập nhật Banner" : "Thêm Banner Mới"}
+        open={formModalOpen}
+        onCancel={() => setFormModalOpen(false)}
+        onOk={() => form.submit()}
+        okText="Lưu lại"
+        cancelText="Hủy"
+        okButtonProps={{ className: "bg-[#a61d24]" }}
+        zIndex={1050}
+      >
+        <Form form={form} layout="vertical" onFinish={handleSave}>
+          <Form.Item name="title" label="Tiêu đề Banner">
+            <Input placeholder="Nhập tên gợi nhớ (VD: Khuyến mãi Hè)" />
+          </Form.Item>
+          <Form.Item name="imageUrl" label="URL Hình ảnh" rules={[{ required: true, message: "URL không được để trống" }]}>
+            <Input placeholder="https://..." />
+          </Form.Item>
+          <Form.Item name="link" label="Đường dẫn khi Click (Không bắt buộc)">
+            <Input placeholder="/phim/avengers-endgame" />
+          </Form.Item>
+          <Form.Item name="displayOrder" label="Thứ tự ưu tiên (Nhỏ xếp trước)" rules={[{ required: true }]}>
+            <InputNumber min={0} className="w-full" />
+          </Form.Item>
+          <Form.Item name="active" label="Trạng thái hiển thị" valuePropName="checked">
+            <Switch checkedChildren="Bật" unCheckedChildren="Tắt" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  );
+}
+// ============================================================================
+
 
 function CinemaAndPromoSection() {
   const locale = useLocale();
@@ -204,16 +447,26 @@ function NewsStrip() {
 export function CgvHomePage() {
   const locale = useLocale();
   const [movies, setMovies] = useState<MovieItem[]>([]);
+  
+  // State quản lý Banner và Modal Admin
+  const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const { role } = useAuthSession();
+
+  // Hàm load banner để tái sử dụng khi thêm/sửa/xóa xong
+  const loadBanners = () => {
+    getActiveBanners().then((items) => setBanners(items));
+  };
 
   useEffect(() => {
     let mounted = true;
     getMoviesWithFallback(locale).then((items) => {
       if (mounted) setMovies(items);
     });
+    if (mounted) loadBanners();
     return () => { mounted = false; };
   }, [locale]);
 
-  // 🔥 LỌC PHIM NỔI BẬT: Chỉ hiện những phim có featured === true
   const featuredMovies = movies.filter((movie) => movie.featured === true);
 
   return (
@@ -221,58 +474,62 @@ export function CgvHomePage() {
       <SiteShell>
         <div className="cinema-shell">
 
-          {/* BANNER (Góc vuông, kích thước chuẩn) */}
-          <div className="px-4 sm:px-6 pt-6">
-            <div className="w-full shadow-sm border border-gray-200">
-              <Carousel autoplay effect="fade" arrows>
-                <div className="relative h-[200px] md:h-[300px] lg:h-[400px] w-full">
-                  <img
-                    src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop"
-                    alt="Banner 1"
-                    className="w-full h-full object-cover"
-                  />
+          {/* BANNER TỰ ĐỘNG LẤY TỪ DB */}
+          <div className="px-4 sm:px-6 pt-6 relative group">
+            
+            {/* NÚT QUẢN LÝ CHO ADMIN (Hover mới hiện) */}
+            {role === "admin" && (
+              <div className="absolute top-10 right-10 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <Button 
+                  type="primary" 
+                  icon={<SettingOutlined />} 
+                  size="large" 
+                  onClick={() => setIsManageModalOpen(true)}
+                  className="bg-[#a61d24] font-semibold shadow-lg hover:scale-105"
+                >
+                  Quản lý Banner
+                </Button>
+              </div>
+            )}
+
+            <div className="w-full shadow-sm border border-gray-200 bg-white">
+              {banners.length > 0 ? (
+                <Carousel autoplay effect="fade" arrows>
+                  {banners.map((banner) => (
+                    <div key={banner.id} className="relative h-[200px] md:h-[300px] lg:h-[400px] w-full focus:outline-none">
+                      {banner.link ? (
+                        <a href={banner.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                          <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                        </a>
+                      ) : (
+                        <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  ))}
+                </Carousel>
+              ) : (
+                // Nếu DB rỗng
+                <div className="h-[200px] md:h-[300px] lg:h-[400px] w-full bg-[#fffaf4] flex flex-col items-center justify-center border border-dashed border-[#d7c0a0] text-[#6d5a46]">
+                  <p className="text-lg font-semibold">Chưa có banner nào được kích hoạt</p>
+                  {role === "admin" && <p className="mt-2">Bấm "Quản lý Banner" ở góc phải để thêm mới.</p>}
                 </div>
-                <div className="relative h-[200px] md:h-[300px] lg:h-[400px] w-full">
-                  <img
-                    src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop"
-                    alt="Banner 2"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="relative h-[200px] md:h-[300px] lg:h-[400px] w-full">
-                  <img
-                    src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop"
-                    alt="Banner 3"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </Carousel>
+              )}
             </div>
           </div>
 
           <main className="pb-8 pt-10">
-
-            {/* 🔥 KHỐI PHIM NỔI BẬT ĐƯỢC GIỮ LẠI ĐỘC QUYỀN TRÊN TRANG CHỦ */}
+            {/* KHỐI PHIM NỔI BẬT */}
             {featuredMovies.length > 0 && (
               <div className="mb-16 px-4 sm:px-6">
                 <div className="flex items-center justify-between mb-8">
                   <Typography.Title
                     level={2}
                     className="cinema-section-title"
-                    style={{ 
-                      margin: 0, 
-                      color: "#4a3426", 
-                      borderLeft: "5px solid #a61d24", 
-                      paddingLeft: "14px", 
-                      textTransform: "uppercase" 
-                    }}
+                    style={{ margin: 0, color: "#4a3426", borderLeft: "5px solid #a61d24", paddingLeft: "14px", textTransform: "uppercase" }}
                   >
                     Phim Nổi Bật
                   </Typography.Title>
-                  <Link
-                    href={localizeHref("/phim", locale)}
-                    className="text-[#a61d24] font-semibold hover:underline text-base"
-                  >
+                  <Link href={localizeHref("/phim", locale)} className="text-[#a61d24] font-semibold hover:underline text-base">
                     Xem tất cả &gt;
                   </Link>
                 </div>
@@ -280,16 +537,24 @@ export function CgvHomePage() {
               </div>
             )}
 
-            {/* 🔥 ĐÃ XÓA HOÀN TOÀN KHỐI CHIA TAB PHIM ĐANG CHIẾU / SẮP CHIẾU Ở ĐÂY 🔥 */}
-
             <div className="px-4 sm:px-6">
               <CinemaAndPromoSection />
               <NewsStrip />
             </div>
-
           </main>
+
         </div>
       </SiteShell>
+
+      {/* NHÚNG MODAL QUẢN LÝ VÀO GIAO DIỆN */}
+      {role === "admin" && (
+        <BannerManagerModal 
+          open={isManageModalOpen} 
+          onCancel={() => setIsManageModalOpen(false)} 
+          onSuccess={loadBanners} 
+        />
+      )}
+
     </div>
   );
 }

@@ -478,3 +478,31 @@ export async function deleteMovieApi(token: string, id: string) {
   if (!res.ok || data.code !== 1000) throw new Error(data.message || "Lỗi xóa phim");
   return data;
 }
+
+// === THÊM VÀO FILE: app/lib/cinema-api.ts ===
+
+export interface BannerItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  link: string;
+  displayOrder: number;
+  active: boolean;
+}
+
+// Hàm gọi API lấy danh sách banner đang bật (dành cho client)
+export async function getActiveBanners(): Promise<BannerItem[]> {
+  try {
+    // 🔥 Đã sửa thành port 9090 và thêm context-path /cinema
+    const response = await fetch("http://localhost:9090/cinema/banners", {
+      next: { revalidate: 60 } // Cache dữ liệu 60s
+    });
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    return data.result || [];
+  } catch (error) {
+    console.error("Lỗi khi fetch banners:", error);
+    return [];
+  }
+}

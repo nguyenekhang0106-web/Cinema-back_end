@@ -2,12 +2,14 @@ package com.devteria.cinemaback_end.movie.service;
 
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
+import com.devteria.cinemaback_end.movie.dto.BannerRequest;
 import com.devteria.cinemaback_end.movie.dto.MovieImageUploadRequest;
 import com.devteria.cinemaback_end.movie.dto.MovieRequest;
 import com.devteria.cinemaback_end.movie.dto.MovieResponse;
 import com.devteria.cinemaback_end.movie.entity.Movie;
 import com.devteria.cinemaback_end.movie.mapper.MovieMapper;
 import com.devteria.cinemaback_end.movie.repository.MovieRepository;
+import com.devteria.cinemaback_end.movie.repository.BannerRepository;
 import com.devteria.cinemaback_end.user.entity.User;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
 import com.devteria.cinemaback_end.util.S3Service;
@@ -34,13 +36,17 @@ public class MovieService {
     UserRepository userRepository;
     S3Service s3Service;
 
-    // 🔥 Hằng số định nghĩa thư mục và ảnh mặc định
+    // 🔥 1. INJECT THÊM BANNER SERVICE VÀO ĐÂY
+    BannerService bannerService;
+    BannerRepository bannerRepository;
+
+    // Hằng số định nghĩa thư mục và ảnh mặc định
     private static final String MOVIE_FOLDER = "movie";
     private static final String DEFAULT_POSTER = "movie/DefaultPoster.png";
     private static final String DEFAULT_BANNER = "movie/DefaultBanner.png";
 
     /**
-     * BƯỚC 1: TẠO PHIM (Chỉ nhận JSON thông tin, chưa có ảnh)
+     * BƯỚC 1: TẠO PHIM VÀ TỰ ĐỘNG TẠO BANNER ẨN
      */
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
@@ -61,51 +67,81 @@ public class MovieService {
         Movie savedMovie = movieRepository.save(movie);
         log.info("Movie created successfully with text data: {}", savedMovie.getId());
 
+        // 🔥 2. TỰ ĐỘNG TẠO BANNER SAU KHI TẠO PHIM
+        try {
+            // Lấy tên phim (Chú ý: nếu Entity Movie của bạn dùng trường 'title' thay vì 'name' thì đổi thành savedMovie.getTitle())
+            String movieTitle = savedMovie.getTitle();
+
+            BannerRequest autoBannerReq = BannerRequest.builder()
+                    .title(movieTitle) // Tên banner trùng tên phim
+                    .link("") // Link để trống
+                    .displayOrder(0) // Thứ tự mặc định là 0
+                    .active(false) // Mặc định không bật
+                    .imageUrl(s3Service.buildS3Url(DEFAULT_BANNER)) // Cấp tạm url mặc định để pass validation @NotBlank
+                    .build();
+
+            bannerService.createBanner(autoBannerReq);
+            log.info("Auto-created inactive banner for movie: {}", movieTitle);
+        } catch (Exception e) {
+            log.error("Failed to auto-create banner for movie: {}", savedMovie.getId(), e);
+        }
+
         return buildMovieResponse(savedMovie);
     }
 
     /**
      * BƯỚC 2: UPLOAD ẢNH (Poster & Banner)
+     * Đã điều chỉnh để tự động cập nhật link vào bảng Banner
      */
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public MovieResponse uploadMovieImages(String movieId, MovieImageUploadRequest request) {
-        // 1. Tìm phim
         Movie movie = getMovieEntity(movieId);
 
         String oldPosterKey = movie.getPosterUrl();
         String oldBannerKey = movie.getBannerUrl();
-
-        // Biến lưu giữ key mới (mặc định là key cũ nếu không có file mới)
         String newPosterKey = oldPosterKey;
         String newBannerKey = oldBannerKey;
 
         boolean isPosterChanged = false;
         boolean isBannerChanged = false;
 
-        // 2. Chỉ Upload nếu Admin có gửi Poster mới
+        // 1. Cập nhật Poster cho Phim
         if (request.getPosterFile() != null && !request.getPosterFile().isEmpty()) {
             newPosterKey = s3Service.uploadFile(request.getPosterFile(), MOVIE_FOLDER);
             movie.setPosterUrl(newPosterKey);
             isPosterChanged = true;
         }
 
-        // 3. Chỉ Upload nếu Admin có gửi Banner mới
+        // 2. Cập nhật Banner cho Phim VÀ đồng bộ sang bảng Banner
         if (request.getBannerFile() != null && !request.getBannerFile().isEmpty()) {
             newBannerKey = s3Service.uploadFile(request.getBannerFile(), MOVIE_FOLDER);
             movie.setBannerUrl(newBannerKey);
             isBannerChanged = true;
+
+            // 🔥 TỰ ĐỘNG ĐỒNG BỘ SANG BẢNG BANNER
+            try {
+                String movieTitle = movie.getTitle(); // Hoặc movie.getTitle() tùy entity của bạn
+                String fullS3Url = s3Service.buildS3Url(newBannerKey);
+
+                // Tìm banner có tiêu đề trùng tên phim để cập nhật link ảnh mới
+                bannerRepository.findByTitle(movieTitle).ifPresent(banner -> {
+                    banner.setImageUrl(fullS3Url);
+                    bannerRepository.save(banner);
+                    log.info("Synced new image URL to Banner table for movie: {}", movieTitle);
+                });
+            } catch (Exception e) {
+                log.error("Failed to sync image to Banner table for movie: {}", movieId, e);
+            }
         }
 
-        // Nếu không có ảnh nào thay đổi thì không cần làm gì thêm
         if (!isPosterChanged && !isBannerChanged) {
             return buildMovieResponse(movie);
         }
 
         movieRepository.save(movie);
-        log.info("Movie {} updated images. Poster: [{}], Banner: [{}]", movieId, newPosterKey, newBannerKey);
 
-        // 4. Xóa ảnh cũ an toàn sau khi DB đã commit thành công
+        // Dọn rác ảnh cũ trên S3 (giữ nguyên logic cũ của bạn)
         final String finalNewPoster = newPosterKey;
         final String finalNewBanner = newBannerKey;
         final boolean finalIsPosterChanged = isPosterChanged;
@@ -154,17 +190,14 @@ public class MovieService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteMovie(String id) {
-        // Tìm phim trước khi xóa để lấy đường dẫn ảnh
         Movie movie = getMovieEntity(id);
 
         String posterKey = movie.getPosterUrl();
         String bannerKey = movie.getBannerUrl();
 
-        // Xóa trong Database
         movieRepository.delete(movie);
         log.info("Movie deleted from DB: {}", id);
 
-        // Gọi hàm dọn rác S3 (Truyền null vào newKey để báo là muốn xóa hẳn)
         deleteOldImageSafely(posterKey, null);
         deleteOldImageSafely(bannerKey, null);
     }
@@ -178,9 +211,6 @@ public class MovieService {
                 .orElseThrow(() -> new AppException(ErrorCode.MOVIE_NOT_EXISTED));
     }
 
-    /**
-     * Build MovieResponse: Trả về link tĩnh (Public) của S3
-     */
     private MovieResponse buildMovieResponse(Movie movie) {
         MovieResponse response = movieMapper.toMovieResponse(movie);
 
@@ -190,16 +220,12 @@ public class MovieService {
         String bannerKey = (movie.getBannerUrl() != null && !movie.getBannerUrl().isBlank())
                 ? movie.getBannerUrl() : DEFAULT_BANNER;
 
-        // 🔥 DÙNG buildS3Url ĐỂ TẠO LINK TĨNH CHO FRONTEND CACHE MƯỢT MÀ
         response.setPosterUrl(s3Service.buildS3Url(posterKey));
         response.setBannerUrl(s3Service.buildS3Url(bannerKey));
 
         return response;
     }
 
-    /**
-     * Xóa ảnh cũ an toàn trên S3
-     */
     private void deleteOldImageSafely(String oldKey, String newKey) {
         if (oldKey != null && !oldKey.isBlank() &&
                 !oldKey.equals(DEFAULT_POSTER) && !oldKey.equals(DEFAULT_BANNER) &&
