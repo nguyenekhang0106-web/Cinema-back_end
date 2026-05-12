@@ -1,0 +1,9 @@
+New-Item : Access to the path 'dists' is denied.
+At line:123 char:1
++ New-Item -Itemtype Directory -Path "$MAVEN_HOME_PARENT" -Force | Out- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : PermissionDenied: (C:\Users\Admin\.m2\wrapper\dists:String) [New-Item], UnauthorizedAcce 
+   ssException
+    + FullyQualifiedErrorId : CreateDirectoryUnauthorizedAccessError,Microsoft.PowerShell.Commands.NewItemCommand
+ 
+Cannot start maven from wrapper  

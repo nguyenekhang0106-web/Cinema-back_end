@@ -133,7 +133,7 @@ export async function getMoviesWithFallback(
 
 export async function getMovieBySlugWithFallback(locale: Locale, slug: string) {
   const movies = await getMoviesWithFallback(locale);
-  return movies.find((movie) => movie.slug === slug);
+  return movies.find((movie) => movie.slug === slug || movie.id === slug);
 }
 
 // Trong file lib/cinema-api.ts
