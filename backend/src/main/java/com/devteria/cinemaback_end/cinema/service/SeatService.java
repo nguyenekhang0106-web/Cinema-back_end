@@ -5,6 +5,7 @@ import com.devteria.cinemaback_end.cinema.dto.SeatRequest;
 import com.devteria.cinemaback_end.cinema.dto.SeatResponse;
 import com.devteria.cinemaback_end.cinema.entity.Hall;
 import com.devteria.cinemaback_end.cinema.entity.Seat;
+import com.devteria.cinemaback_end.cinema.entity.enums.SeatType;
 import com.devteria.cinemaback_end.cinema.mapper.SeatMapper;
 import com.devteria.cinemaback_end.cinema.repository.HallRepository;
 import com.devteria.cinemaback_end.cinema.repository.SeatRepository;
@@ -29,6 +30,24 @@ public class SeatService {
     HallRepository hallRepository;
     SeatMapper seatMapper;
 
+    // 🔥 HÀM HỖ TRỢ ĐỘC QUYỀN: Tự động đếm và cộng dồn sức chứa chuẩn xác 100%
+    private void updateTotalSeats(Hall hall) {
+        List<Seat> seats = seatRepository.findAllByHallIdOrderByRowNameAscNumberAsc(hall.getId());
+        int totalCapacity = 0;
+
+        for (Seat seat : seats) {
+            if (seat.getType() == SeatType.SWEETBOX) {
+                totalCapacity += 2; // Ghế Couple tính là 2 chỗ
+            } else {
+                totalCapacity += 1; // Ghế Thường / VIP tính là 1 chỗ
+            }
+        }
+
+        // Cập nhật lại tổng sức chứa vào DB của Phòng chiếu
+        hall.setTotalSeats(totalCapacity);
+        hallRepository.save(hall);
+    }
+
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public SeatResponse createSeat(SeatRequest request) {
@@ -43,13 +62,15 @@ public class SeatService {
         Seat seat = seatMapper.toSeat(request);
         seat.setHall(hall);
 
-        // Nếu request có status thì dùng, không thì mặc định AVAILABLE
         if (request.getStatus() != null) seat.setStatus(request.getStatus());
 
-        return seatMapper.toSeatResponse(seatRepository.save(seat));
+        Seat savedSeat = seatRepository.save(seat);
+        seatRepository.flush(); // Ép lưu xuống DB ngay lập tức
+        updateTotalSeats(hall); // Tính lại tổng số chỗ
+
+        return seatMapper.toSeatResponse(savedSeat);
     }
 
-    // Lấy sơ đồ ghế của một phòng chiếu (Public)
     public List<SeatResponse> getSeatsByHall(String hallId) {
         if (!hallRepository.existsById(hallId)) {
             throw new AppException(ErrorCode.HALL_NOT_EXISTED);
@@ -77,16 +98,44 @@ public class SeatService {
         seat.setHall(hall);
         if (request.getStatus() != null) seat.setStatus(request.getStatus());
 
-        return seatMapper.toSeatResponse(seatRepository.save(seat));
+        Seat savedSeat = seatRepository.save(seat);
+        seatRepository.flush();
+
+        // 🔥 Nếu Admin vừa edit đổi 1 ghế Thường thành ghế Couple -> Tổng sức chứa tự động +1
+        updateTotalSeats(hall);
+
+        return seatMapper.toSeatResponse(savedSeat);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteSeat(String id) {
-        if (!seatRepository.existsById(id)) {
-            throw new AppException(ErrorCode.SEAT_NOT_EXISTED);
-        }
+        Seat seat = seatRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SEAT_NOT_EXISTED));
+        Hall hall = seat.getHall();
+
         seatRepository.deleteById(id);
+        seatRepository.flush(); // Ép xóa ngay khỏi phiên (Session)
+
+        // 🔥 Nếu Admin vừa xóa 1 ghế khỏi sơ đồ -> Tổng sức chứa tự động giảm đi
+        updateTotalSeats(hall);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteAllSeatsByHall(String hallId) {
+        Hall hall = hallRepository.findById(hallId)
+                .orElseThrow(() -> new AppException(ErrorCode.HALL_NOT_EXISTED));
+
+        List<Seat> seatsToDelete = seatRepository.findAllByHallIdOrderByRowNameAscNumberAsc(hallId);
+
+        if (!seatsToDelete.isEmpty()) {
+            seatRepository.deleteAll(seatsToDelete);
+
+            // Đã xóa sạch thì sức chứa trả về 0
+            hall.setTotalSeats(0);
+            hallRepository.save(hall);
+        }
     }
 
     @Transactional
@@ -97,17 +146,21 @@ public class SeatService {
 
         List<Seat> seatsToSave = new ArrayList<>();
 
-        // Lặp qua từng tên hàng (A, B, C...)
-        for (String row : request.getRowNames()) {
-            // Lặp từ ghế số 1 đến số ghế tối đa trong hàng
-            for (int i = 1; i <= request.getSeatsPerRow(); i++) {
+        int standardAndVipRows = request.getRowCount();
+        int seatsPerRow = request.getSeatsPerRow();
+        int coupleCount = request.getCoupleSeatCount();
 
-                // Chỉ tạo nếu ghế đó chưa tồn tại để tránh lỗi Unique Constraint
-                if (!seatRepository.existsByRowNameAndNumberAndHall_Id(row, i, hall.getId())) {
+        // 1. TẠO LÔ GHẾ STANDARD VÀ VIP
+        for (int r = 0; r < standardAndVipRows; r++) {
+            String rowName = String.valueOf((char) ('A' + r));
+            SeatType type = (r < 4) ? SeatType.STANDARD : SeatType.VIP;
+
+            for (int c = 1; c <= seatsPerRow; c++) {
+                if (!seatRepository.existsByRowNameAndNumberAndHall_Id(rowName, c, hall.getId())) {
                     Seat seat = Seat.builder()
-                            .rowName(row)
-                            .number(i)
-                            .type(request.getType())
+                            .rowName(rowName)
+                            .number(c)
+                            .type(type)
                             .status(com.devteria.cinemaback_end.cinema.entity.enums.SeatStatus.AVAILABLE)
                             .hall(hall)
                             .build();
@@ -116,12 +169,33 @@ public class SeatService {
             }
         }
 
-        // Lưu toàn bộ danh sách ghế vào DB cùng 1 lúc
-        List<Seat> savedSeats = seatRepository.saveAll(seatsToSave);
+        // 2. TẠO LÔ GHẾ COUPLE
+        int maxCouplePerRow = Math.max(1, seatsPerRow / 2);
 
-        // Map sang Response và trả về
-        return savedSeats.stream()
-                .map(seatMapper::toSeatResponse)
-                .toList();
+        for (int i = 0; i < coupleCount; i++) {
+            int coupleRowOffset = i / maxCouplePerRow;
+            int seatNumber = (i % maxCouplePerRow) + 1;
+
+            String rowName = String.valueOf((char) ('A' + standardAndVipRows + coupleRowOffset));
+
+            if (!seatRepository.existsByRowNameAndNumberAndHall_Id(rowName, seatNumber, hall.getId())) {
+                Seat seat = Seat.builder()
+                        .rowName(rowName)
+                        .number(seatNumber)
+                        .type(SeatType.SWEETBOX)
+                        .status(com.devteria.cinemaback_end.cinema.entity.enums.SeatStatus.AVAILABLE)
+                        .hall(hall)
+                        .build();
+                seatsToSave.add(seat);
+            }
+        }
+
+        List<Seat> savedSeats = seatRepository.saveAll(seatsToSave);
+        seatRepository.flush(); // Đẩy toàn bộ ghế mới tạo xuống CSDL
+
+        // 3. Gọi hàm tự động quét DB để tính lại tổng sức chứa chuẩn xác nhất
+        updateTotalSeats(hall);
+
+        return savedSeats.stream().map(seatMapper::toSeatResponse).toList();
     }
 }

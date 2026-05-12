@@ -226,6 +226,13 @@ public enum ErrorCode {
     // Dành cho giỏ hàng (Concession) khi đặt vé
     CONCESSION_QUANTITY_INVALID(1156, "Số lượng đồ ăn/thức uống không hợp lệ", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_CORRECT(1157, "Mật khẩu cũ không chính xác", HttpStatus.BAD_REQUEST),
+
+    CINEMA_HAS_DEPENDENCIES(1158, "Không thể xóa rạp vì đang có phòng chiếu hoặc lịch chiếu liên kết", HttpStatus.BAD_REQUEST),
+    HALL_HAS_DEPENDENCIES(1168, "Không thể xóa phòng chiếu vì đang có ghế hoặc lịch chiếu liên kết", HttpStatus.BAD_REQUEST),
+    INVALID_SEAT_CONFIGURATION(1172, "Cấu hình số lượng ghế không hợp lệ", HttpStatus.BAD_REQUEST),
+    SEAT_HAS_DEPENDENCIES(1178, "Không thể xóa ghế vì đã có vé được đặt tại ghế này", HttpStatus.BAD_REQUEST),
+
+    BANNER_TITLE_EXISTED(1179, "Tiêu đề ảnh/banner này đã tồn tại, vui lòng chọn tên khác", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

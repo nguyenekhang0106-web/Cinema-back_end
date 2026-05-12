@@ -10,6 +10,7 @@ import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,8 +75,11 @@ public class CinemaService {
             throw new AppException(ErrorCode.CINEMA_NOT_EXISTED);
         }
 
-        // Lưu ý: Trong thực tế, nếu rạp đã có Phòng Chiếu (Hall) và Lịch Chiếu (Showtime),
-        // bạn có thể không được xóa ngay mà phải bắt lỗi DataIntegrityViolation hoặc dùng Soft Delete.
-        cinemaRepository.deleteById(id);
+        try {
+            cinemaRepository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // 🔥 BẮT LỖI KHÓA NGOẠI KHI RẠP ĐÃ CÓ PHÒNG CHIẾU/LỊCH CHIẾU
+            throw new AppException(ErrorCode.CINEMA_HAS_DEPENDENCIES);
+        }
     }
 }

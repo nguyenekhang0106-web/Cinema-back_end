@@ -1,5 +1,7 @@
 package com.devteria.cinemaback_end.movie.service;
 
+import com.devteria.cinemaback_end.cinema.entity.Cinema;
+import com.devteria.cinemaback_end.cinema.repository.CinemaRepository;
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.movie.dto.BannerRequest;
@@ -21,22 +23,46 @@ import java.util.List;
 public class BannerService {
     BannerRepository bannerRepository;
     BannerMapper bannerMapper;
+    CinemaRepository cinemaRepository;
 
     @PreAuthorize("hasRole('ADMIN')")
     public BannerResponse createBanner(BannerRequest request) {
+        // 🔥 KIỂM TRA TRÙNG TÊN TRƯỚC KHI TẠO
+        if (request.getTitle() != null && !request.getTitle().isBlank() && bannerRepository.existsByTitle(request.getTitle())) {
+            throw new AppException(ErrorCode.BANNER_TITLE_EXISTED);
+        }
+
         Banner banner = bannerMapper.toBanner(request);
+
+        if (request.getCinemaId() != null && !request.getCinemaId().isBlank()) {
+            Cinema cinema = cinemaRepository.findById(request.getCinemaId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CINEMA_NOT_EXISTED));
+            banner.setCinema(cinema);
+        }
+
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 
-    // Public: Chỉ lấy banner đang bật để hiển thị cho khách
+    // Các hàm GET giữ nguyên...
     public List<BannerResponse> getActiveBanners() {
-        return bannerRepository.findAllByActiveTrueOrderByDisplayOrderAsc().stream()
+        return bannerRepository.findAllByActiveTrueAndCinemaIsNullOrderByDisplayOrderAsc().stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public List<BannerResponse> getAllBanners() {
-        return bannerRepository.findAllByOrderByDisplayOrderAsc().stream()
+        return bannerRepository.findAllByCinemaIsNullOrderByDisplayOrderAsc().stream()
+                .map(bannerMapper::toBannerResponse).toList();
+    }
+
+    public List<BannerResponse> getActiveBannersByCinema(String cinemaId) {
+        return bannerRepository.findAllByCinemaIdAndActiveTrueOrderByDisplayOrderAsc(cinemaId).stream()
+                .map(bannerMapper::toBannerResponse).toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<BannerResponse> getAllBannersByCinema(String cinemaId) {
+        return bannerRepository.findAllByCinemaIdOrderByDisplayOrderAsc(cinemaId).stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
@@ -44,6 +70,14 @@ public class BannerService {
     public BannerResponse updateBanner(String id, BannerRequest request) {
         Banner banner = bannerRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
+
+        // 🔥 KIỂM TRA TRÙNG TÊN (Ngoại trừ chính nó)
+        if (request.getTitle() != null && !request.getTitle().isBlank()
+                && !request.getTitle().equals(banner.getTitle())
+                && bannerRepository.existsByTitle(request.getTitle())) {
+            throw new AppException(ErrorCode.BANNER_TITLE_EXISTED);
+        }
+
         bannerMapper.updateBanner(banner, request);
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
