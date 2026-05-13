@@ -60,4 +60,12 @@ public class SeatController {
                 .result(seatService.createSeatsInBatch(request))
                 .build();
     }
+
+    @DeleteMapping("/hall/{hallId}")
+    public ApiResponse<Void> deleteAllSeatsByHall(@PathVariable String hallId) {
+        seatService.deleteAllSeatsByHall(hallId);
+        return ApiResponse.<Void>builder()
+                .message("Đã xóa toàn bộ sơ đồ ghế thành công")
+                .build();
+    }
 }

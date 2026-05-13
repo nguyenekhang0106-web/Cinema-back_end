@@ -133,7 +133,7 @@ export async function getMoviesWithFallback(
 
 export async function getMovieBySlugWithFallback(locale: Locale, slug: string) {
   const movies = await getMoviesWithFallback(locale);
-  return movies.find((movie) => movie.slug === slug);
+  return movies.find((movie) => movie.slug === slug || movie.id === slug);
 }
 
 // Trong file lib/cinema-api.ts
@@ -390,7 +390,7 @@ export async function uploadMovieImagesApi(
   bannerFile?: File | null,
 ) {
   const formData = new FormData();
-  
+
   // 🔥 SỬA Ở ĐÂY: Chỉ append vào form nếu thực sự có file được chọn
   if (posterFile) {
     formData.append("posterFile", posterFile);
@@ -413,13 +413,17 @@ export async function uploadMovieImagesApi(
   return data;
 }
 
-export async function updateMovieApi(token: string, movieId: string, data: any) {
+export async function updateMovieApi(
+  token: string,
+  movieId: string,
+  data: any,
+) {
   // 🔥 Đã xóa baseUrl sai và gọi thẳng API_BASE_URL
   const res = await fetch(`${API_BASE_URL}/movies/${movieId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, 
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -442,7 +446,7 @@ export async function getMoviesApi() {
       "Content-Type": "application/json",
     },
     // Không dùng cache để Admin luôn thấy dữ liệu mới nhất
-    cache: "no-store", 
+    cache: "no-store",
   });
 
   const json = await res.json();
@@ -460,7 +464,8 @@ export async function getMovieByIdApi(id: string) {
     cache: "no-store", // 🔥 THÊM DÒNG NÀY ĐỂ NEXT.JS LUÔN LẤY DATA MỚI NHẤT
   });
   const data = await res.json();
-  if (!res.ok || data.code !== 1000) throw new Error(data.message || "Lỗi lấy dữ liệu phim");
+  if (!res.ok || data.code !== 1000)
+    throw new Error(data.message || "Lỗi lấy dữ liệu phim");
   return data.result;
 }
 
@@ -475,7 +480,8 @@ export async function deleteMovieApi(token: string, id: string) {
     },
   });
   const data = await res.json();
-  if (!res.ok || data.code !== 1000) throw new Error(data.message || "Lỗi xóa phim");
+  if (!res.ok || data.code !== 1000)
+    throw new Error(data.message || "Lỗi xóa phim");
   return data;
 }
 
@@ -495,14 +501,45 @@ export async function getActiveBanners(): Promise<BannerItem[]> {
   try {
     // 🔥 Đã sửa thành port 9090 và thêm context-path /cinema
     const response = await fetch("http://localhost:9090/cinema/banners", {
-      next: { revalidate: 60 } // Cache dữ liệu 60s
+      next: { revalidate: 60 }, // Cache dữ liệu 60s
     });
     if (!response.ok) return [];
-    
+
     const data = await response.json();
     return data.result || [];
   } catch (error) {
     console.error("Lỗi khi fetch banners:", error);
+    return [];
+  }
+}
+
+// 1. Định nghĩa cấu trúc khớp hoàn toàn với CinemaResponse của Backend
+export interface CinemaItem {
+  id: string;
+  name: string;
+  address: string;
+  hotline: string;
+  city: string; // Tương ứng với Enum Area (VD: DANANG, HANOI, HOCHIMINH...)
+}
+
+// 2. Viết hàm gọi API lấy danh sách tất cả rạp (Public)
+export async function getCinemas(): Promise<CinemaItem[]> {
+  try {
+    // 🔥 Chú ý: Port 9090 và context-path /cinema
+    const res = await fetch("http://localhost:9090/cinema/cinemas", {
+      // Next.js sẽ lưu cache 60 giây để web chạy nhanh, giảm tải cho Database
+      next: { revalidate: 60 },
+    });
+
+    if (!res.ok) {
+      console.error("Lỗi HTTP:", res.status);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.result || []; // Lấy mảng rạp bên trong thuộc tính "result" của ApiResponse
+  } catch (error) {
+    console.error("Lỗi khi fetch danh sách rạp:", error);
     return [];
   }
 }

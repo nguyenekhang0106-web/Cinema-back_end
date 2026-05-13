@@ -5,17 +5,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional; // 🔥 Bổ sung thư viện Optional
+import java.util.Optional;
 
 @Repository
 public interface BannerRepository extends JpaRepository<Banner, String> {
 
-    // Lấy banner đang hoạt động và sắp xếp theo displayOrder tăng dần
-    List<Banner> findAllByActiveTrueOrderByDisplayOrderAsc();
+    // Lấy banner trang chủ
+    List<Banner> findAllByActiveTrueAndCinemaIsNullOrderByDisplayOrderAsc();
+    List<Banner> findAllByCinemaIsNullOrderByDisplayOrderAsc();
 
-    // Lấy tất cả và sắp xếp (dùng cho Admin)
-    List<Banner> findAllByOrderByDisplayOrderAsc();
+    // Lấy ảnh rạp chiếu
+    List<Banner> findAllByCinemaIdAndActiveTrueOrderByDisplayOrderAsc(String cinemaId);
+    List<Banner> findAllByCinemaIdOrderByDisplayOrderAsc(String cinemaId);
 
-    // 🔥 HÀM MỚI: Tìm banner theo tiêu đề (trùng với tên phim)
+    // Tìm kiếm và Kiểm tra trùng lặp
     Optional<Banner> findByTitle(String title);
+    boolean existsByTitle(String title); // 🔥 THÊM DÒNG NÀY ĐỂ CHECK TRÙNG LẶP
 }

@@ -12,6 +12,7 @@ import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,6 +87,12 @@ public class HallService {
         if (!hallRepository.existsById(id)) {
             throw new AppException(ErrorCode.HALL_NOT_EXISTED);
         }
-        hallRepository.deleteById(id);
+
+        try {
+            hallRepository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // Bắt lỗi khóa ngoại nếu phòng chiếu đã có ghế (Seat) hoặc Lịch chiếu (Showtime)
+            throw new AppException(ErrorCode.HALL_HAS_DEPENDENCIES);
+        }
     }
 }

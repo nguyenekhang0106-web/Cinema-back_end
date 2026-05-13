@@ -11,9 +11,10 @@ export function CgvHeader() {
   const { message } = App.useApp();
   const locale = useLocale();
   const dictionary = useDictionary();
-  const pathname = usePathname(); // 🔥 Lấy đường dẫn hiện tại để xử lý Active Link
+  const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, loading, role, signOut } = useAuthSession();
+
   const topLinks = [
     {
       href: "/uu-dai-thanh-vien",
@@ -39,7 +40,12 @@ export function CgvHeader() {
         ? "Vui lòng đăng nhập để truy cập mục này."
         : "Please sign in to access this section.",
     );
-    router.push(localizeHref(`/dang-nhap?next=${encodeURIComponent(localizeHref(href, locale))}`, locale));
+    router.push(
+      localizeHref(
+        `/dang-nhap?next=${encodeURIComponent(localizeHref(href, locale))}`,
+        locale,
+      ),
+    );
   };
 
   const dashboardHref = role === "admin" ? "/admin" : "/user";
@@ -49,13 +55,10 @@ export function CgvHeader() {
     router.push(localizeHref("/", locale));
   };
 
-  // 🔥 Hàm kiểm tra xem Link hiện tại có đang Active hay không
   const isActive = (href: string) => {
-    // 1. Trường hợp đặc biệt: Trang chủ ("/" hoặc "/en")
     if (href === "/") {
       return pathname === "/" || pathname === "/en";
     }
-    // 2. Các trang khác: So sánh xem pathname có chứa href đó không
     return pathname.includes(href);
   };
 
@@ -80,10 +83,8 @@ export function CgvHeader() {
                 className="font-bold text-white !text-white transition hover:text-white"
               >
                 VI
-              </Link>
-              {" "}
-              <span className="px-1 text-white/60">|</span>
-              {" "}
+              </Link>{" "}
+              <span className="px-1 text-white/60">|</span>{" "}
               <Link
                 href={getLocaleSwitchHref(pathname, "en")}
                 className="font-bold text-white !text-white transition hover:text-white"
@@ -138,13 +139,18 @@ export function CgvHeader() {
       <div className="border-b border-[#e4d1b4] bg-[#fffaf2]/95 backdrop-blur-md">
         <div className="cinema-shell flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center justify-between gap-4">
-            <Link href={localizeHref("/", locale)} className="flex items-center gap-3">
+            <Link
+              href={localizeHref("/", locale)}
+              className="flex items-center gap-3"
+            >
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#a61d24] text-xl font-black text-white shadow-[0_12px_25px_rgba(166,29,36,0.28)]">
                 KCT
               </div>
               <div>
                 <p className="text-2xl font-bold text-[#4a3426]">KCT Cinema</p>
-                <p className="text-sm text-[#8c6b45]">{dictionary.header.tagline}</p>
+                <p className="text-sm text-[#8c6b45]">
+                  {dictionary.header.tagline}
+                </p>
               </div>
             </Link>
             <Link
@@ -176,22 +182,34 @@ export function CgvHeader() {
                 </Link>
               </div>
             </div>
-            
-            {/* 🔥 PHẦN RENDER MENU CHÍNH VỚI HIỆU ỨNG ACTIVE 🔥 */}
+
             <nav className="flex flex-wrap gap-6 text-sm md:text-base font-semibold">
-              {dictionary.header.nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={localizeHref(item.href, locale)}
-                  className={`transition-all duration-300 pb-1 transform origin-bottom ${
-                    isActive(item.href)
-                      ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110" 
-                      : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {dictionary.header.nav.map((item) => {
+                // 🔥 XỬ LÝ ĐỔI TÊN ĐỘNG DỰA TRÊN ROLE QUẢN TRỊ VIÊN
+                let displayLabel = item.label;
+                if (item.href === "/rap-gia-ve") {
+                  if (role === "admin") {
+                    displayLabel =
+                      locale === "vi" ? "Rạp & Phòng chiếu" : "Cinemas & Halls";
+                  } else {
+                    displayLabel = locale === "vi" ? "Rạp" : "Cinemas";
+                  }
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={localizeHref(item.href, locale)}
+                    className={`transition-all duration-300 pb-1 transform origin-bottom ${
+                      isActive(item.href)
+                        ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110"
+                        : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
+                    }`}
+                  >
+                    {displayLabel}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </div>
