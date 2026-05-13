@@ -3,11 +3,14 @@ package com.devteria.cinemaback_end.booking.service;
 import com.devteria.cinemaback_end.booking.dto.BookingRequest;
 import com.devteria.cinemaback_end.booking.dto.BookingResponse;
 import com.devteria.cinemaback_end.booking.entity.Booking;
+import com.devteria.cinemaback_end.booking.entity.Payment;
 import com.devteria.cinemaback_end.booking.entity.Ticket;
 import com.devteria.cinemaback_end.booking.entity.enums.BookingStatus;
+import com.devteria.cinemaback_end.booking.entity.enums.PaymentStatus;
 import com.devteria.cinemaback_end.booking.entity.enums.TicketStatus;
 import com.devteria.cinemaback_end.booking.mapper.BookingMapper;
 import com.devteria.cinemaback_end.booking.repository.BookingRepository;
+import com.devteria.cinemaback_end.booking.repository.PaymentRepository;
 import com.devteria.cinemaback_end.booking.repository.TicketRepository;
 import com.devteria.cinemaback_end.cinema.entity.Seat;
 import com.devteria.cinemaback_end.cinema.repository.SeatRepository;
@@ -25,22 +28,29 @@ import com.devteria.cinemaback_end.user.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class BookingService {
 
+    private static final Duration PAYMENT_SAFE_WINDOW = SeatHoldService.HOLD_TIME.plusMinutes(5);
+
     BookingRepository bookingRepository;
+    PaymentRepository paymentRepository;
     TicketRepository ticketRepository;
     ShowtimeRepository showtimeRepository;
     SeatRepository seatRepository;
@@ -49,29 +59,229 @@ public class BookingService {
     PromotionRepository promotionRepository;
     BookingMapper bookingMapper;
     BookingRedisService bookingRedisService;
+    SeatHoldService seatHoldService;
+    OutboxEventService outboxEventService;
 
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
         User customer = getCurrentUser();
-        Showtime showtime = showtimeRepository.findById(request.getShowtimeId())
+        Showtime showtime = showtimeRepository.findByIdForUpdate(request.getShowtimeId())
                 .orElseThrow(() -> new AppException(ErrorCode.SHOWTIME_NOT_EXISTED));
+        LocalDateTime expiresAt = LocalDateTime.now().plus(SeatHoldService.HOLD_TIME);
 
-        // 1. Khởi tạo Booking
         Booking booking = Booking.builder()
                 .bookingCode("BKG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .customer(customer)
-                .status(BookingStatus.PENDING) // Hóa đơn đang chờ thanh toán
+                .status(BookingStatus.PENDING)
+                .expiresAt(expiresAt)
+                .ticketTotal(0.0)
+                .concessionTotal(0.0)
+                .discountAmount(0.0)
+                .totalAmount(0.0)
                 .tickets(new ArrayList<>())
                 .concessions(new ArrayList<>())
                 .build();
+        Booking savedBooking = bookingRepository.save(booking);
 
-        // 2. Xử lý Vé (Tickets) và tính TicketTotal
+        try {
+            seatHoldService.holdSeats(showtime, request.getSeatIds(), customer.getId(), savedBooking.getId(), expiresAt);
+
+            double ticketTotal = buildTickets(request, showtime, savedBooking);
+            double concessionTotal = buildConcessions(request, savedBooking);
+            double discountAmount = applyPromotion(
+                    request,
+                    savedBooking,
+                    ticketTotal + concessionTotal,
+                    ticketTotal,
+                    concessionTotal);
+
+            savedBooking.setTicketTotal(ticketTotal);
+            savedBooking.setConcessionTotal(concessionTotal);
+            savedBooking.setDiscountAmount(discountAmount);
+            savedBooking.setTotalAmount(ticketTotal + concessionTotal - discountAmount);
+
+            Booking persistedBooking = bookingRepository.save(savedBooking);
+            bookingRedisService.setBookingHold(persistedBooking.getId(), expiresAt);
+            log.info("[Booking] created PENDING bookingId={}, bookingCode={}, expiresAt={}, seatIds={}",
+                    persistedBooking.getId(), persistedBooking.getBookingCode(), expiresAt, request.getSeatIds());
+            return bookingMapper.toBookingResponse(persistedBooking);
+        } catch (Exception exception) {
+            log.error("[Booking] create booking failed, releasing Redis seat locks bookingId={}",
+                    savedBooking.getId(), exception);
+            try {
+                seatHoldService.releaseSeats(showtime.getId(), request.getSeatIds(), customer.getId());
+                seatHoldService.notifyAvailable(showtime.getId(), request.getSeatIds(), customer.getId());
+            } catch (Exception releaseException) {
+                log.error("[Booking] cannot release seat locks after create failure bookingId={}",
+                        savedBooking.getId(), releaseException);
+            }
+            if (exception instanceof AppException appException) {
+                throw appException;
+            }
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    @Transactional
+    public BookingResponse confirmPayment(String bookingId) {
+        return confirmPaymentInternal(bookingId, false);
+    }
+
+    @Transactional
+    public BookingResponse confirmPaymentFromGateway(String bookingId) {
+        return confirmPaymentInternal(bookingId, true);
+    }
+
+    @Transactional
+    public boolean tryConfirmPaymentFromGateway(String bookingId) {
+        try {
+            confirmPaymentInternal(bookingId, true);
+            return true;
+        } catch (AppException exception) {
+            log.error("[Booking] gateway payment confirmed but booking cannot be marked PAID bookingId={}, reason={}",
+                    bookingId, exception.getErrorCode().name());
+            return false;
+        }
+    }
+
+    private BookingResponse confirmPaymentInternal(String bookingId, boolean allowExpiredGatewayConfirmation) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+
+        if (booking.getStatus() == BookingStatus.PAID) {
+            return bookingMapper.toBookingResponse(booking);
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        if (!seatHoldService.hasValidSeatHolds(booking, allowExpiredGatewayConfirmation)) {
+            throw new AppException(ErrorCode.SEAT_HOLD_EXPIRED);
+        }
+
+        booking.setStatus(BookingStatus.PAID);
+        Booking savedBooking = bookingRepository.save(booking);
+        outboxEventService.enqueueBookingPaid(savedBooking);
+
+        registerPaymentSuccessAfterCommit(savedBooking);
+        log.info("[Booking] updated PAID and created outbox BOOKING_PAID bookingId={}, bookingCode={}",
+                savedBooking.getId(), savedBooking.getBookingCode());
+
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    private void registerPaymentSuccessAfterCommit(Booking booking) {
+        String bookingId = booking.getId();
+        String userId = booking.getCustomer().getId();
+        String showtimeId = booking.getTickets().get(0).getShowtime().getId();
+        List<String> seatIds = booking.getTickets().stream()
+                .map(ticket -> ticket.getSeat().getId())
+                .toList();
+
+        Runnable afterCommit = () -> {
+            bookingRedisService.clearBookingHold(bookingId);
+            seatHoldService.releaseSeats(showtimeId, seatIds, userId);
+            log.info("[Booking] cleared Redis locks after payment success bookingId={}", bookingId);
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    afterCommit.run();
+                }
+            });
+            return;
+        }
+
+        afterCommit.run();
+    }
+
+    @Transactional
+    public void cancelBooking(String bookingId) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+
+        if (booking.getStatus() == BookingStatus.PAID) {
+            log.info("[Booking] skip cancelling PAID booking bookingId={}", bookingId);
+            return;
+        }
+        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.FAILED) {
+            closeBooking(booking, BookingStatus.CANCELLED);
+        }
+    }
+
+    @Transactional
+    public boolean expireBookingIfDue(String bookingId) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+        if (booking.getStatus() == BookingStatus.PAID) {
+            return false;
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            return false;
+        }
+        if (booking.getExpiresAt() != null && booking.getExpiresAt().isAfter(LocalDateTime.now())) {
+            return false;
+        }
+        if (hasPendingPaymentInsideSafeWindow(booking)) {
+            log.info("[Booking] defer expiration because payment is still inside safe reconciliation window bookingId={}",
+                    booking.getId());
+            return false;
+        }
+
+        closeBooking(booking, BookingStatus.EXPIRED);
+        return true;
+    }
+
+    private boolean hasPendingPaymentInsideSafeWindow(Booking booking) {
+        Payment payment = paymentRepository.findByBookingId(booking.getId()).orElse(null);
+        if (payment == null) {
+            return false;
+        }
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return true;
+        }
+        return payment.getStatus() == PaymentStatus.PENDING
+                && payment.getPaymentDate() != null
+                && payment.getPaymentDate().plus(PAYMENT_SAFE_WINDOW).isAfter(LocalDateTime.now());
+    }
+
+    private void closeBooking(Booking booking, BookingStatus closedStatus) {
+        booking.setStatus(closedStatus);
+        booking.getTickets().forEach(ticket -> {
+            ticket.setStatus(TicketStatus.CANCELLED);
+            ticket.setActiveLockKey(null);
+        });
+        bookingRepository.save(booking);
+        bookingRedisService.clearBookingHold(booking.getId());
+        if (closedStatus == BookingStatus.EXPIRED) {
+            seatHoldService.expireSeatHolds(booking);
+        } else {
+            seatHoldService.releaseSeatHolds(booking);
+        }
+        seatHoldService.notifyAvailable(booking);
+        log.info("[Booking] updated {} bookingId={}, bookingCode={}",
+                closedStatus, booking.getId(), booking.getBookingCode());
+    }
+
+    public List<BookingResponse> getMyHistory() {
+        User user = getCurrentUser();
+        return bookingRepository.findAllByCustomerIdOrderByBookingDateDesc(user.getId())
+                .stream().map(bookingMapper::toBookingResponse).toList();
+    }
+
+    public long getRemainingHoldTime(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
+        return seatHoldService.getRemainingHoldTime(booking);
+    }
+
+    private double buildTickets(BookingRequest request, Showtime showtime, Booking booking) {
         double ticketTotal = 0.0;
-        List<TicketStatus> activeStatuses = Arrays.asList(TicketStatus.VALID, TicketStatus.SCANNED);
 
         for (String seatId : request.getSeatIds()) {
-            // Kiểm tra ghế đã bị đặt chưa (Bỏ qua những vé đã CANCELLED để có thể mua lại)
-            if (ticketRepository.existsByShowtimeIdAndSeatIdAndStatusIn(showtime.getId(), seatId, activeStatuses)) {
+            if (ticketRepository.existsByShowtimeIdAndSeatIdAndStatusIn(
+                    showtime.getId(), seatId, SeatHoldService.activeTicketStatuses())) {
                 throw new AppException(ErrorCode.SEAT_ALREADY_BOOKED);
             }
 
@@ -86,110 +296,70 @@ public class BookingService {
                     .showtime(showtime)
                     .seat(seat)
                     .price(seatPrice)
-                    .status(TicketStatus.VALID)
+                    .activeLockKey(buildActiveLockKey(showtime.getId(), seatId))
+                    .status(TicketStatus.PENDING)
                     .build();
             booking.getTickets().add(ticket);
         }
 
-        // 3. Xử lý Bắp nước (Concessions) và tính ConcessionTotal
+        return ticketTotal;
+    }
+
+    private double buildConcessions(BookingRequest request, Booking booking) {
         double concessionTotal = 0.0;
-        if (request.getConcessions() != null) {
-            for (var choice : request.getConcessions()) {
-                ConcessionItem item = concessionRepository.findById(choice.getConcessionItemId())
-                        .orElseThrow(() -> new AppException(ErrorCode.CONCESSION_NOT_EXISTED));
-
-                double itemPrice = item.getPrice().doubleValue();
-                double subTotal = itemPrice * choice.getQuantity();
-                concessionTotal += subTotal;
-
-                BookingConcession bc = BookingConcession.builder()
-                        .booking(booking)
-                        .item(item)
-                        .quantity(choice.getQuantity())
-                        .price(itemPrice)
-                        .build();
-                booking.getConcessions().add(bc);
-            }
+        if (request.getConcessions() == null) {
+            return concessionTotal;
         }
 
-        // 4. Áp dụng Khuyến mãi (Promotion)
-        double discountAmount = 0.0;
-        if (request.getPromoCode() != null && !request.getPromoCode().isBlank()) {
-            Promotion promo = promotionRepository.findByDiscountCode(request.getPromoCode())
-                    .orElseThrow(() -> new AppException(ErrorCode.PROMO_NOT_EXISTED));
+        for (var choice : request.getConcessions()) {
+            ConcessionItem item = concessionRepository.findById(choice.getConcessionItemId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CONCESSION_NOT_EXISTED));
 
-            // Kiểm tra điều kiện Promo
-            validatePromotion(promo, ticketTotal + concessionTotal);
+            double itemPrice = item.getPrice().doubleValue();
+            double subTotal = itemPrice * choice.getQuantity();
+            concessionTotal += subTotal;
 
-            double promoPercent = promo.getDiscountPercent().doubleValue();
-
-            // Logic tính giảm giá theo Target
-            switch (promo.getTarget()) {
-                case TICKET -> discountAmount = (ticketTotal * promoPercent) / 100;
-                case CONCESSION -> discountAmount = (concessionTotal * promoPercent) / 100;
-                case ALL -> discountAmount = ((ticketTotal + concessionTotal) * promoPercent) / 100;
-            }
-
-            // Giới hạn mức giảm tối đa
-            double maxDiscount = promo.getMaxDiscountAmount().doubleValue();
-            if (maxDiscount > 0 && discountAmount > maxDiscount) {
-                discountAmount = maxDiscount;
-            }
-
-            booking.setPromotion(promo);
-            promo.setUsedCount(promo.getUsedCount() + 1);
+            BookingConcession bookingConcession = BookingConcession.builder()
+                    .booking(booking)
+                    .item(item)
+                    .quantity(choice.getQuantity())
+                    .price(itemPrice)
+                    .build();
+            booking.getConcessions().add(bookingConcession);
         }
 
-        // 5. Cập nhật các con số cuối cùng
-        booking.setTicketTotal(ticketTotal);
-        booking.setConcessionTotal(concessionTotal);
-        booking.setDiscountAmount(discountAmount);
-        booking.setTotalAmount(ticketTotal + concessionTotal - discountAmount);
-
-        // 6. Lưu xuống Database và Kích hoạt Redis (QUAN TRỌNG)
-        Booking savedBooking = bookingRepository.save(booking);
-
-        // 🔥 Bắt đầu đếm ngược 10 phút trên Redis cho hóa đơn này
-        bookingRedisService.setBookingHold(savedBooking.getId());
-
-        return bookingMapper.toBookingResponse(savedBooking);
+        return concessionTotal;
     }
 
-    // API Mô phỏng Thanh toán thành công (Sau này ghép VNPay/MoMo vào đây)
-    @Transactional
-    public BookingResponse confirmPayment(String bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
-
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new AppException(ErrorCode.INVALID_REQUEST); // Không thể thanh toán hóa đơn đã hủy/đã thanh toán
+    private double applyPromotion(
+            BookingRequest request,
+            Booking booking,
+            double subTotal,
+            double ticketTotal,
+            double concessionTotal) {
+        if (request.getPromoCode() == null || request.getPromoCode().isBlank()) {
+            return 0.0;
         }
 
-        // 1. Cập nhật DB
-        booking.setStatus(BookingStatus.PAID);
-        Booking savedBooking = bookingRepository.save(booking);
+        Promotion promo = promotionRepository.findByDiscountCode(request.getPromoCode())
+                .orElseThrow(() -> new AppException(ErrorCode.PROMO_NOT_EXISTED));
+        validatePromotion(promo, subTotal);
 
-        // 2. Dọn dẹp Redis
-        bookingRedisService.clearBookingHold(bookingId);
+        double promoPercent = promo.getDiscountPercent().doubleValue();
+        double discountAmount = switch (promo.getTarget()) {
+            case TICKET -> (ticketTotal * promoPercent) / 100;
+            case CONCESSION -> (concessionTotal * promoPercent) / 100;
+            case ALL -> ((ticketTotal + concessionTotal) * promoPercent) / 100;
+        };
 
-        return bookingMapper.toBookingResponse(savedBooking);
-    }
-
-    // Hàm Hủy hóa đơn (Do người dùng tự bấm nút Hủy hoặc do hết hạn)
-    @Transactional
-    public void cancelBooking(String bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
-
-        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.FAILED) {
-            booking.setStatus(BookingStatus.CANCELLED);
-
-            // Giải phóng toàn bộ vé để ghế trống trở lại
-            booking.getTickets().forEach(ticket -> ticket.setStatus(TicketStatus.CANCELLED));
-
-            bookingRepository.save(booking);
-            bookingRedisService.clearBookingHold(bookingId);
+        double maxDiscount = promo.getMaxDiscountAmount().doubleValue();
+        if (maxDiscount > 0 && discountAmount > maxDiscount) {
+            discountAmount = maxDiscount;
         }
+
+        booking.setPromotion(promo);
+        promo.setUsedCount(promo.getUsedCount() + 1);
+        return discountAmount;
     }
 
     private void validatePromotion(Promotion promo, double subTotal) {
@@ -212,9 +382,7 @@ public class BookingService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
     }
 
-    public List<BookingResponse> getMyHistory() {
-        User user = getCurrentUser();
-        return bookingRepository.findAllByCustomerIdOrderByBookingDateDesc(user.getId())
-                .stream().map(bookingMapper::toBookingResponse).toList();
+    private String buildActiveLockKey(String showtimeId, String seatId) {
+        return showtimeId + ":" + seatId;
     }
 }

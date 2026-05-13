@@ -188,6 +188,9 @@ public enum ErrorCode {
 
     // Lỗi quan trọng nhất của hệ thống đặt vé
     SEAT_ALREADY_BOOKED(1137, "Rất tiếc, ghế bạn chọn đã có người đặt. Vui lòng chọn ghế khác!", HttpStatus.CONFLICT),
+    ORPHAN_SEAT_NOT_ALLOWED(1158, "Không được để lại một ghế trống đơn lẻ bên trái hoặc bên phải dãy ghế đã chọn", HttpStatus.BAD_REQUEST),
+    VNPAY_SIGNATURE_INVALID(1159, "Chữ ký VNPay không hợp lệ", HttpStatus.BAD_REQUEST),
+    VNPAY_AMOUNT_INVALID(1160, "Số tiền VNPay không khớp với hóa đơn", HttpStatus.BAD_REQUEST),
     // ==========================================
     // MODULE PAYMENT (THANH TOÁN)
     // ==========================================

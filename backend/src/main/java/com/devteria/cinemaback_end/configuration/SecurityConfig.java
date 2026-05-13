@@ -53,7 +53,10 @@ public class SecurityConfig {
             "/concessions",
             "/concessions/**",
             "/promotions",
-            "/promotions/**"
+            "/promotions/**",
+            "/payments/vnpay/return",
+            "/payments/vnpay/ipn",
+            "/ws/**"
     };
 
     @Value("${jwt.signerKey}")

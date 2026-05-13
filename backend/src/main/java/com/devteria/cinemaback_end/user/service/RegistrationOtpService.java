@@ -41,7 +41,7 @@ public class RegistrationOtpService {
     private static final int MAX_OTP_ATTEMPTS = 3;
 
     StringRedisTemplate redisTemplate;
-    EmailSenderService emailSenderService;
+    EmailNotificationProducer emailNotificationProducer;
 
     /**
      * Generate 6-digit OTP
@@ -116,12 +116,13 @@ public class RegistrationOtpService {
         String registerKey = REGISTER_KEY_PREFIX + normalizedEmail;
         redisTemplate.opsForValue().set(registerKey, normalizedEmail, REGISTRATION_TTL);
 
-        // Send email
+        // Queue email for async delivery through RabbitMQ
         try {
-            emailSenderService.sendVerificationCode(email, fullName, otp);
-            log.info("OTP sent successfully to: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(otp));
+            emailNotificationProducer.publishVerificationCode(email, fullName, otp);
+            log.info("OTP email queued successfully to: {} [otpHash: {}]",
+                    normalizedEmail, SecurityUtils.hashSensitiveData(otp));
         } catch (Exception e) {
-            log.error("Failed to send OTP to: {}", normalizedEmail, e);
+            log.error("Failed to queue OTP email to: {}", normalizedEmail, e);
             // Cleanup on failure
             redisTemplate.delete(Arrays.asList(otpKey, rateLimitKey));
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL,

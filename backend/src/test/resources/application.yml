@@ -23,3 +23,15 @@ jwt:
   signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
   valid-duration: 6000
   refreshable-duration: 12000
+
+cloud:
+  aws:
+    credentials:
+      access-key: test
+      secret-key: test
+    region:
+      static: ap-southeast-2
+
+aws:
+  bucket:
+    name: test-bucket
