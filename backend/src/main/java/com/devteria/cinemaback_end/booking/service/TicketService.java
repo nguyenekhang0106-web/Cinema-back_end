@@ -10,43 +10,76 @@ import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class TicketService {
 
     TicketRepository ticketRepository;
     TicketMapper ticketMapper;
 
-    // Xem thông tin 1 cái vé bất kỳ (Khách click vào mã QR)
     public TicketResponse getTicketById(String id) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_NOT_EXISTED));
         return ticketMapper.toTicketResponse(ticket);
     }
 
-    // NGHIỆP VỤ SOÁT VÉ (Chỉ Admin / Nhân viên rạp được gọi khi cầm máy quét QR)
     @Transactional
-    @PreAuthorize("hasRole('ADMIN')") // xem xét chỗ này có thể áp dụng cho nhân viên
+    @PreAuthorize("hasRole('ADMIN')")
     public TicketResponse scanTicket(String id) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TICKET_NOT_EXISTED));
+        return checkIn(ticket);
+    }
 
-        // Kiểm tra xem vé có hợp lệ không
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public TicketResponse checkInByTicketCode(String ticketCode) {
+        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
+                .orElseThrow(() -> new AppException(ErrorCode.TICKET_NOT_EXISTED));
+        return checkIn(ticket);
+    }
+
+    private TicketResponse checkIn(Ticket ticket) {
         if (ticket.getStatus() == TicketStatus.SCANNED) {
+            log.info("[Ticket Check-in] duplicate scan ticketId={}, ticketCode={}, scannedAt={}",
+                    ticket.getId(), ticket.getTicketCode(), ticket.getScannedAt());
             throw new AppException(ErrorCode.TICKET_ALREADY_SCANNED);
         }
         if (ticket.getStatus() == TicketStatus.CANCELLED) {
+            log.warn("[Ticket Check-in] cancelled ticket rejected ticketId={}, ticketCode={}",
+                    ticket.getId(), ticket.getTicketCode());
             throw new AppException(ErrorCode.TICKET_CANCELLED);
         }
+        if (ticket.getStatus() == TicketStatus.PENDING) {
+            log.warn("[Ticket Check-in] pending ticket rejected ticketId={}, ticketCode={}",
+                    ticket.getId(), ticket.getTicketCode());
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
-        // Đổi trạng thái thành đã sử dụng
         ticket.setStatus(TicketStatus.SCANNED);
-
+        ticket.setScannedAt(LocalDateTime.now());
+        ticket.setScannedBy(currentActor());
+        log.info("[Ticket Check-in] scan success ticketId={}, ticketCode={}, scannedBy={}",
+                ticket.getId(), ticket.getTicketCode(), ticket.getScannedBy());
         return ticketMapper.toTicketResponse(ticketRepository.save(ticket));
+    }
+
+    private String currentActor() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            return "SYSTEM";
+        }
+        return authentication.getName();
     }
 }

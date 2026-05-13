@@ -1,17 +1,17 @@
 package com.devteria.cinemaback_end.booking.service;
 
-import com.devteria.cinemaback_end.booking.entity.Booking;
-import com.devteria.cinemaback_end.booking.entity.enums.BookingStatus;
-import com.devteria.cinemaback_end.booking.repository.BookingRepository;
-import com.devteria.cinemaback_end.booking.service.BookingService;
-import com.devteria.cinemaback_end.exception.AppException;
-import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.booking.dto.PaymentRequest;
 import com.devteria.cinemaback_end.booking.dto.PaymentResponse;
+import com.devteria.cinemaback_end.booking.entity.Booking;
 import com.devteria.cinemaback_end.booking.entity.Payment;
+import com.devteria.cinemaback_end.booking.entity.enums.BookingStatus;
 import com.devteria.cinemaback_end.booking.entity.enums.PaymentStatus;
 import com.devteria.cinemaback_end.booking.mapper.PaymentMapper;
+import com.devteria.cinemaback_end.booking.repository.BookingRepository;
 import com.devteria.cinemaback_end.booking.repository.PaymentRepository;
+import com.devteria.cinemaback_end.booking.repository.PaymentTransactionRepository;
+import com.devteria.cinemaback_end.exception.AppException;
+import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -19,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -27,26 +30,30 @@ import java.util.Optional;
 @Slf4j
 public class PaymentService {
 
+    private static final Duration PAYMENT_RECONCILIATION_GRACE = SeatHoldService.HOLD_TIME.plusMinutes(5);
+
     PaymentRepository paymentRepository;
     BookingRepository bookingRepository;
-    BookingService bookingService; // Gọi sang BookingService để xác nhận thanh toán
+    PaymentTransactionRepository paymentTransactionRepository;
+    BookingService bookingService;
     PaymentMapper paymentMapper;
+    SeatHoldService seatHoldService;
 
     @Transactional
     public PaymentResponse createPayment(PaymentRequest request) {
-        // 1. Kiểm tra hóa đơn
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
 
-        // Nếu hóa đơn đã hủy (do quá hạn) hoặc đã thanh toán thì chặn lại
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new AppException(ErrorCode.INVALID_REQUEST); // Có thể tạo lỗi BOOKING_CANCELLED riêng
+        if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new AppException(ErrorCode.BOOKING_ALREADY_CANCELLED);
         }
         if (booking.getStatus() == BookingStatus.PAID) {
             throw new AppException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
         }
+        if (!seatHoldService.hasValidSeatHolds(booking)) {
+            throw new AppException(ErrorCode.SEAT_HOLD_EXPIRED);
+        }
 
-        // 2. Tìm xem đã có giao dịch nào đang tạo dở chưa
         Optional<Payment> existingPayment = paymentRepository.findByBookingId(booking.getId());
         Payment payment;
 
@@ -55,25 +62,27 @@ public class PaymentService {
             if (payment.getStatus() == PaymentStatus.SUCCESS) {
                 throw new AppException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
             }
-            // Khách đổi phương thức thanh toán (VD: từ MoMo sang VNPay)
             payment.setMethod(request.getMethod());
+            payment.setPaymentDate(LocalDateTime.now());
+            payment.setStatus(PaymentStatus.PENDING);
         } else {
-            // Tạo mới giao dịch
             payment = Payment.builder()
                     .booking(booking)
-                    .amount(booking.getTotalAmount()) // 🔥 Backend tự lấy tiền từ DB, KHÔNG tin tưởng số tiền từ Client gửi lên
+                    .amount(booking.getTotalAmount())
                     .method(request.getMethod())
                     .status(PaymentStatus.PENDING)
                     .build();
         }
 
-        return paymentMapper.toPaymentResponse(paymentRepository.save(payment));
+        Payment savedPayment = paymentRepository.save(payment);
+        log.info("[Payment] created PENDING paymentId={}, bookingId={}, method={}, amount={}",
+                savedPayment.getId(), booking.getId(), savedPayment.getMethod(), savedPayment.getAmount());
+        return paymentMapper.toPaymentResponse(savedPayment);
     }
 
-    // 🔥 HÀM MÔ PHỎNG WEBHOOK TỪ VNPAY/MOMO TRẢ VỀ
     @Transactional
     public PaymentResponse executePayment(String paymentId, boolean isSuccess) {
-        Payment payment = paymentRepository.findById(paymentId)
+        Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
 
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
@@ -82,17 +91,59 @@ public class PaymentService {
 
         if (isSuccess) {
             payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setTransactionId("TXN-" + System.currentTimeMillis()); // Mã giao dịch giả lập
-
-            // ⚠️ CỰC KỲ QUAN TRỌNG: Báo cho BookingService chốt đơn và nhả Redis
+            payment.setTransactionId("TXN-" + System.currentTimeMillis());
+            Payment savedPayment = paymentRepository.save(payment);
             bookingService.confirmPayment(payment.getBooking().getId());
-            log.info("Thanh toán thành công hóa đơn: {}", payment.getBooking().getBookingCode());
-        } else {
-            payment.setStatus(PaymentStatus.FAILED);
-            // Lưu ý: Thất bại thì cứ để Hóa đơn là PENDING, cho khách thử thanh toán lại cho đến khi hết 10 phút.
-            log.warn("Thanh toán thất bại hóa đơn: {}", payment.getBooking().getBookingCode());
+            log.info("[Payment] mock payment SUCCESS paymentId={}, bookingId={}",
+                    payment.getId(), payment.getBooking().getId());
+            return paymentMapper.toPaymentResponse(savedPayment);
         }
 
-        return paymentMapper.toPaymentResponse(paymentRepository.save(payment));
+        payment.setStatus(PaymentStatus.FAILED);
+        Payment savedPayment = paymentRepository.save(payment);
+        bookingService.cancelBooking(payment.getBooking().getId());
+        log.warn("[Payment] mock payment FAILED paymentId={}, bookingId={}",
+                payment.getId(), payment.getBooking().getId());
+        return paymentMapper.toPaymentResponse(savedPayment);
+    }
+
+    @Transactional
+    public int expireStalePendingPayments() {
+        LocalDateTime threshold = LocalDateTime.now().minus(PAYMENT_RECONCILIATION_GRACE);
+        List<Payment> payments = paymentRepository.findByStatusAndPaymentDateBefore(PaymentStatus.PENDING, threshold);
+        int expiredCount = 0;
+
+        for (Payment payment : payments) {
+            Payment lockedPayment = paymentRepository.findByIdForUpdate(payment.getId()).orElse(null);
+            if (lockedPayment == null || lockedPayment.getStatus() != PaymentStatus.PENDING) {
+                continue;
+            }
+
+            boolean hasSuccessEvidence = paymentTransactionRepository.existsByPaymentIdAndResponseCodeAndTransactionStatus(
+                    lockedPayment.getId(), "00", "00");
+            if (hasSuccessEvidence) {
+                lockedPayment.setStatus(PaymentStatus.SUCCESS);
+                paymentRepository.save(lockedPayment);
+                boolean bookingConfirmed = bookingService.tryConfirmPaymentFromGateway(lockedPayment.getBooking().getId());
+                if (!bookingConfirmed) {
+                    log.error("[Payment Reconcile] payment has SUCCESS evidence but booking cannot be confirmed paymentId={}, bookingId={}, reason={}",
+                            lockedPayment.getId(), lockedPayment.getBooking().getId(), "BOOKING_CONFIRM_FAILED");
+                }
+                log.warn("[Payment Reconcile] recovered SUCCESS payment from stored VNPay evidence paymentId={}, bookingId={}",
+                        lockedPayment.getId(), lockedPayment.getBooking().getId());
+                continue;
+            }
+
+            lockedPayment.setStatus(PaymentStatus.EXPIRED);
+            paymentRepository.save(lockedPayment);
+            if (lockedPayment.getBooking().getStatus() == BookingStatus.PENDING) {
+                bookingService.expireBookingIfDue(lockedPayment.getBooking().getId());
+            }
+            expiredCount++;
+            log.info("[Payment Reconcile] expired stale PENDING paymentId={}, bookingId={}",
+                    lockedPayment.getId(), lockedPayment.getBooking().getId());
+        }
+
+        return expiredCount;
     }
 }

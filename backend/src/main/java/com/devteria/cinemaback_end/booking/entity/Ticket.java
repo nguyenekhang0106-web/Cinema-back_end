@@ -6,12 +6,23 @@ import com.devteria.cinemaback_end.movie.entity.Showtime;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDateTime;
 
 @Entity
-// ĐÂY LÀ DÒNG QUAN TRỌNG NHẤT: Tránh lỗi 2 người mua cùng 1 ghế trong cùng 1 suất chiếu
-@Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"showtime_id", "seat_id"})
-})
+@Table(
+        indexes = {
+                @Index(name = "idx_ticket_showtime_seat", columnList = "showtime_id, seat_id"),
+                @Index(name = "idx_ticket_booking", columnList = "booking_id"),
+                @Index(name = "idx_ticket_code", columnList = "ticket_code")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_ticket_booking_seat", columnNames = {"booking_id", "seat_id"}),
+                @UniqueConstraint(name = "uk_ticket_code", columnNames = {"ticket_code"})
+        }
+)
 @Getter
 @Setter
 @Builder
@@ -27,10 +38,27 @@ public class Ticket {
     @Column(nullable = false)
     Double price;
 
+    @Column(name = "active_lock_key", unique = true, length = 220)
+    String activeLockKey;
+
+    @Column(name = "ticket_code", length = 40)
+    String ticketCode;
+
+    @Column(name = "qr_code_url", length = 1024)
+    String qrCodeUrl;
+
+    LocalDateTime issuedAt;
+
+    LocalDateTime scannedAt;
+
+    @Column(length = 100)
+    String scannedBy;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
     @Builder.Default
-    TicketStatus status = TicketStatus.VALID;
+    TicketStatus status = TicketStatus.PENDING;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

@@ -3,7 +3,6 @@ package com.devteria.cinemaback_end.booking.controller;
 import com.devteria.cinemaback_end.booking.dto.BookingRequest;
 import com.devteria.cinemaback_end.booking.dto.BookingResponse;
 import com.devteria.cinemaback_end.booking.service.BookingService;
-import com.devteria.cinemaback_end.booking.service.BookingRedisService;
 import com.devteria.cinemaback_end.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -20,7 +19,6 @@ import java.util.List;
 public class BookingController {
 
     BookingService bookingService;
-    BookingRedisService bookingRedisService;
 
     @PostMapping
     public ApiResponse<BookingResponse> createBooking(@RequestBody @Valid BookingRequest request) {
@@ -41,7 +39,7 @@ public class BookingController {
     @GetMapping("/{id}/timeout")
     public ApiResponse<Long> getRemainingTime(@PathVariable String id) {
         return ApiResponse.<Long>builder()
-                .result(bookingRedisService.getRemainingHoldTime(id))
+                .result(bookingService.getRemainingHoldTime(id))
                 .build();
     }
 

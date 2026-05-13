@@ -7,6 +7,9 @@ import com.devteria.cinemaback_end.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,8 +31,11 @@ public class Booking {
     @Builder.Default
     LocalDateTime bookingDate = LocalDateTime.now();
 
+    LocalDateTime expiresAt;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
     @Builder.Default
     BookingStatus status = BookingStatus.PENDING;
 
