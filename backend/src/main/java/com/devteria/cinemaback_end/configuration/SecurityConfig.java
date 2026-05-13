@@ -47,6 +47,7 @@ public class SecurityConfig {
             "/cinemas", "/cinemas/**",
             "/halls", "/halls/**",
             "/banners",
+            "/banners/**", // 🔥 ĐÃ THÊM: Mở khóa cho các đường dẫn con như /banners/cinema/{id}
             "/seats/hall/**",
             "/articles", "/articles/**",
             "/concessions",
@@ -120,6 +121,4 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder(10);
     }
-
-
 }

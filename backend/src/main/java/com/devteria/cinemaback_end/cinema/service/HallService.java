@@ -40,6 +40,8 @@ public class HallService {
 
         Hall hall = hallMapper.toHall(request);
         hall.setCinema(cinema);
+        // 🔥 ĐẢM BẢO TỔNG SỐ GHẾ LÀ 0 KHI MỚI TẠO
+        hall.setTotalSeats(0);
 
         return hallMapper.toHallResponse(hallRepository.save(hall));
     }
@@ -77,6 +79,7 @@ public class HallService {
 
         hallMapper.updateHall(hall, request);
         hall.setCinema(cinema);
+        // Lưu ý: Không update lại totalSeats ở đây, vì totalSeats do SeatService quản lý
 
         return hallMapper.toHallResponse(hallRepository.save(hall));
     }
@@ -91,7 +94,6 @@ public class HallService {
         try {
             hallRepository.deleteById(id);
         } catch (DataIntegrityViolationException e) {
-            // Bắt lỗi khóa ngoại nếu phòng chiếu đã có ghế (Seat) hoặc Lịch chiếu (Showtime)
             throw new AppException(ErrorCode.HALL_HAS_DEPENDENCIES);
         }
     }

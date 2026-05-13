@@ -192,7 +192,7 @@ export function CgvHeader() {
                     displayLabel =
                       locale === "vi" ? "Rạp & Phòng chiếu" : "Cinemas & Halls";
                   } else {
-                    displayLabel = locale === "vi" ? "Rạp" : "Cinemas";
+                    displayLabel = locale === "vi" ? "Rạp & Lịch chiếu" : "Cinemas & Showtimes";
                   }
                 }
 
