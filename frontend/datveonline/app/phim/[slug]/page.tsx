@@ -3,12 +3,10 @@ import { MovieDetailContent } from "../../components/movie-detail-content";
 import { SiteShell } from "../../components/site-shell";
 import { allMovies } from "../../data/cgv-template";
 import { getMovieBySlugWithFallback } from "../../lib/cinema-api";
-
-export async function generateStaticParams() {
-  return allMovies.map((movie) => ({ slug: movie.slug }));
-}
-
-export default async function MovieDetailPage(props: PageProps<"/phim/[slug]">) {
+export const dynamic = "force-dynamic";
+export default async function MovieDetailPage(
+  props: PageProps<"/phim/[slug]">,
+) {
   const { slug } = await props.params;
   const movie = await getMovieBySlugWithFallback("vi", slug);
 

@@ -72,7 +72,8 @@ import { useAuthSession } from "./auth-session-provider";
 import { AdminMovieManager } from "./admin-movie-manager";
 import { SiteShell } from "./site-shell";
 import { useDictionary, useLocale } from "./locale-provider";
-
+import { AdminConcessionManager } from "../admin/components/admin-concession-manager";
+import { AdminPromotionManager } from "../admin/components/admin-promotion-manager"; // 🔥 THÊM DÒNG NÀY
 type MovieStatus = "showing" | "coming" | "hidden";
 type ShowtimeStatus = "open" | "paused" | "soldout";
 type UserRole = "admin" | "user";
@@ -443,8 +444,11 @@ export function AdminDashboardPage() {
   const dictionary = useDictionary();
   const copy = locale === "en" ? adminCopy.en : adminCopy.vi;
 
-  // 🔥 Đã để mảng rỗng và cờ loading
-  const [movies, setMovies] = useState<any[]>([]); 
+  // 🔥 Thêm router để điều hướng thẻ Card Bắp nước
+  const router = useRouter();
+  const [concessionModalOpen, setConcessionModalOpen] = useState(false);
+  const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [movies, setMovies] = useState<any[]>([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
 
   const [showtimes, setShowtimes] = useState(initialShowtimes);
@@ -454,28 +458,22 @@ export function AdminDashboardPage() {
   const [showtimeForm] = Form.useForm<ShowtimeRecord>();
   const [userForm] = Form.useForm<UserRecord>();
 
-  // Lấy token và check quyền Admin
   const { token, user } = useAuthSession();
   const isAdmin = String(user?.role).toUpperCase().includes("ADMIN");
 
-  // State lưu file ảnh khi tải lên
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [submittingMovie, setSubmittingMovie] = useState(false);
 
-  // ==========================================
-  // 🔥 THÊM USE-EFFECT ĐỂ TỰ ĐỘNG LẤY PHIM TỪ DATABASE
-  // ==========================================
   useEffect(() => {
     const fetchMovies = async () => {
       setLoadingMovies(true);
       try {
-        const res = await getMoviesApi(); // Gọi API getMoviesApi bạn đã định nghĩa
+        const res = await getMoviesApi();
         if (res.result) {
-          // Ant Design yêu cầu mỗi dòng phải có 1 'key' duy nhất
           const formattedMovies = res.result.map((movie: any) => ({
             ...movie,
-            key: movie.id, 
+            key: movie.id,
           }));
           setMovies(formattedMovies);
         }
@@ -487,7 +485,7 @@ export function AdminDashboardPage() {
     };
 
     fetchMovies();
-  }, []); // Mảng [] giúp hàm này chỉ chạy 1 lần duy nhất khi vừa vào trang Admin
+  }, []);
 
   const [movieModal, setMovieModal] = useState<{
     open: boolean;
@@ -534,9 +532,16 @@ export function AdminDashboardPage() {
         );
       },
     },
-    // 🔥 Sửa lại title cứng thành tiếng Việt có dấu
-    { title: locale === "vi" ? "Tên phim" : "Title", dataIndex: "title", key: "title" },
-    { title: locale === "vi" ? "Thể loại" : "Genre", dataIndex: "genre", key: "genre" },
+    {
+      title: locale === "vi" ? "Tên phim" : "Title",
+      dataIndex: "title",
+      key: "title",
+    },
+    {
+      title: locale === "vi" ? "Thể loại" : "Genre",
+      dataIndex: "genre",
+      key: "genre",
+    },
     {
       title: locale === "vi" ? "Trạng thái" : "Status",
       dataIndex: "status",
@@ -560,34 +565,61 @@ export function AdminDashboardPage() {
       key: "featured",
       render: (value: boolean) => (
         <Tag color={value ? "red" : "default"}>
-          {value ? (locale === "vi" ? "Có" : "Yes") : (locale === "vi" ? "Không" : "No")}
+          {value
+            ? locale === "vi"
+              ? "Có"
+              : "Yes"
+            : locale === "vi"
+              ? "Không"
+              : "No"}
         </Tag>
       ),
     },
-    ...(isAdmin ? [{
-      title: locale === "vi" ? "Thao tác" : "Actions", // 🔥 Cột thao tác
-      key: "actions",
-      render: (_: any, record: any) => (
-        <Space wrap>
-          <Button size="small" onClick={() => openMovieEditor("edit", record)}>
-            {locale === "vi" ? "Sửa" : "Edit"}
-          </Button>
-          <Button size="small" onClick={() => toggleMovieFeatured(record.key)}>
-            {record.featured 
-              ? (locale === "vi" ? "Bỏ nổi bật" : "Unfeature") 
-              : (locale === "vi" ? "Đưa nổi bật" : "Feature")}
-          </Button>
-          <Button danger size="small" onClick={() => removeMovie(record.key)}>
-            {locale === "vi" ? "Xóa" : "Delete"}
-          </Button>
-        </Space>
-      ),
-    }] : []),
+    ...(isAdmin
+      ? [
+          {
+            title: locale === "vi" ? "Thao tác" : "Actions",
+            key: "actions",
+            render: (_: any, record: any) => (
+              <Space wrap>
+                <Button
+                  size="small"
+                  onClick={() => openMovieEditor("edit", record)}
+                >
+                  {locale === "vi" ? "Sửa" : "Edit"}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => toggleMovieFeatured(record.key)}
+                >
+                  {record.featured
+                    ? locale === "vi"
+                      ? "Bỏ nổi bật"
+                      : "Unfeature"
+                    : locale === "vi"
+                      ? "Đưa nổi bật"
+                      : "Feature"}
+                </Button>
+                <Button
+                  danger
+                  size="small"
+                  onClick={() => removeMovie(record.key)}
+                >
+                  {locale === "vi" ? "Xóa" : "Delete"}
+                </Button>
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ];
 
-  // Các Columns khác (Showtime, User) giữ nguyên
   const showtimeColumns: ColumnsType<ShowtimeRecord> = [
-    { title: copy.showtimeColumns.movie, dataIndex: "movieTitle", key: "movieTitle" },
+    {
+      title: copy.showtimeColumns.movie,
+      dataIndex: "movieTitle",
+      key: "movieTitle",
+    },
     { title: copy.showtimeColumns.cinema, dataIndex: "cinema", key: "cinema" },
     { title: copy.showtimeColumns.room, dataIndex: "room", key: "room" },
     { title: copy.showtimeColumns.time, dataIndex: "time", key: "time" },
@@ -596,7 +628,12 @@ export function AdminDashboardPage() {
       dataIndex: "status",
       key: "status",
       render: (value: ShowtimeStatus) => (
-        <StatusTag color={value === "open" ? "green" : value === "paused" ? "gold" : "red"} label={copy.showtimeStatus[value]} />
+        <StatusTag
+          color={
+            value === "open" ? "green" : value === "paused" ? "gold" : "red"
+          }
+          label={copy.showtimeStatus[value]}
+        />
       ),
     },
     {
@@ -604,9 +641,22 @@ export function AdminDashboardPage() {
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button size="small" onClick={() => openShowtimeEditor("edit", record)}>{copy.edit}</Button>
-          <Button size="small" onClick={() => cycleShowtimeStatus(record.key)}>{copy.changeStatus}</Button>
-          <Button danger size="small" onClick={() => removeShowtime(record.key)}>{copy.delete}</Button>
+          <Button
+            size="small"
+            onClick={() => openShowtimeEditor("edit", record)}
+          >
+            {copy.edit}
+          </Button>
+          <Button size="small" onClick={() => cycleShowtimeStatus(record.key)}>
+            {copy.changeStatus}
+          </Button>
+          <Button
+            danger
+            size="small"
+            onClick={() => removeShowtime(record.key)}
+          >
+            {copy.delete}
+          </Button>
         </Space>
       ),
     },
@@ -615,17 +665,46 @@ export function AdminDashboardPage() {
   const userColumns: ColumnsType<UserRecord> = [
     { title: copy.userColumns.name, dataIndex: "fullName", key: "fullName" },
     { title: copy.userColumns.email, dataIndex: "email", key: "email" },
-    { title: copy.userColumns.role, dataIndex: "role", key: "role", render: (value: UserRole) => <Tag color={value === "admin" ? "red" : "blue"}>{copy.userRole[value]}</Tag> },
-    { title: copy.userColumns.status, dataIndex: "status", key: "status", render: (value: UserStatus) => <StatusTag color={value === "active" ? "green" : "red"} label={copy.userStatus[value]} /> },
-    { title: copy.userColumns.vouchers, dataIndex: "vouchers", key: "vouchers" },
+    {
+      title: copy.userColumns.role,
+      dataIndex: "role",
+      key: "role",
+      render: (value: UserRole) => (
+        <Tag color={value === "admin" ? "red" : "blue"}>
+          {copy.userRole[value]}
+        </Tag>
+      ),
+    },
+    {
+      title: copy.userColumns.status,
+      dataIndex: "status",
+      key: "status",
+      render: (value: UserStatus) => (
+        <StatusTag
+          color={value === "active" ? "green" : "red"}
+          label={copy.userStatus[value]}
+        />
+      ),
+    },
+    {
+      title: copy.userColumns.vouchers,
+      dataIndex: "vouchers",
+      key: "vouchers",
+    },
     {
       title: copy.actions,
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button size="small" onClick={() => openUserEditor("edit", record)}>{copy.edit}</Button>
-          <Button size="small" onClick={() => toggleUserStatus(record.key)}>{record.status === "active" ? copy.block : copy.unblock}</Button>
-          <Button danger size="small" onClick={() => removeUser(record.key)}>{copy.delete}</Button>
+          <Button size="small" onClick={() => openUserEditor("edit", record)}>
+            {copy.edit}
+          </Button>
+          <Button size="small" onClick={() => toggleUserStatus(record.key)}>
+            {record.status === "active" ? copy.block : copy.unblock}
+          </Button>
+          <Button danger size="small" onClick={() => removeUser(record.key)}>
+            {copy.delete}
+          </Button>
         </Space>
       ),
     },
@@ -634,7 +713,7 @@ export function AdminDashboardPage() {
   function openMovieEditor(mode: EditorMode, record?: any) {
     const currentId = record?.key || record?.id;
     setMovieModal({ open: true, mode, editingKey: currentId });
-    
+
     movieForm.setFieldsValue({
       ...record,
       releaseDate: record?.releaseDate ? dayjs(record.releaseDate) : null,
@@ -646,14 +725,33 @@ export function AdminDashboardPage() {
     setBannerFile(null);
   }
 
-  function openShowtimeEditor(mode: EditorMode, record?: ShowtimeRecord) { 
+  function openShowtimeEditor(mode: EditorMode, record?: ShowtimeRecord) {
     setShowtimeModal({ open: true, mode, editingKey: record?.key });
-    showtimeForm.setFieldsValue(record ?? { key: "", movieTitle: "", cinema: "", room: "", format: "2D", time: "", status: "open" });
+    showtimeForm.setFieldsValue(
+      record ?? {
+        key: "",
+        movieTitle: "",
+        cinema: "",
+        room: "",
+        format: "2D",
+        time: "",
+        status: "open",
+      },
+    );
   }
 
-  function openUserEditor(mode: EditorMode, record?: UserRecord) { 
+  function openUserEditor(mode: EditorMode, record?: UserRecord) {
     setUserModal({ open: true, mode, editingKey: record?.key });
-    userForm.setFieldsValue(record ?? { key: "", fullName: "", email: "", role: "user", status: "active", vouchers: 0 });
+    userForm.setFieldsValue(
+      record ?? {
+        key: "",
+        fullName: "",
+        email: "",
+        role: "user",
+        status: "active",
+        vouchers: 0,
+      },
+    );
   }
 
   async function saveMovie(values: any) {
@@ -674,7 +772,9 @@ export function AdminDashboardPage() {
         ageRestriction: values.ageRestriction,
         trailerUrl: values.trailerUrl,
         description: values.description,
-        releaseDate: values.releaseDate ? values.releaseDate.format("YYYY-MM-DD") : null,
+        releaseDate: values.releaseDate
+          ? values.releaseDate.format("YYYY-MM-DD")
+          : null,
         directors: values.directors,
         actors: values.actors,
         status: values.status,
@@ -693,11 +793,15 @@ export function AdminDashboardPage() {
       }
 
       if (posterFile || bannerFile) {
-        await uploadMovieImagesApi(token!, currentMovieId!, posterFile as any, bannerFile as any);
+        await uploadMovieImagesApi(
+          token!,
+          currentMovieId!,
+          posterFile as any,
+          bannerFile as any,
+        );
         if (isEditMode) message.success("Cập nhật ảnh thành công!");
       }
 
-      // Xử lý nạp lại dữ liệu bằng cách tải lại từ Database cho mới nhất
       const freshMoviesRes = await getMoviesApi();
       if (freshMoviesRes.result) {
         setMovies(freshMoviesRes.result.map((m: any) => ({ ...m, key: m.id })));
@@ -714,19 +818,77 @@ export function AdminDashboardPage() {
     }
   }
 
-  function saveShowtime(values: ShowtimeRecord) { /* code cũ */ setShowtimeModal({ open: false, mode: "create" }); }
-  function saveUser(values: UserRecord) { /* code cũ */ setUserModal({ open: false, mode: "create" }); }
-  function toggleMovieFeatured(key: string) { setMovies((c) => c.map((i) => i.key === key ? { ...i, featured: !i.featured } : i)); }
-  function cycleShowtimeStatus(key: string) { /* code cũ */ }
-  function toggleUserStatus(key: string) { /* code cũ */ }
-  function removeMovie(key: string) { setMovies((c) => c.filter((i) => i.key !== key)); message.success(copy.movieDeleted); }
-  function removeShowtime(key: string) { setShowtimes((c) => c.filter((i) => i.key !== key)); message.success(copy.showtimeDeleted); }
-  function removeUser(key: string) { setUsers((c) => c.filter((i) => i.key !== key)); message.success(copy.userDeleted); }
+  function saveShowtime(values: ShowtimeRecord) {
+    setShowtimeModal({ open: false, mode: "create" });
+  }
+  function saveUser(values: UserRecord) {
+    setUserModal({ open: false, mode: "create" });
+  }
+  function toggleMovieFeatured(key: string) {
+    setMovies((c) =>
+      c.map((i) => (i.key === key ? { ...i, featured: !i.featured } : i)),
+    );
+  }
+  function cycleShowtimeStatus(key: string) {}
+  function toggleUserStatus(key: string) {}
+  function removeMovie(key: string) {
+    setMovies((c) => c.filter((i) => i.key !== key));
+    message.success(copy.movieDeleted);
+  }
+  function removeShowtime(key: string) {
+    setShowtimes((c) => c.filter((i) => i.key !== key));
+    message.success(copy.showtimeDeleted);
+  }
+  function removeUser(key: string) {
+    setUsers((c) => c.filter((i) => i.key !== key));
+    message.success(copy.userDeleted);
+  }
 
+  // 🔥 THÊM CARD BẮP NƯỚC VÀ ĐIỀU CHỈNH GIAO DIỆN LƯỚI
   const moduleCards = [
-    { title: copy.moduleMoviesTitle, value: movies.length, desc: copy.moduleMoviesDesc, action: () => openMovieEditor("create"), actionLabel: copy.addMovie },
-    { title: copy.moduleShowtimesTitle, value: showtimes.filter((i) => i.status === "open").length, desc: copy.moduleShowtimesDesc, action: () => openShowtimeEditor("create"), actionLabel: copy.addShowtime },
-    { title: copy.moduleUsersTitle, value: users.filter((i) => i.status === "active").length, desc: copy.moduleUsersDesc, action: () => openUserEditor("create"), actionLabel: copy.addUser },
+    {
+      title: copy.moduleMoviesTitle,
+      value: movies.length,
+      desc: copy.moduleMoviesDesc,
+      action: () => openMovieEditor("create"),
+      actionLabel: copy.addMovie,
+    },
+    {
+      title: copy.moduleShowtimesTitle,
+      value: showtimes.filter((i) => i.status === "open").length,
+      desc: copy.moduleShowtimesDesc,
+      action: () => openShowtimeEditor("create"),
+      actionLabel: copy.addShowtime,
+    },
+    {
+      title: copy.moduleUsersTitle,
+      value: users.filter((i) => i.status === "active").length,
+      desc: copy.moduleUsersDesc,
+      action: () => openUserEditor("create"),
+      actionLabel: copy.addUser,
+    },
+    {
+      title: locale === "vi" ? "Quản lý Bắp nước" : "Concessions",
+      value: "Menu",
+      desc:
+        locale === "vi"
+          ? "Thêm, sửa, xóa danh sách đồ ăn, thức uống."
+          : "Manage food and drinks list.",
+      // ✅ SỬA THÀNH DÒNG NÀY: Mở trạng thái Modal thành true
+      action: () => setConcessionModalOpen(true),
+      actionLabel: locale === "vi" ? "Mở quản lý" : "Manage Concessions",
+    },
+    // 🔥 BỔ SUNG CARD THỨ 5 CHO KHUYẾN MÃI
+    {
+      title: locale === "vi" ? "Quản lý Khuyến Mãi" : "Promotions",
+      value: "Promo",
+      desc:
+        locale === "vi"
+          ? "Cài đặt mã giảm giá và điều kiện áp dụng."
+          : "Manage discount codes and conditions.",
+      action: () => setPromoModalOpen(true),
+      actionLabel: locale === "vi" ? "Mở quản lý" : "Manage Promotions",
+    },
   ];
 
   return (
@@ -743,7 +905,8 @@ export function AdminDashboardPage() {
 
           <Row gutter={[24, 24]} className="mt-8">
             {moduleCards.map((card) => (
-              <Col xs={24} md={8} key={card.title}>
+              // 🔥 Tinh chỉnh Col lg={6} để 4 thẻ Card xếp vừa vặn trên 1 dòng
+              <Col xs={24} sm={12} lg={6} key={card.title}>
                 <Card
                   bordered={false}
                   className="cinema-paper h-full rounded-[24px]"
@@ -807,15 +970,15 @@ export function AdminDashboardPage() {
                     rowKey="key"
                     columns={movieColumns}
                     dataSource={movies}
-                    pagination={{ pageSize: 5 }} // 🔥 Gắn thêm phân trang cho đẹp
-                    loading={loadingMovies} // 🔥 Báo hiệu loading khi đang fetch từ Database
-                    scroll={{ x: 'max-content' }}
+                    pagination={{ pageSize: 5 }}
+                    loading={loadingMovies}
+                    scroll={{ x: "max-content" }}
                   />
                 </Space>
               </Card>
             </Col>
 
-            {/* BẢNG LỊCH CHIẾU (Giữ nguyên) */}
+            {/* BẢNG LỊCH CHIẾU */}
             <Col span={24}>
               <Card bordered={false} className="cinema-paper rounded-[24px]">
                 <Space direction="vertical" size={18} className="w-full">
@@ -850,7 +1013,7 @@ export function AdminDashboardPage() {
               </Card>
             </Col>
 
-            {/* BẢNG NGƯỜI DÙNG (Giữ nguyên) */}
+            {/* BẢNG NGƯỜI DÙNG */}
             <Col span={24}>
               <Card bordered={false} className="cinema-paper rounded-[24px]">
                 <Space direction="vertical" size={18} className="w-full">
@@ -1075,7 +1238,9 @@ export function AdminDashboardPage() {
                       listType="picture"
                     >
                       <Button icon={<UploadOutlined />}>
-                        {movieModal.mode === "edit" ? "Đổi Poster mới" : "Chọn ảnh Poster"}
+                        {movieModal.mode === "edit"
+                          ? "Đổi Poster mới"
+                          : "Chọn ảnh Poster"}
                       </Button>
                     </Upload>
                   </Form.Item>
@@ -1095,7 +1260,9 @@ export function AdminDashboardPage() {
                       listType="picture"
                     >
                       <Button icon={<UploadOutlined />}>
-                        {movieModal.mode === "edit" ? "Đổi Banner mới" : "Chọn ảnh Banner"}
+                        {movieModal.mode === "edit"
+                          ? "Đổi Banner mới"
+                          : "Chọn ảnh Banner"}
                       </Button>
                     </Upload>
                   </Form.Item>
@@ -1139,35 +1306,68 @@ export function AdminDashboardPage() {
             </Form>
           </Modal>
 
-          {/* ... (Modal Showtime và Modal User bên dưới giữ nguyên) ... */}
           <Modal
             open={showtimeModal.open}
-            title={showtimeModal.mode === "edit" ? copy.editShowtime : copy.addShowtime}
+            title={
+              showtimeModal.mode === "edit"
+                ? copy.editShowtime
+                : copy.addShowtime
+            }
             onCancel={() => setShowtimeModal({ open: false, mode: "create" })}
             onOk={() => showtimeForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
           >
             <Form form={showtimeForm} layout="vertical" onFinish={saveShowtime}>
-              <Form.Item name="movieTitle" label={copy.showtimeColumns.movie} rules={[{ required: true }]}>
+              <Form.Item
+                name="movieTitle"
+                label={copy.showtimeColumns.movie}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="cinema" label={copy.showtimeColumns.cinema} rules={[{ required: true }]}>
+              <Form.Item
+                name="cinema"
+                label={copy.showtimeColumns.cinema}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item name="room" label={copy.showtimeColumns.room} rules={[{ required: true }]}>
+                <Form.Item
+                  name="room"
+                  label={copy.showtimeColumns.room}
+                  rules={[{ required: true }]}
+                >
                   <Input />
                 </Form.Item>
-                <Form.Item name="format" label={copy.showtimeColumns.format} rules={[{ required: true }]}>
+                <Form.Item
+                  name="format"
+                  label={copy.showtimeColumns.format}
+                  rules={[{ required: true }]}
+                >
                   <Input />
                 </Form.Item>
               </div>
-              <Form.Item name="time" label={copy.showtimeColumns.time} rules={[{ required: true }]}>
+              <Form.Item
+                name="time"
+                label={copy.showtimeColumns.time}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="status" label={copy.showtimeColumns.status} rules={[{ required: true }]}>
-                <Select options={[{ value: "open", label: copy.showtimeStatus.open }, { value: "paused", label: copy.showtimeStatus.paused }, { value: "soldout", label: copy.showtimeStatus.soldout }]} />
+              <Form.Item
+                name="status"
+                label={copy.showtimeColumns.status}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: "open", label: copy.showtimeStatus.open },
+                    { value: "paused", label: copy.showtimeStatus.paused },
+                    { value: "soldout", label: copy.showtimeStatus.soldout },
+                  ]}
+                />
               </Form.Item>
             </Form>
           </Modal>
@@ -1181,26 +1381,63 @@ export function AdminDashboardPage() {
             cancelText={copy.cancel}
           >
             <Form form={userForm} layout="vertical" onFinish={saveUser}>
-              <Form.Item name="fullName" label={copy.userColumns.name} rules={[{ required: true }]}>
+              <Form.Item
+                name="fullName"
+                label={copy.userColumns.name}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="email" label={copy.userColumns.email} rules={[{ required: true }]}>
+              <Form.Item
+                name="email"
+                label={copy.userColumns.email}
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
               <div className="grid gap-4 md:grid-cols-2">
-                <Form.Item name="role" label={copy.userColumns.role} rules={[{ required: true }]}>
-                  <Select options={[{ value: "admin", label: copy.userRole.admin }, { value: "user", label: copy.userRole.user }]} />
+                <Form.Item
+                  name="role"
+                  label={copy.userColumns.role}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: "admin", label: copy.userRole.admin },
+                      { value: "user", label: copy.userRole.user },
+                    ]}
+                  />
                 </Form.Item>
-                <Form.Item name="status" label={copy.userColumns.status} rules={[{ required: true }]}>
-                  <Select options={[{ value: "active", label: copy.userStatus.active }, { value: "blocked", label: copy.userStatus.blocked }]} />
+                <Form.Item
+                  name="status"
+                  label={copy.userColumns.status}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: "active", label: copy.userStatus.active },
+                      { value: "blocked", label: copy.userStatus.blocked },
+                    ]}
+                  />
                 </Form.Item>
               </div>
-              <Form.Item name="vouchers" label={copy.userColumns.vouchers} rules={[{ required: true }]}>
+              <Form.Item
+                name="vouchers"
+                label={copy.userColumns.vouchers}
+                rules={[{ required: true }]}
+              >
                 <Input type="number" />
               </Form.Item>
             </Form>
           </Modal>
-
+          <AdminConcessionManager
+            open={concessionModalOpen}
+            onClose={() => setConcessionModalOpen(false)}
+          />
+          <AdminPromotionManager
+            open={promoModalOpen}
+            onClose={() => setPromoModalOpen(false)}
+          />
         </main>
       </SiteShell>
     </div>
@@ -1234,7 +1471,6 @@ export function UserDashboardPage() {
     }
     try {
       if (token) {
-        // Nhớ import changePasswordApi từ file cinema-api.ts nhé
         await changePasswordApi(token, {
           oldPassword: values.oldPassword,
           newPassword: values.newPassword,
@@ -1280,8 +1516,6 @@ export function UserDashboardPage() {
             };
 
             setProfile(mappedData);
-
-            // 🔥 THÊM DÒNG NÀY: Điền dữ liệu vào form trực tiếp
             profileForm.setFieldsValue(mappedData);
           }
         })
@@ -1458,9 +1692,6 @@ export function UserDashboardPage() {
     message.success(copy.voucherApplied);
   }
 
-  // ==========================================
-  // CẤU HÌNH CÁC TABS GIAO DIỆN CHÍNH
-  // ==========================================
   const tabItems: TabsProps["items"] = [
     {
       key: "1",
@@ -1468,7 +1699,6 @@ export function UserDashboardPage() {
       children: (
         <div className="py-4">
           <Form form={profileForm} layout="vertical" onFinish={saveProfile}>
-            {/* HÀNG 1: Họ tên & Email */}
             <div className="grid gap-x-8 md:grid-cols-2">
               <Form.Item
                 name="fullName"
@@ -1489,7 +1719,6 @@ export function UserDashboardPage() {
                   <strong className="text-gray-600">{copy.profileEmail}</strong>
                 }
               >
-                {/* Email không cho sửa */}
                 <Input
                   size="large"
                   prefix={<MailOutlined className="text-gray-400 mr-2" />}
@@ -1499,7 +1728,6 @@ export function UserDashboardPage() {
               </Form.Item>
             </div>
 
-            {/* HÀNG 2: Ngày sinh & Số điện thoại */}
             <div className="grid gap-x-8 md:grid-cols-2 mt-2">
               <Form.Item
                 label={
@@ -1566,7 +1794,6 @@ export function UserDashboardPage() {
               </Form.Item>
             </div>
 
-            {/* HÀNG 3: CCCD & Địa chỉ (Tỉnh/Thành) - ĐÃ TÁCH RIÊNG */}
             <div className="grid gap-x-8 md:grid-cols-2 mt-2">
               <Form.Item
                 name="citizenId"
@@ -1604,7 +1831,6 @@ export function UserDashboardPage() {
               </Form.Item>
             </div>
 
-            {/* HÀNG 4: Giới tính & Nút Cập Nhật */}
             <div className="grid gap-x-8 md:grid-cols-2 mt-2 items-end">
               <Form.Item
                 name="gender"
@@ -1627,7 +1853,6 @@ export function UserDashboardPage() {
               </Form.Item>
 
               <div className="flex justify-end pt-6 md:pt-0 items-center">
-                {/* Cập nhật hiển thị song ngữ cho dòng Đổi mật khẩu? */}
                 <span
                   className="cursor-pointer font-semibold text-[#6d5a46] hover:text-[#14b8a6] mr-6 transition-colors"
                   onClick={() => setPasswordModalOpen(true)}
@@ -1635,7 +1860,6 @@ export function UserDashboardPage() {
                   {locale === "en" ? "Change password?" : "Đổi mật khẩu?"}
                 </span>
 
-                {/* Cập nhật hiển thị song ngữ cho nút Cập nhật */}
                 <Button
                   type="primary"
                   htmlType="submit"
@@ -1688,7 +1912,6 @@ export function UserDashboardPage() {
             {copy.historyDesc}
           </Typography.Paragraph>
 
-          {/* Khối thống kê đơn hàng gom vào Lịch sử */}
           <div className="rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4 text-[#6d5a46] mb-6 max-w-sm">
             <div className="flex items-center justify-between">
               <span>{copy.totalOrders}</span>
@@ -1746,9 +1969,7 @@ export function UserDashboardPage() {
     <div className="cinema-page">
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
-          {/* LAYOUT CHIA 2 CỘT MỚI */}
           <Row gutter={[24, 24]} className="mt-8">
-            {/* CỘT TRÁI: SIDEBAR (Avatar, Điểm) */}
             <Col xs={24} lg={7} xl={6}>
               <Card
                 bordered={false}
@@ -1828,7 +2049,6 @@ export function UserDashboardPage() {
               </Card>
             </Col>
 
-            {/* CỘT PHẢI: TABS NỘI DUNG CHÍNH */}
             <Col xs={24} lg={17} xl={18}>
               <Card
                 bordered={false}
@@ -1844,7 +2064,6 @@ export function UserDashboardPage() {
             </Col>
           </Row>
 
-          {/* Modal Đổi Mật Khẩu */}
           <Modal
             open={passwordModalOpen}
             title={locale === "en" ? "Change Password" : "Đổi mật khẩu"}

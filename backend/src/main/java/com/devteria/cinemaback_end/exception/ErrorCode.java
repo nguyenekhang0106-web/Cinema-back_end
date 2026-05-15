@@ -236,6 +236,26 @@ public enum ErrorCode {
     SEAT_HAS_DEPENDENCIES(1178, "Không thể xóa ghế vì đã có vé được đặt tại ghế này", HttpStatus.BAD_REQUEST),
 
     BANNER_TITLE_EXISTED(1179, "Tiêu đề ảnh/banner này đã tồn tại, vui lòng chọn tên khác", HttpStatus.BAD_REQUEST),
+
+    SEAT_HOLD_NOT_FOUND(1180, "Phiên giữ ghế không tồn tại", HttpStatus.NOT_FOUND),
+
+    SEAT_ALREADY_HELD(1181, "Ghế này hiện đang được người khác giữ", HttpStatus.CONFLICT),
+
+    INVALID_SEAT_SELECTION(1182, "Danh sách ghế không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    BOOKING_EXPIRED(1183, "Hóa đơn đã hết hạn thanh toán", HttpStatus.BAD_REQUEST),
+
+    SHOWTIME_NOT_OPENED(1184, "Suất chiếu chưa mở bán vé", HttpStatus.BAD_REQUEST),
+
+    SHOWTIME_ALREADY_STARTED(1185, "Suất chiếu đã bắt đầu, không thể đặt vé", HttpStatus.BAD_REQUEST),
+
+    TICKET_EXPIRED(1186, "Vé đã hết hiệu lực", HttpStatus.BAD_REQUEST),
+
+    INVALID_TICKET_CODE(1187, "Mã vé không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    SEAT_NOT_AVAILABLE(1188, "Ghế hiện không khả dụng", HttpStatus.CONFLICT),
+
+    BOOKING_ALREADY_EXPIRED(1189, "Hóa đơn đã hết hạn trước đó", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

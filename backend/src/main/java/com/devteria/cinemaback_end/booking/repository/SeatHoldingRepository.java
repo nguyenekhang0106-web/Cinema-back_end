@@ -26,5 +26,5 @@ public interface SeatHoldingRepository extends JpaRepository<SeatHolding, String
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<SeatHolding> findByBookingIdAndStatusIn(String bookingId, Collection<SeatHoldingStatus> statuses);
 
-    List<SeatHolding> findByStatusAndExpiresAtBefore(SeatHoldingStatus status, LocalDateTime expiresAt);
+    List<SeatHolding> findByStatusAndExpiresAtBefore(SeatHoldingStatus status, LocalDateTime time);
 }

@@ -1,6 +1,5 @@
 package com.devteria.cinemaback_end.configuration;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -35,20 +34,24 @@ public class SecurityConfig {
             "/auth/forgot-password",
             "/auth/reset-password",
             // 🔥 BỔ SUNG CHO MODULE PAYMENT (Để server VNPay/MoMo có thể gọi vào)
-            "/payments/*/execute"
+            "/payments/*/execute",
+            // 🔥 THÊM DÒNG NÀY: SockJS yêu cầu cả phương thức POST để kết nối WebSocket
+            "/ws/**"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
             "/movies",
             "/movies/**", // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
-            "/showtimes",     // Thêm dòng này: Cho phép xem danh sách lịch chiếu
-            "/showtimes/**",   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
+            "/showtimes",     // Cho phép xem danh sách lịch chiếu
+            "/showtimes/**",   // Cho phép xem chi tiết 1 lịch chiếu
             "/reviews/movie/**", "/reviews/*" , // Mở khóa để ai cũng xem được review
             "/cinemas", "/cinemas/**",
             "/halls", "/halls/**",
             "/banners",
-            "/banners/**", // 🔥 ĐÃ THÊM: Mở khóa cho các đường dẫn con như /banners/cinema/{id}
+            "/banners/**",
             "/seats/hall/**",
+            // 🔥 THÊM DÒNG NÀY: Để Frontend gọi được API lấy trạng thái ghế lúc mới vào trang
+            "/seats/status/**",
             "/articles", "/articles/**",
             "/concessions",
             "/concessions/**",
@@ -79,7 +82,7 @@ public class SecurityConfig {
         // Kích hoạt CORS
         httpSecurity.cors(Customizer.withDefaults());
 
-        // 🔥 BỔ SUNG EXCEPTION HANDLING CHO SPRING SECURITY Ở ĐÂY
+        // BỔ SUNG EXCEPTION HANDLING CHO SPRING SECURITY Ở ĐÂY
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
