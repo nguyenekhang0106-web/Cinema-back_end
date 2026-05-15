@@ -84,7 +84,7 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
 
         try {
-            seatHoldService.holdSeats(showtime, request.getSeatIds(), customer.getId(), savedBooking.getId(), expiresAt);
+            seatHoldService.assignHoldsToBooking(showtime.getId(), request.getSeatIds(), customer.getId(), savedBooking.getId());
 
             double ticketTotal = buildTickets(request, showtime, savedBooking);
             double concessionTotal = buildConcessions(request, savedBooking);
@@ -159,6 +159,18 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.PAID);
+
+        // 🔥 BỔ SUNG TỪ BƯỚC TRƯỚC: Chốt ghế thành CONFIRMED và bắn tín hiệu WebSocket đổi màu xám
+        seatHoldService.confirmSeatHolds(booking);
+        seatHoldService.notifyBooked(booking);
+
+        // 🔥 BỔ SUNG MỚI: Chỉ khi thanh toán thành công mới chốt cộng lượt sử dụng Khuyến Mãi
+        if (booking.getPromotion() != null) {
+            Promotion promo = booking.getPromotion();
+            promo.setUsedCount(promo.getUsedCount() + 1);
+            promotionRepository.save(promo); // Lưu thẳng xuống DB
+        }
+
         Booking savedBooking = bookingRepository.save(booking);
         outboxEventService.enqueueBookingPaid(savedBooking);
 
@@ -358,7 +370,10 @@ public class BookingService {
         }
 
         booking.setPromotion(promo);
-        promo.setUsedCount(promo.getUsedCount() + 1);
+
+        // 🔥 ĐÃ XÓA DÒNG `promo.setUsedCount(...)` Ở ĐÂY
+        // Lý do: Không trừ số lượng khi khách mới chỉ tạo đơn nháp (PENDING) để tránh mất oan mã
+
         return discountAmount;
     }
 

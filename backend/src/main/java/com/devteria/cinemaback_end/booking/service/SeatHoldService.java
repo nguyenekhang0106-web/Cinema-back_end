@@ -490,4 +490,34 @@ public class SeatHoldService {
         seatNotificationService.sendSeatStatus(showtimeId, seatIds, "AVAILABLE", "SYSTEM", null);
         log.info("[Seat Hold] User {} đã hủy giữ ghế thủ công: {}", userId, seatIds);
     }
+    // ==============================================================================
+    // CHUYỂN GHẾ TẠM THỜI SANG HÓA ĐƠN CHÍNH THỨC
+    // ==============================================================================
+    @Transactional
+    public void assignHoldsToBooking(String showtimeId, List<String> seatIds, String userId, String realBookingId) {
+        List<String> distinctSeatIds = normalizeSeatIds(seatIds);
+
+        // 1. Kiểm tra Redis xem User này có đang thực sự là người giữ ghế không
+        for (String seatId : distinctSeatIds) {
+            String lockedByUserId = redisTemplate.opsForValue().get(buildSeatHoldKey(showtimeId, seatId));
+            if (!userId.equals(lockedByUserId)) {
+                // Nếu Redis rỗng (đã hết hạn) hoặc là của ID khác -> Báo lỗi
+                throw new AppException(ErrorCode.SEAT_ALREADY_BOOKED);
+            }
+        }
+
+        // 2. Tìm các SeatHolding tạm thời và cập nhật thành mã Booking thật
+        List<SeatHolding> holdings = seatHoldingRepository.findByShowtimeIdAndStatusIn(showtimeId, List.of(SeatHoldingStatus.HOLDING))
+                .stream()
+                .filter(h -> distinctSeatIds.contains(h.getSeatId()))
+                .toList();
+
+        if (holdings.size() != distinctSeatIds.size()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // Cập nhật mã Booking
+        holdings.forEach(h -> h.setBookingId(realBookingId));
+        seatHoldingRepository.saveAll(holdings);
+    }
 }
