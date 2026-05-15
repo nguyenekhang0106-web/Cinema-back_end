@@ -85,6 +85,82 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   const heldSeatIdsRef = useRef<string[]>([]);
   const currentStepRef = useRef<number>(currentStep);
 
+  // 🔥 LẮNG NGHE SỰ KIỆN KHI VNPAY ĐẨY NGƯỜI DÙNG QUAY LẠI TRANG ĐẶT VÉ
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const paymentStatus = searchParams.get("payment");
+      const savedStateStr = sessionStorage.getItem("kct_booking_state");
+
+      // 🛠 Hàm gọi API Hủy Booking xịn xò (Có Token hợp lệ)
+      const handleCancelBooking = async (bookingIdToCancel: string) => {
+        const currentToken =
+          token ||
+          localStorage.getItem("token") ||
+          sessionStorage.getItem("token");
+        if (currentToken && bookingIdToCancel) {
+          try {
+            await fetch(
+              `http://localhost:9090/cinema/bookings/${bookingIdToCancel}/cancel`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${currentToken}` },
+              },
+            );
+            // Tẩy trắng các ghế đang bị kẹt trên giao diện ngay lập tức
+            setRealtimeLocks({});
+          } catch (e) {
+            console.error("Lỗi khi hủy hóa đơn:", e);
+          }
+        }
+      };
+
+      if (paymentStatus === "success") {
+        if (savedStateStr) {
+          const parsed = JSON.parse(savedStateStr);
+          setFinalBookingCode(parsed.bookingCode);
+          setSelectedSeats(parsed.selectedSeats || []);
+          setCurrentStep(4);
+          setPaymentDone(true);
+          message.success(
+            "Thanh toán thành công! Vé điện tử đã được gửi qua email.",
+          );
+        }
+        window.history.replaceState(null, "", window.location.pathname);
+        sessionStorage.removeItem("kct_booking_state");
+      } else if (paymentStatus === "failed" || paymentStatus === "error") {
+        // 🔥 NẾU KHÁCH BẤM "HỦY THANH TOÁN" TỪ VNPAY
+        if (savedStateStr) {
+          const parsed = JSON.parse(savedStateStr);
+          if (parsed.bookingId) {
+            handleCancelBooking(parsed.bookingId); // Gọi API Hủy Hóa đơn để nhả ghế
+          }
+        }
+        message.error(
+          "Giao dịch VNPay bị hủy hoặc thất bại! Vui lòng chọn lại ghế.",
+        );
+        setCurrentStep(0);
+        setSelectedSeats([]);
+        setTimeLeft(null);
+        window.history.replaceState(null, "", window.location.pathname);
+        sessionStorage.removeItem("kct_booking_state");
+      } else if (savedStateStr) {
+        // 🔥 TRƯỜNG HỢP KHÁCH ÉP BUỘC BẤM NÚT BACK CỦA TRÌNH DUYỆT TỪ TRANG VNPAY
+        const parsed = JSON.parse(savedStateStr);
+        if (parsed.bookingId) {
+          handleCancelBooking(parsed.bookingId); // Gọi API Hủy Hóa đơn
+          message.warning(
+            "Giao dịch bị gián đoạn. Hệ thống đã tự động hủy hóa đơn và nhả ghế!",
+          );
+        }
+        sessionStorage.removeItem("kct_booking_state");
+        setCurrentStep(0);
+        setSelectedSeats([]);
+        setTimeLeft(null);
+      }
+    }
+  }, [token]);
+
   useEffect(() => {
     currentStepRef.current = currentStep;
     if (currentStep > 0 && currentStep < 4 && selectedSeats.length > 0) {
@@ -521,11 +597,10 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
     }
     // 🔥 XỬ LÝ LÚC BẤM NÚT HOÀN TẤT THANH TOÁN (BƯỚC 3)
     else if (currentStep === 3) {
-      if (!paymentDone) return;
-
+      // Đã bỏ dòng if (!paymentDone) return; để khách bấm 1 phát ăn ngay
       try {
         message.loading({
-          content: "Đang xử lý giao dịch...",
+          content: "Đang khởi tạo giao dịch VNPay...",
           key: "paymentProcess",
           duration: 0,
         });
@@ -534,7 +609,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           localStorage.getItem("token") ||
           sessionStorage.getItem("token");
 
-        // 1. Chuẩn bị Payload
+        // 1. TẠO HÓA ĐƠN TRÊN DB (Trạng thái PENDING)
         const selectedSeatIds = selectedSeats
           .map((seatCode) => seatMap.find((s) => s.seat === seatCode)?.id)
           .filter(Boolean);
@@ -542,7 +617,6 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           .filter(([id, qty]) => (qty as number) > 0)
           .map(([id, qty]) => ({ concessionItemId: id, quantity: qty }));
 
-        // 2. GỌI API TẠO BOOKING (Lưu Hóa đơn, Khuyến mãi, Ghế vào DB)
         const bookingRes = await fetch(
           "http://localhost:9090/cinema/bookings",
           {
@@ -560,36 +634,45 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           },
         );
         const bookingData = await bookingRes.json();
-        if (!bookingRes.ok || bookingData.code !== 1000) {
-          throw new Error(
-            bookingData.message || "Lỗi tạo hóa đơn trên hệ thống!",
-          );
-        }
+        if (!bookingRes.ok || bookingData.code !== 1000)
+          throw new Error(bookingData.message || "Lỗi tạo hóa đơn!");
 
         const realBookingId = bookingData.result.id;
+        const bCode = bookingData.result.bookingCode;
 
-        // Lưu mã Hóa đơn thật để in ra vé
-        setFinalBookingCode(bookingData.result.bookingCode);
+        // 2. LƯU LẠI STATE ĐỂ PHỤC HỒI SAU KHI VNPAY QUAY VỀ
+        sessionStorage.setItem(
+          "kct_booking_state",
+          JSON.stringify({
+            bookingId: realBookingId, // 🔥 BỔ SUNG DÒNG NÀY ĐỂ DỄ DÀNG HỦY
+            bookingCode: bCode,
+            selectedSeats: selectedSeats,
+            returnUrl: window.location.pathname,
+          }),
+        );
 
-        // 3. GỌI API MOCK THANH TOÁN THÀNH CÔNG
-        const payRes = await fetch(
-          `http://localhost:9090/cinema/bookings/${realBookingId}/pay`,
+        // 3. GỌI API LẤY URL VNPAY TỪ BACKEND
+        const vnpayRes = await fetch(
+          "http://localhost:9090/cinema/payments/vnpay/create",
           {
             method: "POST",
-            headers: { Authorization: `Bearer ${currentToken}` },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${currentToken}`,
+            },
+            body: JSON.stringify({ bookingId: realBookingId, method: "VNPAY" }),
           },
         );
-        const payData = await payRes.json();
-        if (!payRes.ok || payData.code !== 1000) {
-          throw new Error(payData.message || "Ngân hàng từ chối giao dịch!");
-        }
+        const vnpayData = await vnpayRes.json();
+        if (!vnpayRes.ok || vnpayData.code !== 1000)
+          throw new Error(vnpayData.message || "Lỗi kết nối VNPay!");
 
-        // 4. Hoàn tất & Cho qua Bước In Vé
+        // 4. CHUYỂN HƯỚNG TRÌNH DUYỆT SANG VNPAY
         message.success({
-          content: "Thanh toán thành công!",
+          content: "Đang chuyển hướng...",
           key: "paymentProcess",
         });
-        setCurrentStep(4);
+        window.location.href = vnpayData.result.paymentUrl;
       } catch (error: any) {
         message.destroy("paymentProcess");
         showPremiumError("Giao dịch thất bại", error.message);
@@ -602,7 +685,30 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   }
 
   function goBack() {
-    if (currentStep === 4) return; // Đã thanh toán xong thì chặn quay lại màn hình thanh toán
+    if (currentStep === 4) return;
+
+    // 🔥 Nếu khách đang ở bước 3 (Thanh toán) mà bấm nút Quay lại -> Hủy hóa đơn nháp để nhả ghế
+    if (currentStep === 3) {
+      const savedStateStr = sessionStorage.getItem("kct_booking_state");
+      if (savedStateStr) {
+        const parsed = JSON.parse(savedStateStr);
+        if (parsed.bookingId) {
+          const currentToken =
+            token ||
+            localStorage.getItem("token") ||
+            sessionStorage.getItem("token");
+          fetch(
+            `http://localhost:9090/cinema/bookings/${parsed.bookingId}/cancel`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${currentToken}` },
+            },
+          ).catch(() => {});
+          sessionStorage.removeItem("kct_booking_state");
+        }
+      }
+    }
+
     if (currentStep === 1) {
       forceReleaseSeatsNow();
       setTimeLeft(null);
@@ -818,10 +924,8 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
             {currentStep === 3 ? (
               <PaymentStep
                 copy={copy}
-                orderCode={orderCode}
                 grandTotal={grandTotal}
-                paymentDone={paymentDone}
-                setPaymentDone={setPaymentDone}
+                locale={locale}
               />
             ) : null}
             {currentStep === 4 ? (
@@ -858,14 +962,13 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
                       <CreditCardOutlined />
                     )
                   }
-                  disabled={
-                    (currentStep === 0 && selectedSeats.length === 0) ||
-                    (currentStep === 3 && !paymentDone)
-                  }
+                  // Bỏ check !paymentDone đi để khách chỉ cần bấm nút này là nhảy ra VNPay
+                  disabled={currentStep === 0 && selectedSeats.length === 0}
                   onClick={goNext}
                   className="bg-[#a61d24]"
                 >
-                  {currentStep === 3 ? copy.finishPayment : copy.next}
+                  {/* 🔥 Cập nhật chữ hiển thị */}
+                  {currentStep === 3 ? "Thanh toán qua VNPay" : copy.next}
                 </Button>
               ) : null}
             </div>
@@ -1165,50 +1268,102 @@ function PromoStep({
   );
 }
 
-function PaymentStep({
-  copy,
-  orderCode,
-  grandTotal,
-  paymentDone,
-  setPaymentDone,
-}: any) {
+function PaymentStep({ copy, grandTotal, locale }: any) {
   return (
-    <Row gutter={[20, 20]} align="middle">
-      <Col xs={24} md={12}>
-        <div className="mx-auto flex aspect-square max-w-[320px] items-center justify-center rounded-[20px] border-2 border-dashed border-[#a61d24] bg-white p-8">
-          <div className="text-center">
-            <QrcodeOutlined style={{ fontSize: 96, color: "#4a3426" }} />
-            <Typography.Title level={4} style={{ color: "#4a3426" }}>
-              {copy.qrPlaceholder}
-            </Typography.Title>
-            <Typography.Text type="secondary">{orderCode}</Typography.Text>
+    <div className="mx-auto max-w-3xl space-y-6 pt-4">
+      {/* Cảnh báo thời gian giữ ghế */}
+      <Alert
+        message={
+          locale === "vi"
+            ? "Lưu ý: Bạn có 5 phút để hoàn tất thanh toán. Quá thời gian, hệ thống sẽ tự động hủy đơn và nhả ghế."
+            : "Note: You have 5 minutes to complete the payment. Otherwise, the seats will be released."
+        }
+        type="warning"
+        showIcon
+        className="rounded-xl border-[#c89a2b] bg-[#fff7e0] text-[#8c6b45] font-medium"
+      />
+
+      <div className="rounded-[20px] border border-[#ead8c1] bg-[#fffaf4] p-6 sm:p-8 shadow-sm">
+        <Typography.Title
+          level={4}
+          style={{ marginTop: 0, color: "#4a3426", marginBottom: 20 }}
+          className="uppercase tracking-wide"
+        >
+          {locale === "vi" ? "Phương thức thanh toán" : "Payment Method"}
+        </Typography.Title>
+
+        {/* Hộp chọn phương thức VNPay (Mặc định chọn) */}
+        <div className="flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 border-[#a61d24] bg-white shadow-[0_4px_15px_rgba(166,29,36,0.08)] cursor-pointer transition-all hover:border-red-600">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 p-2 shrink-0">
+              {/* Logo VNPay */}
+              <img
+                src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR.png"
+                alt="VNPay"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg text-[#4a3426]">
+                Thanh toán qua VNPAY
+              </span>
+              <span className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">
+                Quét mã QR qua App Ngân hàng hoặc thanh toán qua thẻ
+                ATM/Visa/MasterCard.
+              </span>
+            </div>
           </div>
+          <CheckCircleOutlined className="text-[#a61d24] text-2xl sm:text-3xl ml-2 shrink-0" />
         </div>
-      </Col>
-      <Col xs={24} md={12}>
-        <Space direction="vertical" size={16} className="w-full">
-          <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
-            {copy.scanToPay}
-          </Typography.Title>
-          <Typography.Text>{copy.qrDescription}</Typography.Text>
-          <div className="rounded-[16px] bg-[#fffaf4] p-4">
-            <Typography.Text>{copy.amount}</Typography.Text>
-            <Typography.Title level={2} style={{ margin: 0, color: "#a61d24" }}>
-              {formatCurrency(grandTotal, "vi")}
-            </Typography.Title>
-          </div>
-          <Button
-            size="large"
-            type={paymentDone ? "default" : "primary"}
-            icon={<CheckCircleOutlined />}
-            onClick={() => setPaymentDone(true)}
-            className={paymentDone ? "" : "bg-[#a61d24]"}
+
+        {/* Khối tổng tiền */}
+        <div className="mt-8 p-5 rounded-2xl bg-white border border-[#ead8c1] flex justify-between items-center">
+          <Typography.Text className="text-gray-500 font-medium text-base">
+            {locale === "vi"
+              ? "Số tiền cần thanh toán:"
+              : "Total amount to pay:"}
+          </Typography.Text>
+          <Typography.Title
+            level={2}
+            style={{ margin: 0, color: "#a61d24", lineHeight: 1 }}
           >
-            {paymentDone ? copy.paymentConfirmed : copy.markPaid}
-          </Button>
-        </Space>
-      </Col>
-    </Row>
+            {new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US").format(
+              grandTotal,
+            )}
+            đ
+          </Typography.Title>
+        </div>
+
+        {/* Dòng điều khoản */}
+        <div className="mt-6 text-sm text-gray-500 text-center leading-relaxed">
+          {locale === "vi" ? (
+            <>
+              Bằng việc bấm <strong>"Thanh toán qua VNPay"</strong> ở góc dưới,
+              bạn đã xác nhận hiểu rõ các{" "}
+              <a
+                href="#"
+                className="text-[#a61d24] hover:underline font-semibold"
+              >
+                Quy định giao dịch trực tuyến
+              </a>{" "}
+              của KCT Cinema.
+            </>
+          ) : (
+            <>
+              By clicking <strong>"Pay via VNPay"</strong> below, you confirm
+              that you have read and understood KCT Cinema's{" "}
+              <a
+                href="#"
+                className="text-[#a61d24] hover:underline font-semibold"
+              >
+                Online Transaction Terms
+              </a>
+              .
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

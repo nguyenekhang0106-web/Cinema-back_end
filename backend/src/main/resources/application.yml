@@ -81,7 +81,8 @@ payment:
     pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
     tmn-code: 04OJW2NY
     hash-secret: 0IBHWHW7AYDUVWMCH7J3XUOZ2F6UEQWY
-    return-url: http://localhost:9090/cinema/payments/vnpay/return
+    # 🔥 ĐỔI THÀNH LINK FRONTEND NÀY:
+    return-url: http://localhost:3000/vnpay-return
     version: "2.1.0"
     command: pay
     order-type: other

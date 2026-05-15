@@ -42,18 +42,20 @@ public class PaymentController {
                 .build();
     }
 
+    // 🔥 ĐÃ ĐỔI THAM SỐ: Nhận HttpServletRequest thay vì @RequestParam Map
     @GetMapping("/vnpay/return")
-    public ApiResponse<PaymentResponse> handleVnPayReturn(@RequestParam Map<String, String> params) {
+    public ApiResponse<PaymentResponse> handleVnPayReturn(HttpServletRequest request) {
         return ApiResponse.<PaymentResponse>builder()
                 .message("Đã xử lý kết quả thanh toán VNPay")
-                .result(vnPayService.handleReturn(params))
+                .result(vnPayService.handleReturn(request))
                 .build();
     }
 
+    // 🔥 ĐÃ ĐỔI THAM SỐ: Nhận HttpServletRequest cho luồng IPN ngầm
     @GetMapping("/vnpay/ipn")
-    public Map<String, String> handleVnPayIpn(@RequestParam Map<String, String> params) {
+    public Map<String, String> handleVnPayIpn(HttpServletRequest request) {
         try {
-            vnPayService.handleReturn(params);
+            vnPayService.handleReturn(request);
             return Map.of("RspCode", "00", "Message", "Confirm Success");
         } catch (Exception exception) {
             return Map.of("RspCode", "99", "Message", exception.getMessage());
