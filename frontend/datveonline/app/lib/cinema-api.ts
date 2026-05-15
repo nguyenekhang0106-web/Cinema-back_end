@@ -14,7 +14,7 @@ type ApiResponse<T> = {
 export type AuthRole = "admin" | "user";
 
 export type AuthUser = {
-  id?: string; // <-- BẠN THÊM DÒNG NÀY VÀO LÀ HẾT LỖI NGAY
+  id?: string;
   email?: string;
   role: AuthRole;
 };
@@ -27,7 +27,7 @@ type BackendMovie = {
   language?: string;
   ageRestriction?: string;
   posterUrl?: string;
-  bannerUrl?: string; // 🔥 Bổ sung thêm dòng này
+  bannerUrl?: string;
   trailerUrl?: string;
   description?: string;
   releaseDate?: string;
@@ -89,7 +89,7 @@ export async function loginWithBackend(
   const result = await request<LoginResult>("/auth/token", {
     method: "POST",
     body: JSON.stringify({
-      username: usernameOrEmail, // Gửi giá trị user nhập vào trường "username" của BE
+      username: usernameOrEmail,
       password: password,
     }),
   });
@@ -113,7 +113,7 @@ export async function registerWithBackend(requestBody: RegisterRequest) {
 
 export async function getBackendMovies(locale: Locale): Promise<MovieItem[]> {
   const movies = await request<BackendMovie[]>("/movies", {
-    cache: "no-store", // 🔥 THAY THẾ next: { revalidate: 30 } BẰNG DÒNG NÀY
+    cache: "no-store",
   });
   return Promise.all(
     movies.map((movie, index) => toMovieItem(movie, index, locale)),
@@ -136,17 +136,16 @@ export async function getMovieBySlugWithFallback(locale: Locale, slug: string) {
   return movies.find((movie) => movie.slug === slug || movie.id === slug);
 }
 
-// Trong file lib/cinema-api.ts
 function parseUserFromToken(token: string): AuthUser {
   const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
     sub?: string;
     scope?: string;
-    userId?: string; // 🔥 Cấu trúc Payload giờ đã có thêm userId từ Spring Boot
+    userId?: string;
   };
   const scope = payload.scope ?? "";
 
   return {
-    id: payload.userId, // 🔥 Lấy ID thực tế từ Token
+    id: payload.userId,
     email: payload.sub,
     role: scope.includes("ROLE_ADMIN") ? "admin" : "user",
   };
@@ -161,29 +160,30 @@ async function toMovieItem(
   const showtimes = await getShowtimesForMovie(movie.id, fallback.showtimes);
   const title = movie.title || fallback.title;
 
+  let label = fallback.bookingLabel;
+  if (movie.status === "NOW_SHOWING")
+    label = locale === "vi" ? "Đang chiếu" : "Now showing";
+  else if (movie.status === "COMING_SOON")
+    label = locale === "vi" ? "Sắp chiếu" : "Coming soon";
+  else if (movie.status === "STOPPED")
+    label = locale === "vi" ? "Ngừng chiếu" : "Stopped";
+
   return {
     ...fallback,
     id: movie.id,
+    status: movie.status || fallback.status, // 🔥 QUAN TRỌNG: Bổ sung dòng này để FE nhận đúng trạng thái
     featured: movie.featured || false,
     slug: slugify(title),
     title,
     subtitle: fallback.subtitle,
     genre: formatEnum(movie.genre) || fallback.genre,
     duration: movie.durationMin
-      ? `${movie.durationMin} ${locale === "vi" ? "phut" : "min"}`
+      ? `${movie.durationMin} ${locale === "vi" ? "phút" : "min"}`
       : fallback.duration,
     rating: movie.ageRestriction ?? fallback.rating,
     release: movie.releaseDate ?? fallback.release,
-    bookingLabel:
-      movie.status === "NOW_SHOWING"
-        ? locale === "vi"
-          ? "Dang chieu"
-          : "Now showing"
-        : fallback.bookingLabel,
-    // Đổi tên thành posterUrl và gán đúng posterUrl
+    bookingLabel: label,
     posterUrl: movie.posterUrl || fallback.posterUrl,
-
-    // Đổi tên thành bannerUrl và gán đúng bannerUrl (Backend trả về bannerUrl)
     bannerUrl: movie.bannerUrl || fallback.bannerUrl,
     synopsis: movie.description || fallback.synopsis,
     director: movie.directors?.join(", ") || fallback.director,
@@ -203,7 +203,7 @@ async function getShowtimesForMovie(
     const showtimes = await request<BackendShowtime[]>(
       `/showtimes/movie/${movieId}`,
       {
-        next: { revalidate: 30 },
+        cache: "no-store", // 🔥 ĐÃ SỬA: Tắt cache hoàn toàn để Lịch chiếu luôn realtime
       },
     );
     if (!showtimes.length) {
@@ -255,37 +255,28 @@ function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-// Thêm đoạn này vào file lib/cinema-api.ts
 export async function verifyOtpWithBackend(email: string, otpCode: string) {
   return request<unknown>("/users/verify-otp", {
     method: "POST",
-    // Gửi email và mã 6 số xuống backend để đối chiếu với Redis
     body: JSON.stringify({ email, otp: otpCode }),
   });
 }
 
-// Lấy thông tin cá nhân (Map tới: GET /users/myInfo)
 export async function getMyProfile(token: string) {
   return request<any>("/users/myInfo", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
-// Cập nhật thông tin cá nhân (Map tới: PUT /users/my-info)
 export async function updateMyProfile(token: string, payload: any) {
   return request<any>("/users/my-info", {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
   });
 }
 
-// Upload Avatar
 export async function uploadAvatarApi(
   token: string,
   userId: string,
@@ -296,9 +287,7 @@ export async function uploadAvatarApi(
 
   const response = await fetch(`${API_BASE_URL}/users/${userId}/avatar`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
 
@@ -307,12 +296,10 @@ export async function uploadAvatarApi(
   if (!response.ok || (payload.code && payload.code !== 1000)) {
     throw new Error(payload.message ?? "Tải ảnh lên thất bại");
   }
-
   return payload.result;
 }
 
 export async function changePasswordApi(token: string, payload: any) {
-  // Đã sửa API_URL thành API_BASE_URL
   const res = await fetch(`${API_BASE_URL}/users/my-info/change-password`, {
     method: "PUT",
     headers: {
@@ -332,14 +319,11 @@ export async function changePasswordApi(token: string, payload: any) {
 export async function forgotPasswordApi(email: string) {
   const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
 
   const data = await res.json();
-  // Check code 1000 theo chuẩn ApiResponse của Backend bạn viết
   if (!res.ok || data.code !== 1000) {
     throw new Error(data.message || "Không thể gửi yêu cầu. Vui lòng thử lại!");
   }
@@ -349,10 +333,7 @@ export async function forgotPasswordApi(email: string) {
 export async function resetPasswordApi(token: string, newPassword: string) {
   const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    // Gửi đúng data theo chuẩn ResetPasswordRequest DTO của Backend
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, newPassword }),
   });
 
@@ -365,7 +346,6 @@ export async function resetPasswordApi(token: string, newPassword: string) {
   return data;
 }
 
-// Thêm phim mới (Bước 1 - Gửi Text)
 export async function createMovieApi(token: string, payload: any) {
   const res = await fetch(`${API_BASE_URL}/movies`, {
     method: "POST",
@@ -382,28 +362,19 @@ export async function createMovieApi(token: string, payload: any) {
   return data;
 }
 
-// Upload ảnh phim (Bước 2 - Gửi File)
 export async function uploadMovieImagesApi(
   token: string,
   movieId: string,
-  posterFile?: File | null, // Bổ sung dấu ? và | null cho an toàn
+  posterFile?: File | null,
   bannerFile?: File | null,
 ) {
   const formData = new FormData();
-  
-  // 🔥 SỬA Ở ĐÂY: Chỉ append vào form nếu thực sự có file được chọn
-  if (posterFile) {
-    formData.append("posterFile", posterFile);
-  }
-  if (bannerFile) {
-    formData.append("bannerFile", bannerFile);
-  }
+  if (posterFile) formData.append("posterFile", posterFile);
+  if (bannerFile) formData.append("bannerFile", bannerFile);
 
   const res = await fetch(`${API_BASE_URL}/movies/${movieId}/images`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   const data = await res.json();
@@ -413,13 +384,16 @@ export async function uploadMovieImagesApi(
   return data;
 }
 
-export async function updateMovieApi(token: string, movieId: string, data: any) {
-  // 🔥 Đã xóa baseUrl sai và gọi thẳng API_BASE_URL
+export async function updateMovieApi(
+  token: string,
+  movieId: string,
+  data: any,
+) {
   const res = await fetch(`${API_BASE_URL}/movies/${movieId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, 
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -431,18 +405,11 @@ export async function updateMovieApi(token: string, movieId: string, data: any) 
   return json;
 }
 
-// ==========================================
-// API LẤY DANH SÁCH PHIM TỪ DATABASE
-// ==========================================
 export async function getMoviesApi() {
-  // 🔥 Đã xóa baseUrl sai và gọi thẳng API_BASE_URL
   const res = await fetch(`${API_BASE_URL}/movies`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    // Không dùng cache để Admin luôn thấy dữ liệu mới nhất
-    cache: "no-store", 
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
   });
 
   const json = await res.json();
@@ -452,34 +419,26 @@ export async function getMoviesApi() {
   return json;
 }
 
-// ==========================================
-// Lấy dữ liệu phim gốc từ Database (Để đổ vào Form Sửa)
-// ==========================================
 export async function getMovieByIdApi(id: string) {
   const res = await fetch(`${API_BASE_URL}/movies/${id}`, {
-    cache: "no-store", // 🔥 THÊM DÒNG NÀY ĐỂ NEXT.JS LUÔN LẤY DATA MỚI NHẤT
+    cache: "no-store",
   });
   const data = await res.json();
-  if (!res.ok || data.code !== 1000) throw new Error(data.message || "Lỗi lấy dữ liệu phim");
+  if (!res.ok || data.code !== 1000)
+    throw new Error(data.message || "Lỗi lấy dữ liệu phim");
   return data.result;
 }
 
-// ==========================================
-// API Xóa Phim
-// ==========================================
 export async function deleteMovieApi(token: string, id: string) {
   const res = await fetch(`${API_BASE_URL}/movies/${id}`, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
   });
   const data = await res.json();
-  if (!res.ok || data.code !== 1000) throw new Error(data.message || "Lỗi xóa phim");
+  if (!res.ok || data.code !== 1000)
+    throw new Error(data.message || "Lỗi xóa phim");
   return data;
 }
-
-// === THÊM VÀO FILE: app/lib/cinema-api.ts ===
 
 export interface BannerItem {
   id: string;
@@ -490,19 +449,44 @@ export interface BannerItem {
   active: boolean;
 }
 
-// Hàm gọi API lấy danh sách banner đang bật (dành cho client)
 export async function getActiveBanners(): Promise<BannerItem[]> {
   try {
-    // 🔥 Đã sửa thành port 9090 và thêm context-path /cinema
     const response = await fetch("http://localhost:9090/cinema/banners", {
-      next: { revalidate: 60 } // Cache dữ liệu 60s
+      cache: "no-store", // 🔥 ĐÃ SỬA: Đổi revalidate thành no-store
     });
     if (!response.ok) return [];
-    
+
     const data = await response.json();
     return data.result || [];
   } catch (error) {
     console.error("Lỗi khi fetch banners:", error);
+    return [];
+  }
+}
+
+export interface CinemaItem {
+  id: string;
+  name: string;
+  address: string;
+  hotline: string;
+  city: string;
+}
+
+export async function getCinemas(): Promise<CinemaItem[]> {
+  try {
+    const res = await fetch("http://localhost:9090/cinema/cinemas", {
+      cache: "no-store", // 🔥 ĐÃ SỬA: Đổi revalidate thành no-store
+    });
+
+    if (!res.ok) {
+      console.error("Lỗi HTTP:", res.status);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.result || [];
+  } catch (error) {
+    console.error("Lỗi khi fetch danh sách rạp:", error);
     return [];
   }
 }

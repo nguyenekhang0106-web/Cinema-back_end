@@ -16,6 +16,7 @@ public class BookingResponse {
     String id;
     String bookingCode;
     LocalDateTime bookingDate;
+    LocalDateTime expiresAt;
     BookingStatus status;
 
     // Phân tích dòng tiền

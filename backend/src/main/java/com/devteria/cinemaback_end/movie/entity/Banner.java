@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.movie.entity;
 
+import com.devteria.cinemaback_end.cinema.entity.Cinema;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -29,4 +30,10 @@ public class Banner {
 
     @Builder.Default
     boolean active = true;
+
+    // 🔥 BỔ SUNG QUAN HỆ VỚI RẠP CHIẾU
+    @ToString.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cinema_id") // Cho phép null
+            Cinema cinema;
 }

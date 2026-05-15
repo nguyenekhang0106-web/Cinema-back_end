@@ -3,6 +3,7 @@ package com.devteria.cinemaback_end.movie.dto;
 import com.devteria.cinemaback_end.movie.entity.enums.AgeRestriction;
 import com.devteria.cinemaback_end.movie.entity.enums.Genre;
 import com.devteria.cinemaback_end.movie.entity.enums.Language;
+import com.devteria.cinemaback_end.movie.entity.enums.MovieStatus; // 🔥 IMPORT ENUM
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -45,11 +46,15 @@ public class MovieRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate releaseDate;
 
-    // 🔥 Đã xóa @NotEmpty để Admin có thể để trống đạo diễn nếu chưa biết
+    // Đã xóa @NotEmpty để Admin có thể để trống đạo diễn nếu chưa biết
     Set<String> directors;
 
-    // 🔥 Đã xóa @NotEmpty để Admin có thể để trống diễn viên
+    // Đã xóa @NotEmpty để Admin có thể để trống diễn viên
     Set<String> actors;
+
+    // 🔥 BỔ SUNG TRƯỜNG STATUS DẠNG ENUM VÀO ĐÂY
+    @NotNull(message = "STATUS_NOT_NULL")
+    MovieStatus status;
 
     Boolean featured;
 }

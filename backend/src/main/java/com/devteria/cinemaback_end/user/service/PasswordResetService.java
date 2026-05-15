@@ -27,7 +27,7 @@ public class PasswordResetService {
     UserRepository userRepository;
     StringRedisTemplate redisTemplate;
     PasswordEncoder passwordEncoder;
-    EmailSenderService emailSenderService;
+    EmailNotificationProducer emailNotificationProducer;
 
     private static final String RESET_PASSWORD_PREFIX = "cinema:reset_pwd:";
     private static final Duration RESET_TOKEN_TTL = Duration.ofMinutes(15);
@@ -72,7 +72,7 @@ public class PasswordResetService {
 
         // Đổi cổng 9090 thành 3000 và trỏ về trang giao diện Frontend
         String resetLink = "http://localhost:3000/dat-lai-mat-khau?token=" + rawToken;
-        emailSenderService.sendPasswordResetLink(email, resetLink);
+        emailNotificationProducer.publishPasswordResetLink(email, resetLink);
     }
 
     @Transactional

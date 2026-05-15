@@ -49,7 +49,6 @@ public class ShowtimeService {
         Movie movie = movieRepository.findById(request.getMovieId())
                 .orElseThrow(() -> new AppException(ErrorCode.MOVIE_NOT_EXISTED));
 
-        // ĐÃ SỬA Ở ĐÂY
         Hall hall = hallRepository.findById(request.getHallId())
                 .orElseThrow(() -> new AppException(ErrorCode.HALL_NOT_EXISTED));
 
@@ -75,17 +74,35 @@ public class ShowtimeService {
         return showtimeMapper.toShowtimeResponse(showtimeRepository.save(showtime));
     }
 
-    // --- 2. READ (Public) ---
+    // --- 2. READ (Public) - CÓ LAZY UPDATE COMPLETED ---
     public List<ShowtimeResponse> getAllShowtimes() {
-        return showtimeRepository.findAll().stream()
+        List<Showtime> showtimes = showtimeRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
+
+        // Cập nhật trạng thái COMPLETED tự động khi thời gian hiện tại qua endTime
+        List<Showtime> updatedShowtimes = showtimes.stream().peek(showtime -> {
+            if (showtime.getStatus() == ShowtimeStatus.SCHEDULED && now.isAfter(showtime.getEndTime())) {
+                showtime.setStatus(ShowtimeStatus.COMPLETED);
+                showtimeRepository.save(showtime); // Lưu cập nhật xuống DB
+            }
+        }).toList();
+
+        return updatedShowtimes.stream()
                 .map(showtimeMapper::toShowtimeResponse)
                 .toList();
     }
 
-    // --- 3. READ BY ID (Public) ---
+    // --- 3. READ BY ID (Public) - CÓ LAZY UPDATE COMPLETED ---
     public ShowtimeResponse getShowtimeById(String id) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SHOWTIME_NOT_EXISTED));
+
+        // Cập nhật trạng thái nếu truy vấn chi tiết 1 lịch chiếu đã qua giờ kết thúc
+        if (showtime.getStatus() == ShowtimeStatus.SCHEDULED && LocalDateTime.now().isAfter(showtime.getEndTime())) {
+            showtime.setStatus(ShowtimeStatus.COMPLETED);
+            showtimeRepository.save(showtime);
+        }
+
         return showtimeMapper.toShowtimeResponse(showtime);
     }
 
@@ -107,7 +124,6 @@ public class ShowtimeService {
         Movie movie = movieRepository.findById(request.getMovieId())
                 .orElseThrow(() -> new AppException(ErrorCode.MOVIE_NOT_EXISTED));
 
-        // ĐÃ SỬA Ở ĐÂY
         Hall hall = hallRepository.findById(request.getHallId())
                 .orElseThrow(() -> new AppException(ErrorCode.HALL_NOT_EXISTED));
 
@@ -141,13 +157,15 @@ public class ShowtimeService {
         showtimeRepository.save(showtime);
     }
 
-    // --- 6. DELETE ---
+    // --- 6. DELETE (Chuyển thành Soft Delete) ---
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void deleteShowtime(String id) {
-        if (!showtimeRepository.existsById(id)) {
-            throw new AppException(ErrorCode.SHOWTIME_NOT_EXISTED);
-        }
-        showtimeRepository.deleteById(id);
+        Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SHOWTIME_NOT_EXISTED));
+
+        // Đã sửa: Không xóa cứng khỏi DB, chỉ đổi Status thành CANCELLED
+        showtime.setStatus(ShowtimeStatus.CANCELLED);
+        showtimeRepository.save(showtime);
     }
 }

@@ -188,6 +188,9 @@ public enum ErrorCode {
 
     // Lỗi quan trọng nhất của hệ thống đặt vé
     SEAT_ALREADY_BOOKED(1137, "Rất tiếc, ghế bạn chọn đã có người đặt. Vui lòng chọn ghế khác!", HttpStatus.CONFLICT),
+    ORPHAN_SEAT_NOT_ALLOWED(1158, "Không được để lại một ghế trống đơn lẻ bên trái hoặc bên phải dãy ghế đã chọn", HttpStatus.BAD_REQUEST),
+    VNPAY_SIGNATURE_INVALID(1159, "Chữ ký VNPay không hợp lệ", HttpStatus.BAD_REQUEST),
+    VNPAY_AMOUNT_INVALID(1160, "Số tiền VNPay không khớp với hóa đơn", HttpStatus.BAD_REQUEST),
     // ==========================================
     // MODULE PAYMENT (THANH TOÁN)
     // ==========================================
@@ -226,6 +229,33 @@ public enum ErrorCode {
     // Dành cho giỏ hàng (Concession) khi đặt vé
     CONCESSION_QUANTITY_INVALID(1156, "Số lượng đồ ăn/thức uống không hợp lệ", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_CORRECT(1157, "Mật khẩu cũ không chính xác", HttpStatus.BAD_REQUEST),
+
+    CINEMA_HAS_DEPENDENCIES(1158, "Không thể xóa rạp vì đang có phòng chiếu hoặc lịch chiếu liên kết", HttpStatus.BAD_REQUEST),
+    HALL_HAS_DEPENDENCIES(1168, "Không thể xóa phòng chiếu vì đang có ghế hoặc lịch chiếu liên kết", HttpStatus.BAD_REQUEST),
+    INVALID_SEAT_CONFIGURATION(1172, "Cấu hình số lượng ghế không hợp lệ", HttpStatus.BAD_REQUEST),
+    SEAT_HAS_DEPENDENCIES(1178, "Không thể xóa ghế vì đã có vé được đặt tại ghế này", HttpStatus.BAD_REQUEST),
+
+    BANNER_TITLE_EXISTED(1179, "Tiêu đề ảnh/banner này đã tồn tại, vui lòng chọn tên khác", HttpStatus.BAD_REQUEST),
+
+    SEAT_HOLD_NOT_FOUND(1180, "Phiên giữ ghế không tồn tại", HttpStatus.NOT_FOUND),
+
+    SEAT_ALREADY_HELD(1181, "Ghế này hiện đang được người khác giữ", HttpStatus.CONFLICT),
+
+    INVALID_SEAT_SELECTION(1182, "Danh sách ghế không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    BOOKING_EXPIRED(1183, "Hóa đơn đã hết hạn thanh toán", HttpStatus.BAD_REQUEST),
+
+    SHOWTIME_NOT_OPENED(1184, "Suất chiếu chưa mở bán vé", HttpStatus.BAD_REQUEST),
+
+    SHOWTIME_ALREADY_STARTED(1185, "Suất chiếu đã bắt đầu, không thể đặt vé", HttpStatus.BAD_REQUEST),
+
+    TICKET_EXPIRED(1186, "Vé đã hết hiệu lực", HttpStatus.BAD_REQUEST),
+
+    INVALID_TICKET_CODE(1187, "Mã vé không hợp lệ", HttpStatus.BAD_REQUEST),
+
+    SEAT_NOT_AVAILABLE(1188, "Ghế hiện không khả dụng", HttpStatus.CONFLICT),
+
+    BOOKING_ALREADY_EXPIRED(1189, "Hóa đơn đã hết hạn trước đó", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

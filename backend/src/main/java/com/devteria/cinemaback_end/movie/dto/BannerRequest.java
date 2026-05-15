@@ -24,4 +24,7 @@ public class BannerRequest {
     Integer displayOrder;
 
     boolean active;
+
+    // 🔥 BỔ SUNG TRƯỜNG NHẬN ID RẠP TỪ FRONTEND
+    String cinemaId;
 }

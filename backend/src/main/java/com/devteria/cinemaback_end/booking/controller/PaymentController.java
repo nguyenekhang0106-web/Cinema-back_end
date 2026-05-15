@@ -1,14 +1,19 @@
 package com.devteria.cinemaback_end.booking.controller;
 
-import com.devteria.cinemaback_end.common.ApiResponse;
 import com.devteria.cinemaback_end.booking.dto.PaymentRequest;
 import com.devteria.cinemaback_end.booking.dto.PaymentResponse;
+import com.devteria.cinemaback_end.booking.dto.VnPayCreateResponse;
 import com.devteria.cinemaback_end.booking.service.PaymentService;
+import com.devteria.cinemaback_end.booking.service.VnPayService;
+import com.devteria.cinemaback_end.common.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/payments")
@@ -17,8 +22,8 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController {
 
     PaymentService paymentService;
+    VnPayService vnPayService;
 
-    // 1. Khách hàng bấm nút "Thanh toán"
     @PostMapping("/create")
     public ApiResponse<PaymentResponse> createPayment(@RequestBody @Valid PaymentRequest request) {
         return ApiResponse.<PaymentResponse>builder()
@@ -27,7 +32,36 @@ public class PaymentController {
                 .build();
     }
 
-    // 2. Mô phỏng VNPay/MoMo gọi về báo kết quả (Trong thực tế đây sẽ là hàm xử lý IPN Webhook)
+    @PostMapping("/vnpay/create")
+    public ApiResponse<VnPayCreateResponse> createVnPayPayment(
+            @RequestBody @Valid PaymentRequest request,
+            HttpServletRequest httpServletRequest) {
+        return ApiResponse.<VnPayCreateResponse>builder()
+                .message("Đã tạo URL thanh toán VNPay")
+                .result(vnPayService.createPaymentUrl(request, httpServletRequest))
+                .build();
+    }
+
+    // 🔥 ĐÃ ĐỔI THAM SỐ: Nhận HttpServletRequest thay vì @RequestParam Map
+    @GetMapping("/vnpay/return")
+    public ApiResponse<PaymentResponse> handleVnPayReturn(HttpServletRequest request) {
+        return ApiResponse.<PaymentResponse>builder()
+                .message("Đã xử lý kết quả thanh toán VNPay")
+                .result(vnPayService.handleReturn(request))
+                .build();
+    }
+
+    // 🔥 ĐÃ ĐỔI THAM SỐ: Nhận HttpServletRequest cho luồng IPN ngầm
+    @GetMapping("/vnpay/ipn")
+    public Map<String, String> handleVnPayIpn(HttpServletRequest request) {
+        try {
+            vnPayService.handleReturn(request);
+            return Map.of("RspCode", "00", "Message", "Confirm Success");
+        } catch (Exception exception) {
+            return Map.of("RspCode", "99", "Message", exception.getMessage());
+        }
+    }
+
     @PostMapping("/{paymentId}/execute")
     public ApiResponse<PaymentResponse> executePayment(
             @PathVariable String paymentId,

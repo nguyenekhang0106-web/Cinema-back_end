@@ -12,6 +12,7 @@ import com.devteria.cinemaback_end.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,8 @@ public class HallService {
 
         Hall hall = hallMapper.toHall(request);
         hall.setCinema(cinema);
+        // 🔥 ĐẢM BẢO TỔNG SỐ GHẾ LÀ 0 KHI MỚI TẠO
+        hall.setTotalSeats(0);
 
         return hallMapper.toHallResponse(hallRepository.save(hall));
     }
@@ -76,6 +79,7 @@ public class HallService {
 
         hallMapper.updateHall(hall, request);
         hall.setCinema(cinema);
+        // Lưu ý: Không update lại totalSeats ở đây, vì totalSeats do SeatService quản lý
 
         return hallMapper.toHallResponse(hallRepository.save(hall));
     }
@@ -86,6 +90,11 @@ public class HallService {
         if (!hallRepository.existsById(id)) {
             throw new AppException(ErrorCode.HALL_NOT_EXISTED);
         }
-        hallRepository.deleteById(id);
+
+        try {
+            hallRepository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            throw new AppException(ErrorCode.HALL_HAS_DEPENDENCIES);
+        }
     }
 }

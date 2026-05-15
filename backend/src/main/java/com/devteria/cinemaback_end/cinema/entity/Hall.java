@@ -5,7 +5,6 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-// Đảm bảo tên phòng chiếu không bị trùng lặp TRONG CÙNG 1 RẠP
 @Table(uniqueConstraints = {
         @UniqueConstraint(columnNames = {"cinema_id", "name"})
 })
@@ -24,10 +23,12 @@ public class Hall {
     @Column(nullable = false)
     String name;
 
+    // 🔥 GÁN MẶC ĐỊNH LÀ 0 KHI TẠO PHÒNG MỚI
     @Column(nullable = false)
-    Integer totalSeats;
+    @Builder.Default
+    Integer totalSeats = 0;
 
-    @ToString.Exclude // Rất quan trọng để tránh lỗi lặp vô tận
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cinema_id", nullable = false)
     Cinema cinema;

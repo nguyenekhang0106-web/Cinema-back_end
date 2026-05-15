@@ -31,6 +31,7 @@ export type MovieItem = {
   showtimes: ShowTime[];
   featured?: boolean;
   trailerUrl?: string;
+  status?: string;
 };
 
 export type CinemaItem = {

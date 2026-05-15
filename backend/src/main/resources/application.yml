@@ -19,6 +19,18 @@ spring:
       port: 6379
       # password: # bật nếu Redis có mật khẩu
 
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
+
   datasource:
     # Tham số createDatabaseIfNotExist=true sẽ ra lệnh cho MySQL tự tạo database nếu nó chưa tồn tại
     url: "jdbc:mysql://localhost:3308/cinema_db?createDatabaseIfNotExist=true"
@@ -40,6 +52,40 @@ jwt:
 app:
   # TTL mã 6 số xác thực email (lưu trong Redis, key prefix cinema:email-verify:)
   email-verification-ttl-minutes: 15
+  rabbitmq:
+    booking-paid-exchange: cinema.booking.exchange
+    booking-paid-queue: cinema.booking.paid.queue
+    booking-paid-routing-key: cinema.booking.paid
+    booking-paid-retry-exchange: cinema.booking.retry.exchange
+    booking-paid-retry-queue: cinema.booking.paid.retry.queue
+    booking-paid-retry-routing-key: cinema.booking.paid.retry
+    booking-paid-retry-delay-ms: 10000
+    booking-paid-dlx: cinema.booking.dlx
+    booking-paid-dlq: cinema.booking.paid.dlq
+    booking-paid-dlq-routing-key: cinema.booking.paid.dlq
+    booking-paid-max-retry: 5
+    email-exchange: cinema.email.exchange
+    email-queue: cinema.email.queue
+    email-routing-key: cinema.email.notification
+    email-retry-exchange: cinema.email.retry.exchange
+    email-retry-queue: cinema.email.retry.queue
+    email-retry-routing-key: cinema.email.retry
+    email-retry-delay-ms: 30000
+    email-dlx: cinema.email.dlx
+    email-dlq: cinema.email.dlq
+    email-dlq-routing-key: cinema.email.dlq
+    email-max-retry: 5
+
+payment:
+  vnpay:
+    pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+    tmn-code: 04OJW2NY
+    hash-secret: 0IBHWHW7AYDUVWMCH7J3XUOZ2F6UEQWY
+    # 🔥 ĐỔI THÀNH LINK FRONTEND NÀY:
+    return-url: http://localhost:3000/vnpay-return
+    version: "2.1.0"
+    command: pay
+    order-type: other
 
 mail:
   host: smtp.gmail.com

@@ -1,6 +1,5 @@
 package com.devteria.cinemaback_end.configuration;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,47 +25,53 @@ public class SecurityConfig {
             "/users/register",
             "/users/verify-otp",
             "/users/resend-otp",
-//            "/users/verify-email",
-//            "/users/resend-verification",
             "/auth/token",
             "/auth/introspect",
             "/auth/logout",
             "/auth/refresh",
             "/auth/forgot-password",
             "/auth/reset-password",
-            // 🔥 BỔ SUNG CHO MODULE PAYMENT (Để server VNPay/MoMo có thể gọi vào)
-            "/payments/*/execute"
+            // Module Payment
+            "/payments/*/execute",
+            // Cho phép kết nối WebSocket ban đầu
+            "/ws/**"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
-            "/movies",
-            "/movies/**", // Ký hiệu ** giúp mở khóa cho cả /movies/{id}
-            "/showtimes",     // Thêm dòng này: Cho phép xem danh sách lịch chiếu
-            "/showtimes/**",   // Thêm dòng này: Cho phép xem chi tiết 1 lịch chiếu
-            "/reviews/movie/**", "/reviews/*" , // Mở khóa để ai cũng xem được review
+            "/movies", "/movies/**",
+            "/showtimes", "/showtimes/**",
+            "/reviews/movie/**", "/reviews/*",
             "/cinemas", "/cinemas/**",
             "/halls", "/halls/**",
-            "/banners",
+            "/banners", "/banners/**",
             "/seats/hall/**",
+            "/seats/status/**",
             "/articles", "/articles/**",
-            "/concessions",
-            "/concessions/**",
-            "/promotions",
-            "/promotions/**"
+            "/concessions", "/concessions/**",
+            "/promotions", "/promotions/**",
+
+            // 🔥 CỤM CẤU HÌNH VNPAY:
+            // Thêm /** để Spring Security không chặn nếu đường dẫn có dấu / ở cuối hoặc biến động
+            "/payments/vnpay/return",
+            "/payments/vnpay/return/**",
+            "/payments/vnpay/ipn",
+            "/payments/vnpay/ipn/**",
+
+            "/ws/**"
     };
 
     @Value("${jwt.signerKey}")
     private String signerKey;
 
     @Autowired
-    private  CustomJwtDecoder customJwtDecoder;
+    private CustomJwtDecoder customJwtDecoder;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> request
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 3. Cấu hình phân dải cho POST và GET
+                // Cấu hình phân dải cho POST và GET
                 .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
 
@@ -75,13 +80,13 @@ public class SecurityConfig {
         // Kích hoạt CORS
         httpSecurity.cors(Customizer.withDefaults());
 
-        // 🔥 BỔ SUNG EXCEPTION HANDLING CHO SPRING SECURITY Ở ĐÂY
+        // Cấu hình Exception Handling và JWT
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
-        // Thêm dòng này để xử lý lỗi 403 Forbidden
+        // Bắt lỗi 403 Forbidden
         httpSecurity.exceptionHandling(exceptions -> exceptions
                 .accessDeniedHandler(new CustomAccessDeniedHandler()));
 
@@ -94,7 +99,7 @@ public class SecurityConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
-        //corsConfiguration.addAllowedOrigin("*");
+        // Cấu hình tên miền Frontend được phép gọi vào API
         corsConfiguration.addAllowedOrigin("http://localhost:3000");
         corsConfiguration.addAllowedMethod("*");
         corsConfiguration.addAllowedHeader("*");
@@ -120,6 +125,4 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder(10);
     }
-
-
 }
