@@ -225,62 +225,141 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
 
         Showtime showtime = sortedTickets.get(0).getShowtime();
         Movie movie = showtime.getMovie();
+
+        // 1. Ảnh Poster Inline
         String posterHtml = StringUtils.hasText(movie.getPosterUrl())
-                ? "<img src=\"cid:" + posterContentId(booking) + "\" alt=\"Movie poster\" style=\"width:96px;height:140px;object-fit:cover;border-radius:8px;display:block;\"/>"
+                ? "<img src=\"cid:" + posterContentId(booking) + "\" alt=\"Movie poster\" style=\"width:130px;height:190px;object-fit:cover;border-radius:8px;display:block;margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.15);\"/>"
                 : "";
 
-        StringBuilder ticketCards = new StringBuilder();
-        for (Ticket ticket : sortedTickets) {
-            ticketCards.append(buildTicketCard(booking, ticket));
-        }
+        // 2. Danh sách ghế (VD: E11, E12)
+        String seatList = String.join(", ", sortedTickets.stream().map(this::seatLabel).toList());
 
+        // 🔥 3. CHỈ LẤY 1 MÃ QR DUY NHẤT LÀM ĐẠI DIỆN CHO CẢ ĐƠN HÀNG
+        Ticket firstTicket = sortedTickets.get(0);
+        String qrImage = StringUtils.hasText(firstTicket.getQrCodeUrl())
+                ? "<img src=\"cid:" + qrContentId(firstTicket) + "\" alt=\"Ticket QR\" style=\"width:160px;height:160px;border:1px solid #eeeeee;border-radius:8px;padding:5px;background:#ffffff;\"/>"
+                : "<div style=\"width:160px;height:160px;line-height:160px;text-align:center;border:1px solid #eeeeee;border-radius:8px;color:#94a3b8;font-size:12px;background:#ffffff;\">Đang tạo QR</div>";
+
+        String singleQrHtml = """
+            <div style="display: inline-block; margin: 10px; text-align: center;">
+                <p style="margin: 0 0 8px 0; color: #4a3426; font-weight: bold; font-size: 15px;">Ghế: %s</p>
+                %s
+            </div>
+            """.formatted(escape(seatList), qrImage);
+
+        // 4. HTML Layout (Style CGV / VNPAY)
         return """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                </head>
-                <body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#172033;">
-                    <div style="max-width:720px;margin:0 auto;padding:24px 14px;">
-                        <div style="background:#111827;color:#ffffff;border-radius:8px 8px 0 0;padding:22px 24px;">
-                            <div style="font-size:22px;font-weight:800;letter-spacing:.5px;">%s</div>
-                            <div style="font-size:14px;color:#cbd5e1;margin-top:6px;">Your e-ticket is ready</div>
-                        </div>
-                        <div style="background:#ffffff;padding:22px 24px;border-radius:0 0 8px 8px;">
-                            <div style="display:flex;gap:18px;align-items:flex-start;margin-bottom:20px;">
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,sans-serif;">
+                <div style="background-color: #f4f5f7; padding: 40px 10px; line-height: 1.6;">
+                    <table style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; width: 100%%; border-collapse: collapse; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+                        
+                        <tr>
+                            <td style="background-color: #a61d24; text-align: center; padding: 30px 20px;">
+                                <h1 style="color: #ffffff; margin: 0; font-size: 30px; letter-spacing: 2px;">%s</h1>
+                                <p style="color: #fbd6d8; margin: 8px 0 0 0; font-size: 14px; font-weight: bold; letter-spacing: 1px;">XÁC NHẬN ĐẶT VÉ / E-TICKET</p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding: 35px 30px 15px 30px; text-align: center;">
                                 %s
-                                <div>
-                                    <div style="font-size:22px;font-weight:800;color:#111827;margin-bottom:8px;">%s</div>
-                                    <div style="font-size:14px;line-height:1.7;color:#475569;">
-                                        <div><strong>Date:</strong> %s</div>
-                                        <div><strong>Time:</strong> %s</div>
-                                        <div><strong>Cinema:</strong> %s</div>
-                                        <div><strong>Hall:</strong> %s</div>
-                                        <div><strong>Booking code:</strong> %s</div>
-                                        <div><strong>Total:</strong> %s</div>
-                                    </div>
+                                <h2 style="margin: 20px 0 0 0; color: #4a3426; font-size: 24px; text-transform: uppercase;">%s</h2>
+                                <p style="margin: 5px 0 20px 0; color: #888888; font-size: 14px;">Mã đặt vé / Booking Code</p>
+                                <div style="background-color: #fffaf4; border: 2px dashed #c89a2b; border-radius: 8px; padding: 15px 30px; display: inline-block;">
+                                    <span style="font-size: 28px; font-weight: 900; color: #a61d24; letter-spacing: 2px;">%s</span>
                                 </div>
-                            </div>
-                            %s
-                            <div style="margin-top:22px;padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;color:#475569;font-size:14px;line-height:1.6;">
-                                Vui lòng đưa mã QR này tại quầy check-in. QR chỉ chứa ticket code, không chứa thông tin cá nhân của khách hàng.
-                            </div>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                """.formatted(
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding: 10px 35px 25px 35px;">
+                                <table style="width: 100%%; border-collapse: collapse; font-size: 15px;">
+                                    <tr>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; color: #666666;">Rạp / Cinema</td>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: right; color: #222222; font-weight: bold;">%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; color: #666666;">Phòng chiếu / Hall</td>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: right; color: #222222; font-weight: bold;">%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; color: #666666;">Suất chiếu / Showtime</td>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: right; color: #a61d24; font-weight: bold;">%s | %s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; color: #666666;">Ghế / Seats</td>
+                                        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: right; color: #222222; font-weight: bold;">%s</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="background-color: #fcfcfc; padding: 30px 35px;">
+                                <h3 style="margin: 0 0 18px 0; color: #4a3426; font-size: 16px; text-transform: uppercase;">Chi tiết thanh toán</h3>
+                                <table style="width: 100%%; border-collapse: collapse; font-size: 15px;">
+                                    <tr>
+                                        <td style="padding: 10px 0; color: #666666;">Tiền vé (%d vé)</td>
+                                        <td style="padding: 10px 0; text-align: right; color: #222222; font-weight: bold;">%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 0; color: #666666;">Bắp nước (Concessions)</td>
+                                        <td style="padding: 10px 0; text-align: right; color: #222222; font-weight: bold;">%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 0; color: #666666;">Giảm giá (Discount)</td>
+                                        <td style="padding: 10px 0; text-align: right; color: #2ba24c; font-weight: bold;">-%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 20px 0 5px 0; border-top: 2px dashed #dddddd; color: #222222; font-weight: 900; font-size: 18px;">TỔNG CỘNG</td>
+                                        <td style="padding: 20px 0 5px 0; border-top: 2px dashed #dddddd; text-align: right; color: #a61d24; font-weight: 900; font-size: 22px;">%s</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding: 35px; text-align: center;">
+                                <p style="margin: 0 0 15px 0; color: #666666; font-size: 15px;">Vui lòng xuất trình mã QR này tại cổng soát vé</p>
+                                <div style="background-color: #ffffff; border-radius: 12px; padding: 10px;">
+                                    %s
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="background-color: #4a3426; padding: 25px; text-align: center; font-size: 13px; color: #d0c4b7; line-height: 1.6;">
+                                <p style="margin: 0 0 8px 0; font-weight: bold; font-size: 15px; color: #ffffff;">Xin cảm ơn quý khách đã sử dụng dịch vụ của %s!</p>
+                                <p style="margin: 0;">Lưu ý: Vé đã mua không thể hoàn hoặc hủy.<br>Vui lòng đến rạp trước suất chiếu 10 phút để nhận bắp nước và qua cổng.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </body>
+            </html>
+            """.formatted(
                 BRAND_NAME,
                 posterHtml,
                 escape(movie.getTitle()),
-                showtime.getStartTime().format(DATE_FORMATTER),
-                showtime.getStartTime().format(TIME_FORMATTER),
+                escape(booking.getBookingCode()),
                 escape(showtime.getHall().getCinema().getName()),
                 escape(showtime.getHall().getName()),
-                escape(booking.getBookingCode()),
+                showtime.getStartTime().format(TIME_FORMATTER),
+                showtime.getStartTime().format(DATE_FORMATTER),
+                seatList,
+                sortedTickets.size(),
+                formatMoney(booking.getTicketTotal()),
+                formatMoney(booking.getConcessionTotal()),
+                formatMoney(booking.getDiscountAmount()),
                 formatMoney(booking.getTotalAmount()),
-                ticketCards);
+                singleQrHtml, // Truyền khối html chứa 1 mã QR duy nhất vào đây
+                BRAND_NAME
+        );
     }
 
     private String buildTicketCard(Booking booking, Ticket ticket) {
