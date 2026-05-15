@@ -54,11 +54,6 @@ public class Booking {
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "staff_id")
-    User staff;
-
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     User customer;
 
