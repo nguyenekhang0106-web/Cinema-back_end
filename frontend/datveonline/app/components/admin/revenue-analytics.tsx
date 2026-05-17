@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, Row, Col, Statistic, Table, Select, Space, Segmented } from "antd";
+import { useEffect, useState } from "react";
+import { Card, Row, Col, Statistic, Table } from "antd";
 import {
   LineChart,
   Line,
@@ -16,113 +17,222 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Dayjs } from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 
 interface RevenueAnalyticsProps {
   dateRange: [Dayjs, Dayjs] | null;
   selectedTheater: string;
 }
 
-const COLORS = ["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1"];
+const COLORS = ["#a61d24", "#faad14", "#1890ff", "#52c41a", "#722ed1"];
 
-// Mock data for revenue
-const mockRevenueData = [
-  { date: "01/05", revenue: 45000000, ticket: 30000000, fnb: 15000000 },
-  { date: "02/05", revenue: 52000000, ticket: 35000000, fnb: 17000000 },
-  { date: "03/05", revenue: 48000000, ticket: 32000000, fnb: 16000000 },
-  { date: "04/05", revenue: 61000000, ticket: 40000000, fnb: 21000000 },
-  { date: "05/05", revenue: 58000000, ticket: 38000000, fnb: 20000000 },
-  { date: "06/05", revenue: 72000000, ticket: 48000000, fnb: 24000000 },
-  { date: "07/05", revenue: 68000000, ticket: 45000000, fnb: 23000000 },
-];
-
-const mockRevenueByMovie = [
-  { name: "Avatar: The Way of Water", revenue: 320000000, tickets: 85000 },
-  { name: "Fast & Furious 10", revenue: 280000000, tickets: 72000 },
-  { name: "Oppenheimer", revenue: 210000000, tickets: 50000 },
-  { name: "Barbie", revenue: 195000000, tickets: 48000 },
-  { name: "Dune: Part 2", revenue: 175000000, tickets: 45000 },
-];
-
-const mockPaymentMethods = [
-  { name: "Ví điện tử (Momo)", value: 45 },
-  { name: "Thẻ ngân hàng", value: 35 },
-  { name: "Điểm thưởng/Voucher", value: 15 },
-  { name: "Tiền mặt", value: 5 },
-];
-
-const mockRevenueComparison = [
-  { period: "Tuần 1", revenue: 310000000, target: 300000000 },
-  { period: "Tuần 2", revenue: 340000000, target: 320000000 },
-  { period: "Tuần 3", revenue: 380000000, target: 350000000 },
-  { period: "Tuần 4", revenue: 420000000, target: 400000000 },
-];
+const cardHeaderStyle = {
+  backgroundColor: "#a61d24",
+  borderTopLeftRadius: "12px",
+  borderTopRightRadius: "12px",
+  borderBottom: "none",
+  padding: "16px 24px",
+};
 
 export default function RevenueAnalytics({
   dateRange,
   selectedTheater,
 }: RevenueAnalyticsProps) {
-  const totalRevenue = mockRevenueData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalTicketRevenue = mockRevenueData.reduce((sum, item) => sum + item.ticket, 0);
-  const totalFNBRevenue = mockRevenueData.reduce((sum, item) => sum + item.fnb, 0);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [movieRevenueData, setMovieRevenueData] = useState<any[]>([]);
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [paymentData, setPaymentData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      try {
+        const startDateObj = dateRange
+          ? dateRange[0]
+          : dayjs().subtract(7, "day");
+        const endDateObj = dateRange ? dateRange[1] : dayjs();
+
+        const start = startDateObj.format("YYYY-MM-DD");
+        const end = endDateObj.format("YYYY-MM-DD");
+
+        let token = null;
+        const sessionStr = localStorage.getItem("kct-auth-session");
+
+        if (sessionStr) {
+          try {
+            const sessionObj = JSON.parse(sessionStr);
+            token = sessionObj.token;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        if (!token) {
+          token =
+            localStorage.getItem("token") || sessionStorage.getItem("token");
+        }
+        if (token === "null" || token === "undefined") token = null;
+
+        const headers: any = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const baseUrl = "http://localhost:9090/cinema/statistics";
+        const [resRevenue, resMovie, resWeekly, resPayment] = await Promise.all(
+          [
+            fetch(
+              `${baseUrl}/revenue-by-date?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+              { headers },
+            ),
+            fetch(
+              `${baseUrl}/revenue-by-movie?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+              { headers },
+            ),
+            fetch(
+              `${baseUrl}/revenue-by-week?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+              { headers },
+            ),
+            fetch(
+              `${baseUrl}/payment-methods?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+              { headers },
+            ),
+          ],
+        );
+
+        // 🔥 THUẬT TOÁN LẤP ĐẦY NGÀY TRỐNG CHO BIỂU ĐỒ DOANH THU
+        const dataRevenue = await resRevenue.json();
+        if (dataRevenue.code === 1000) {
+          const rawDbData = dataRevenue.result || [];
+
+          // Tạo mảng chứa toàn bộ các ngày từ start đến end
+          const fullDateRange = [];
+          let currDate = dayjs(start);
+          const stopDate = dayjs(end);
+
+          while (
+            currDate.isBefore(stopDate) ||
+            currDate.isSame(stopDate, "day")
+          ) {
+            fullDateRange.push({
+              date: currDate.format("DD/MM"),
+              revenue: 0,
+              ticket: 0,
+              fnb: 0,
+            });
+            currDate = currDate.add(1, "day");
+          }
+
+          // Ghi đè dữ liệu DB vào mảng đầy đủ
+          const mergedData = fullDateRange.map((blankDay) => {
+            const foundInDb = rawDbData.find(
+              (dbItem: any) => dbItem.date === blankDay.date,
+            );
+            return foundInDb ? foundInDb : blankDay;
+          });
+
+          setRevenueData(mergedData);
+        } else {
+          setRevenueData([]);
+        }
+
+        const dataMovie = await resMovie.json();
+        const dataWeekly = await resWeekly.json();
+        const dataPayment = await resPayment.json();
+
+        if (dataMovie.code === 1000)
+          setMovieRevenueData(dataMovie.result || []);
+        if (dataWeekly.code === 1000) setWeeklyData(dataWeekly.result || []);
+        if (dataPayment.code === 1000) setPaymentData(dataPayment.result || []);
+      } catch (error) {
+        console.error("Lỗi lấy dữ liệu thống kê", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [dateRange, selectedTheater]);
+
+  const totalRevenue = revenueData.reduce(
+    (sum, item) => sum + (item.revenue || 0),
+    0,
+  );
+  const totalTicketRevenue = revenueData.reduce(
+    (sum, item) => sum + (item.ticket || 0),
+    0,
+  );
+  const totalFNBRevenue = revenueData.reduce(
+    (sum, item) => sum + (item.fnb || 0),
+    0,
+  );
+  const fnbPercentage =
+    totalRevenue > 0 ? (totalFNBRevenue / totalRevenue) * 100 : 0;
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-[#a61d24] bg-gradient-to-br from-white to-red-50/30"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Tổng Doanh Thu"
+              title={
+                <span className="text-gray-600 font-medium">
+                  Tổng Doanh Thu
+                </span>
+              }
               value={totalRevenue}
               suffix="₫"
-              formatter={(value) => {
-                const val = value as number;
-                if (val >= 1000000) {
-                  return `${(val / 1000000).toFixed(1)}M`;
-                }
-                return val.toLocaleString("vi-VN");
-              }}
+              valueStyle={{ color: "#a61d24", fontWeight: "bold" }}
+              formatter={(v) => `${(v as number).toLocaleString("vi-VN")}`}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-green-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Doanh Thu Vé"
+              title={
+                <span className="text-gray-600 font-medium">Doanh Thu Vé</span>
+              }
               value={totalTicketRevenue}
               suffix="₫"
-              formatter={(value) => {
-                const val = value as number;
-                if (val >= 1000000) {
-                  return `${(val / 1000000).toFixed(1)}M`;
-                }
-                return val.toLocaleString("vi-VN");
-              }}
+              formatter={(v) => `${(v as number).toLocaleString("vi-VN")}`}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-orange-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-orange-500 bg-gradient-to-br from-white to-orange-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Doanh Thu F&B"
+              title={
+                <span className="text-gray-600 font-medium">Doanh Thu F&B</span>
+              }
               value={totalFNBRevenue}
               suffix="₫"
-              formatter={(value) => {
-                const val = value as number;
-                if (val >= 1000000) {
-                  return `${(val / 1000000).toFixed(1)}M`;
-                }
-                return val.toLocaleString("vi-VN");
-              }}
+              formatter={(v) => `${(v as number).toLocaleString("vi-VN")}`}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-purple-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-purple-500 bg-gradient-to-br from-white to-purple-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Tỷ lệ F&B"
-              value={(totalFNBRevenue / totalRevenue) * 100}
+              title={
+                <span className="text-gray-600 font-medium">Tỷ lệ F&B</span>
+              }
+              value={fnbPercentage}
               suffix="%"
               precision={1}
             />
@@ -130,125 +240,279 @@ export default function RevenueAnalytics({
         </Col>
       </Row>
 
-      {/* Revenue Trend Chart */}
-      <Card title="📈 Xu Hướng Doanh Thu Theo Ngày" className="shadow-sm">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={mockRevenueData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip
-              formatter={(value) => `${(value as number).toLocaleString("vi-VN")}₫`}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              stroke="#1890ff"
-              strokeWidth={2}
-              name="Tổng doanh thu"
-              dot={{ r: 4 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="ticket"
-              stroke="#52c41a"
-              strokeWidth={2}
-              name="Doanh thu vé"
-            />
-            <Line
-              type="monotone"
-              dataKey="fnb"
-              stroke="#faad14"
-              strokeWidth={2}
-              name="Doanh thu F&B"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* BIỂU ĐỒ DOANH THU */}
+      <Card
+        title={
+          <span className="text-lg font-bold text-white tracking-wide">
+            📈 Xu Hướng Doanh Thu Theo Ngày
+          </span>
+        }
+        headStyle={cardHeaderStyle}
+        className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
+        loading={loading}
+      >
+        {revenueData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart
+              data={revenueData}
+              margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#e5e7eb"
+              />
+              <XAxis
+                dataKey="date"
+                axisLine={false}
+                tickLine={false}
+                tickMargin={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) => `${value / 1000000}M`}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: "8px",
+                  border: "none",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                }}
+                formatter={(value) =>
+                  `${(value as number).toLocaleString("vi-VN")}₫`
+                }
+              />
+              <Legend wrapperStyle={{ paddingTop: "20px" }} />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#a61d24"
+                strokeWidth={3}
+                name="Tổng doanh thu"
+                dot={{ r: 4, fill: "#a61d24", strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="ticket"
+                stroke="#1890ff"
+                strokeWidth={2}
+                name="Doanh thu vé"
+              />
+              <Line
+                type="monotone"
+                dataKey="fnb"
+                stroke="#faad14"
+                strokeWidth={2}
+                name="Doanh thu F&B"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center text-gray-400 bg-gray-50/50 rounded-lg border border-dashed border-gray-200 mt-4">
+            Chưa có phát sinh giao dịch trong khoảng thời gian này
+          </div>
+        )}
       </Card>
 
-      {/* Revenue by Source and Comparison */}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="📊 So Sánh Doanh Thu vs Mục Tiêu" className="shadow-sm">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockRevenueComparison}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value) => `${(value as number).toLocaleString("vi-VN")}₫`}
+          <Card
+            title={
+              <span className="text-lg font-bold text-white tracking-wide">
+                📊 So Sánh Doanh Thu Tuần
+              </span>
+            }
+            headStyle={cardHeaderStyle}
+            className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0 h-full"
+            loading={loading}
+          >
+            <ResponsiveContainer width="100%" height={300} className="mt-4">
+              <BarChart data={weeklyData} margin={{ top: 10 }}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e5e7eb"
                 />
-                <Legend />
-                <Bar dataKey="revenue" fill="#1890ff" name="Doanh thu thực tế" />
-                <Bar dataKey="target" fill="#d9d9d9" name="Mục tiêu" />
+                <XAxis
+                  dataKey="period"
+                  fontSize={11}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => `${value / 1000000}M`}
+                />
+                <Tooltip
+                  cursor={{ fill: "transparent" }}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                  formatter={(value) =>
+                    `${(value as number).toLocaleString("vi-VN")}₫`
+                  }
+                />
+                <Legend wrapperStyle={{ paddingTop: "10px" }} />
+                <Bar
+                  dataKey="revenue"
+                  fill="#a61d24"
+                  name="Thực tế"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
+                <Bar
+                  dataKey="target"
+                  fill="#e5e7eb"
+                  name="Mục tiêu"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
               </BarChart>
             </ResponsiveContainer>
           </Card>
         </Col>
+
         <Col xs={24} md={12}>
-          <Card title="💳 Phương Thức Thanh Toán" className="shadow-sm">
-            <ResponsiveContainer width="100%" height={300}>
+          <Card
+            title={
+              <span className="text-lg font-bold text-white tracking-wide">
+                💳 Phương Thức Thanh Toán
+              </span>
+            }
+            headStyle={cardHeaderStyle}
+            className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0 h-full"
+            loading={loading}
+          >
+            <ResponsiveContainer width="100%" height={300} className="mt-4">
               <PieChart>
                 <Pie
-                  data={mockPaymentMethods}
+                  data={
+                    paymentData.length > 0
+                      ? paymentData
+                      : [{ name: "Chưa có dữ liệu", value: 100 }]
+                  }
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}%`}
+                  innerRadius={60}
                   outerRadius={100}
-                  fill="#8884d8"
+                  paddingAngle={5}
                   dataKey="value"
+                  label={({ name, value }) =>
+                    paymentData.length > 0 ? `${name}: ${value}%` : name
+                  }
+                  labelLine={false}
                 >
-                  {mockPaymentMethods.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {paymentData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        paymentData.length > 0
+                          ? COLORS[index % COLORS.length]
+                          : "#f3f4f6"
+                      }
+                      stroke="none"
+                    />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `${value}%`} />
+                {paymentData.length > 0 && (
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    }}
+                    formatter={(value) => `${value}%`}
+                  />
+                )}
               </PieChart>
             </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
 
-      {/* Revenue by Movie */}
-      <Card title="🎬 Doanh Thu Theo Phim" className="shadow-sm">
+      {/* BẢNG DOANH THU THEO PHIM */}
+      <Card
+        title={
+          <span className="text-lg font-bold text-white tracking-wide">
+            🎬 Phân Bổ Doanh Thu Theo Phim
+          </span>
+        }
+        headStyle={cardHeaderStyle}
+        className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
+        loading={loading}
+        bodyStyle={{ padding: "0px" }}
+      >
+        <style>{`
+          .custom-table .ant-table-thead > tr > th {
+            background-color: #fff1f0 !important;
+            color: #a61d24 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            font-size: 13px;
+            border-bottom: 2px solid #ffccc7 !important;
+          }
+          .custom-table .ant-table-tbody > tr:hover > td {
+            background-color: #fffbfb !important;
+          }
+        `}</style>
+
         <Table
-          dataSource={mockRevenueByMovie.map((item, index) => ({
+          dataSource={movieRevenueData.map((item, index) => ({
             key: index,
             ...item,
           }))}
           columns={[
             {
               title: "Tên Phim",
-              dataIndex: "name",
-              key: "name",
+              dataIndex: "movieName",
+              key: "movieName",
+              render: (text) => (
+                <span className="font-medium text-gray-800">{text}</span>
+              ),
             },
             {
               title: "Doanh Thu",
               dataIndex: "revenue",
               key: "revenue",
-              render: (text) => `${(text as number).toLocaleString("vi-VN")}₫`,
-              sorter: (a, b) => (a.revenue as number) - (b.revenue as number),
+              align: "right",
+              render: (text) => (
+                <strong className="text-[#a61d24] text-base bg-red-50 px-3 py-1 rounded-full">
+                  {`${(text as number).toLocaleString("vi-VN")}₫`}
+                </strong>
+              ),
+              sorter: (a, b) => a.revenue - b.revenue,
             },
             {
               title: "Số Lượng Vé",
               dataIndex: "tickets",
               key: "tickets",
-              render: (text) => (text as number).toLocaleString("vi-VN"),
-              sorter: (a, b) => (a.tickets as number) - (b.tickets as number),
+              align: "center",
+              render: (text) => (
+                <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium">
+                  {Number(text).toLocaleString("vi-VN")}
+                </span>
+              ),
+              sorter: (a, b) => a.tickets - b.tickets,
             },
             {
-              title: "Doanh Thu/Vé",
-              dataIndex: "revenue",
+              title: "Doanh Thu Trung Bình / Vé",
               key: "avgPrice",
-              render: (_, record) => {
-                const avgPrice = (record.revenue as number) / (record.tickets as number);
-                return `${avgPrice.toLocaleString("vi-VN")}₫`;
-              },
+              align: "right",
+              render: (_, record) => (
+                <span className="text-gray-500">
+                  {`${Math.round(record.tickets > 0 ? record.revenue / record.tickets : 0).toLocaleString("vi-VN")}₫`}
+                </span>
+              ),
             },
           ]}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 5 }}
+          className="custom-table"
         />
       </Card>
     </div>

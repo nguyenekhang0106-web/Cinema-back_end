@@ -90,8 +90,8 @@ payment:
 mail:
   host: smtp.gmail.com
   port: 587
-  username: bacdoandanh@gmail.com
-  password: ledwpisqwjsrvmwb # KHÔNG phải mật khẩu đăng nhập Gmail đâu nhé!
+  username: kctcinemavietnam@gmail.com
+  password: wrkbjtkzdarhlasc
   properties:
     mail:
       smtp:

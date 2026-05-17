@@ -6,6 +6,7 @@ import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -26,7 +27,8 @@ public class UserResponse {
     Integer totalRewardPoints;
     boolean emailVerified;
     String verificationToken;
-
-    // BỔ SUNG TRƯỜNG NÀY: Trả về link ảnh cho Frontend
     String avatarUrl;
+
+    // 🔥 BỔ SUNG: Trả về thời gian tạo tài khoản để Frontend hiển thị "Ngày Tham Gia"
+    LocalDateTime createdAt;
 }

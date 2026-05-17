@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
@@ -61,9 +62,12 @@ public class User {
     @Builder.Default
     boolean emailVerified = false;
 
-    // BỔ SUNG TRƯỜNG NÀY: Lưu đường dẫn ảnh đại diện (cho phép null)
     @Column(name = "avatar_url")
     String avatarUrl;
+
+    // 🔥 BỔ SUNG: Trường lưu thời gian tạo tài khoản để làm thống kê biểu đồ
+    @Column(name = "created_at", updatable = false)
+    LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cinema_id", nullable = true)
@@ -76,4 +80,10 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     Set<Role> roles;
+
+    // 🔥 BỔ SUNG: Tự động gắn ngày giờ hiện tại khi lưu User mới vào Database
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

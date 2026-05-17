@@ -10,6 +10,7 @@ import {
   TagOutlined,
   TagsOutlined,
   ClockCircleOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import {
@@ -85,6 +86,65 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   const heldSeatIdsRef = useRef<string[]>([]);
   const currentStepRef = useRef<number>(currentStep);
 
+  // =========================================================
+  // 🔥 CƠ CHẾ SAO LƯU TRẠNG THÁI NÂNG CẤP (HỖ TRỢ GIỮ BƯỚC XUẤT VÉ)
+  // =========================================================
+
+  // 1. Tự động KHÔI PHỤC dữ liệu kể cả khi đang ở bước xuất vé (Step 4)
+  useEffect(() => {
+    if (typeof window !== "undefined" && showtimeId) {
+      const savedTempState = sessionStorage.getItem(
+        `kct_temp_wizard_state_${showtimeId}`,
+      );
+      if (savedTempState) {
+        try {
+          const parsed = JSON.parse(savedTempState);
+
+          if (parsed.selectedSeats) setSelectedSeats(parsed.selectedSeats);
+          if (parsed.snackQuantities)
+            setSnackQuantities(parsed.snackQuantities);
+          if (parsed.currentStep) setCurrentStep(parsed.currentStep);
+          if (parsed.timeLeft) setTimeLeft(parsed.timeLeft);
+          if (parsed.finalBookingCode)
+            setFinalBookingCode(parsed.finalBookingCode);
+          if (parsed.paymentDone) setPaymentDone(parsed.paymentDone);
+
+          console.log(
+            "[i18n Sync] Đồng bộ trạng thái xuất vé qua ngôn ngữ mới thành công!",
+          );
+        } catch (e) {
+          console.error("Lỗi khôi phục trạng thái tạm thời:", e);
+        }
+      }
+    }
+  }, [showtimeId]);
+
+  // 2. Tự động LƯU biến động giỏ hàng và thông tin vé thành công vào Session
+  useEffect(() => {
+    if (typeof window !== "undefined" && showtimeId) {
+      const tempState = {
+        currentStep,
+        selectedSeats,
+        snackQuantities,
+        timeLeft,
+        finalBookingCode,
+        paymentDone,
+      };
+      sessionStorage.setItem(
+        `kct_temp_wizard_state_${showtimeId}`,
+        JSON.stringify(tempState),
+      );
+    }
+  }, [
+    currentStep,
+    selectedSeats,
+    snackQuantities,
+    timeLeft,
+    showtimeId,
+    finalBookingCode,
+    paymentDone,
+  ]);
+
   // 🔥 LẮNG NGHE SỰ KIỆN KHI VNPAY ĐẨY NGƯỜI DÙNG QUAY LẠI TRANG ĐẶT VÉ
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -122,6 +182,10 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           setSelectedSeats(parsed.selectedSeats || []);
           setCurrentStep(4);
           setPaymentDone(true);
+
+          // 🔥 LƯU Ý: Không xóa dòng kct_temp_wizard_state ở đây nữa
+          // để khi khách đổi ngôn ngữ, hệ thống vẫn nhớ đang ở bước xuất vé.
+
           message.success(
             "Thanh toán thành công! Vé điện tử đã được gửi qua email.",
           );
@@ -282,6 +346,30 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         if (!stRes.ok) throw new Error("Không tìm thấy suất chiếu");
         const stData = await stRes.json();
         const showtimeInfo = stData.result;
+
+        // 🔥 CHỐT CHẶN KIỂM TRA SUẤT CHIẾU QUÁ HẠN 15 PHÚT KHI RELOAD
+        if (showtimeInfo && showtimeInfo.startTime) {
+          const startTime = dayjs(showtimeInfo.startTime);
+          const maxAllowedTime = startTime.add(15, "minute"); // Thời gian chiếu + 15 phút
+
+          if (dayjs().isAfter(maxAllowedTime)) {
+            message.error(
+              locale === "vi"
+                ? "Suất chiếu này đã bắt đầu quá 15 phút. Hệ thống tự động chuyển bạn về trang chủ!"
+                : "This showtime has started for more than 15 minutes. Redirecting to homepage!",
+            );
+
+            // Dọn dẹp các session đặt vé dở dang (nếu có)
+            sessionStorage.removeItem(`kct_temp_wizard_state_${showtimeId}`);
+            sessionStorage.removeItem("kct_booking_state");
+
+            // Đẩy thẳng về trang chủ theo đúng ngôn ngữ tương ứng
+            router.replace(locale === "vi" ? "/" : "/en");
+            return; // Dừng luồng xử lý không nạp thêm các dữ liệu ghế/bắp nước phía dưới
+          }
+        }
+
+        // Nếu suất chiếu vẫn hợp lệ -> Tiếp tục set dữ liệu như cũ
         setShowtime(showtimeInfo);
 
         const movieRes = await fetch(
@@ -318,7 +406,6 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           setConcessions(concessionsData.result || []);
         }
 
-        // 🔥 GỌI API LẤY DANH SÁCH KHUYẾN MÃI (PROMOTIONS)
         const promosRes = await fetch(
           `http://localhost:9090/cinema/promotions`,
         );
@@ -336,7 +423,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
       }
     };
     if (showtimeId) fetchBookingDetails();
-  }, [showtimeId, isAuthChecking]);
+  }, [showtimeId, isAuthChecking, router, locale]);
 
   useEffect(() => {
     if (!showtimeId || isAuthChecking) return;
@@ -371,14 +458,21 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
     if (timeLeft === null || timeLeft <= 0) {
       if (timeLeft === 0) {
         Modal.error({
-          title: "Hết thời gian giữ ghế",
-          content: "Thời gian giữ ghế của bạn đã hết. Vui lòng chọn lại ghế!",
+          title:
+            locale === "vi" ? "Hết thời gian giữ ghế" : "Seat Hold Expired",
+          content:
+            locale === "vi"
+              ? "Thời gian giữ ghế của bạn đã hết. Giao dịch đã bị hủy, vui lòng quay lại trang chủ!"
+              : "Your seat hold time has expired. The transaction is cancelled!",
           okButtonProps: { className: "bg-[#a61d24]" },
           onOk: () => {
-            setCurrentStep(0);
-            setSelectedSeats([]);
-            setTimeLeft(null);
-            window.location.reload();
+            forceReleaseSeatsNow();
+            sessionStorage.removeItem("kct_booking_state");
+
+            // 🔥 XÓA TRẠNG THÁI TẠM THỜI VÌ SUẤT CHIẾU ĐÃ HẾT HẠN GIỮ GHẾ
+            sessionStorage.removeItem(`kct_temp_wizard_state_${showtimeId}`);
+
+            router.replace(locale === "vi" ? "/" : "/en");
           },
         });
       }
@@ -389,7 +483,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
       1000,
     );
     return () => clearInterval(timerId);
-  }, [timeLeft]);
+  }, [timeLeft, router, locale]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -685,7 +779,12 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   }
 
   function goBack() {
-    if (currentStep === 4) return;
+    // 🔥 ĐÃ SỬA LỖI: Bấm nút Quay lại ở Bước 4 sẽ Xóa sạch session và Về trang chủ
+    if (currentStep === 4) {
+      sessionStorage.removeItem(`kct_temp_wizard_state_${showtimeId}`);
+      router.push(locale === "vi" ? "/" : "/en");
+      return;
+    }
 
     // 🔥 Nếu khách đang ở bước 3 (Thanh toán) mà bấm nút Quay lại -> Hủy hóa đơn nháp để nhả ghế
     if (currentStep === 3) {
@@ -949,8 +1048,14 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
                 disabled={currentStep === 0}
                 onClick={goBack}
               >
-                {copy.back}
+                {/* 🔥 HIỂN THỊ CHỮ "VỀ TRANG CHỦ" KHI ĐANG Ở BƯỚC XUẤT VÉ */}
+                {currentStep === 4
+                  ? locale === "vi"
+                    ? "Về Trang Chủ"
+                    : "Back to Home"
+                  : copy.back}
               </Button>
+
               {currentStep < 4 ? (
                 <Button
                   size="large"
@@ -962,15 +1067,35 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
                       <CreditCardOutlined />
                     )
                   }
-                  // Bỏ check !paymentDone đi để khách chỉ cần bấm nút này là nhảy ra VNPay
                   disabled={currentStep === 0 && selectedSeats.length === 0}
                   onClick={goNext}
                   className="bg-[#a61d24]"
                 >
-                  {/* 🔥 Cập nhật chữ hiển thị */}
                   {currentStep === 3 ? "Thanh toán qua VNPay" : copy.next}
                 </Button>
-              ) : null}
+              ) : (
+                // 🔥 THÊM NÚT ĐẶT THÊM VÉ (RESET TRẠNG THÁI VỀ BƯỚC 0)
+                <Button
+                  size="large"
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    sessionStorage.removeItem(
+                      `kct_temp_wizard_state_${showtimeId}`,
+                    );
+                    setCurrentStep(0);
+                    setSelectedSeats([]);
+                    setPaymentDone(false);
+                    setFinalBookingCode("");
+                    setTimeLeft(null);
+                  }}
+                  className="bg-[#a61d24] font-semibold"
+                >
+                  {locale === "vi"
+                    ? "Đặt thêm vé suất chiếu này"
+                    : "Book more tickets"}
+                </Button>
+              )}
             </div>
           </Space>
         </Card>
@@ -1145,9 +1270,22 @@ function ConcessionStep({
                 </div>
                 <InputNumber
                   min={0}
-                  max={9}
+                  max={99} // 🔥 ĐÃ SỬA: Cho phép nhập tối đa đến 99
+                  maxLength={2} // 🔥 BỔ SUNG: Giới hạn độ dài nhập liệu đúng 2 chữ số
                   value={snackQuantities[item.id] ?? 0}
-                  onChange={(value) => updateSnackQuantity(item.id, value)}
+                  onChange={(value) => {
+                    // Cập nhật state (nếu null/undefined thì quy về 0)
+                    updateSnackQuantity(item.id, value ?? 0);
+                  }}
+                  // Bổ sung parser để loại bỏ các ký tự lạ, dấu + - . e
+                  parser={(displayValue) => {
+                    const parsed = parseInt(
+                      displayValue?.replace(/\D/g, "") || "0",
+                      10,
+                    );
+                    return isNaN(parsed) ? 0 : parsed;
+                  }}
+                  className="w-16 text-center"
                 />
               </div>
             </div>
@@ -1703,7 +1841,6 @@ function getBookingCopy(locale: "vi" | "en") {
       markPaid: "I have completed payment",
       paymentConfirmed: "Payment confirmed",
       finishPayment: "Finish payment",
-      ticketReady: "Payment completed. Tickets have been generated below.",
       eTicket: "E-ticket",
       ticketNo: "Ticket no.",
       cinema: "Cinema",
@@ -1717,6 +1854,8 @@ function getBookingCopy(locale: "vi" | "en") {
       grandTotal: "Total",
       next: "Continue",
       back: "Back",
+      ticketReady:
+        "Payment completed! Your e-ticket will be sent to your email and is displayed below.",
     };
   }
   return {
@@ -1756,7 +1895,6 @@ function getBookingCopy(locale: "vi" | "en") {
     markPaid: "Tôi đã thanh toán xong",
     paymentConfirmed: "Đã xác nhận thanh toán",
     finishPayment: "Hoàn tất thanh toán",
-    ticketReady: "Thanh toán hoàn tất. Vé của khách hàng đã được tạo bên dưới.",
     eTicket: "Vé điện tử",
     ticketNo: "Mã vé",
     cinema: "Rạp",
@@ -1770,5 +1908,7 @@ function getBookingCopy(locale: "vi" | "en") {
     grandTotal: "Tổng cộng",
     next: "Tiếp tục",
     back: "Quay lại",
+    ticketReady:
+      "Thanh toán hoàn tất! Vé điện tử sẽ được gửi về email của quý khách và hiển thị chi tiết bên dưới.",
   };
 }

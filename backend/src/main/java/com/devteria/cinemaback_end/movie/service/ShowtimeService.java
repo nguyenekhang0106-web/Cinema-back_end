@@ -74,16 +74,15 @@ public class ShowtimeService {
         return showtimeMapper.toShowtimeResponse(showtimeRepository.save(showtime));
     }
 
-    // --- 2. READ (Public) - CÓ LAZY UPDATE COMPLETED ---
+    // --- 2. READ (Public) ---
     public List<ShowtimeResponse> getAllShowtimes() {
         List<Showtime> showtimes = showtimeRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
 
-        // Cập nhật trạng thái COMPLETED tự động khi thời gian hiện tại qua endTime
         List<Showtime> updatedShowtimes = showtimes.stream().peek(showtime -> {
             if (showtime.getStatus() == ShowtimeStatus.SCHEDULED && now.isAfter(showtime.getEndTime())) {
                 showtime.setStatus(ShowtimeStatus.COMPLETED);
-                showtimeRepository.save(showtime); // Lưu cập nhật xuống DB
+                showtimeRepository.save(showtime);
             }
         }).toList();
 
@@ -92,18 +91,24 @@ public class ShowtimeService {
                 .toList();
     }
 
-    // --- 3. READ BY ID (Public) - CÓ LAZY UPDATE COMPLETED ---
+    // --- 3. READ BY ID (Public) ---
     public ShowtimeResponse getShowtimeById(String id) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SHOWTIME_NOT_EXISTED));
 
-        // Cập nhật trạng thái nếu truy vấn chi tiết 1 lịch chiếu đã qua giờ kết thúc
         if (showtime.getStatus() == ShowtimeStatus.SCHEDULED && LocalDateTime.now().isAfter(showtime.getEndTime())) {
             showtime.setStatus(ShowtimeStatus.COMPLETED);
             showtimeRepository.save(showtime);
         }
 
         return showtimeMapper.toShowtimeResponse(showtime);
+    }
+
+    // 🔥 API MỚI: Lấy danh sách lịch chiếu theo Phim
+    public List<ShowtimeResponse> getShowtimesByMovie(String movieId) {
+        return showtimeRepository.findByMovieId(movieId).stream()
+                .map(showtimeMapper::toShowtimeResponse)
+                .toList();
     }
 
     // --- 4. UPDATE ---
@@ -157,14 +162,13 @@ public class ShowtimeService {
         showtimeRepository.save(showtime);
     }
 
-    // --- 6. DELETE (Chuyển thành Soft Delete) ---
+    // --- 6. DELETE ---
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void deleteShowtime(String id) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SHOWTIME_NOT_EXISTED));
 
-        // Đã sửa: Không xóa cứng khỏi DB, chỉ đổi Status thành CANCELLED
         showtime.setStatus(ShowtimeStatus.CANCELLED);
         showtimeRepository.save(showtime);
     }

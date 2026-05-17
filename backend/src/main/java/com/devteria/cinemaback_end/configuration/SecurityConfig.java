@@ -6,7 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,46 +20,37 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 @Configuration
+@EnableWebSecurity
+@EnableMethodSecurity // 🔥 BẮT BUỘC PHẢI CÓ để @PreAuthorize hoạt động
 public class SecurityConfig {
 
     private final String[] PUBLIC_POST_ENDPOINTS = {
-            "/users",
-            "/users/register",
-            "/users/verify-otp",
-            "/users/resend-otp",
-            "/auth/token",
-            "/auth/introspect",
-            "/auth/logout",
-            "/auth/refresh",
-            "/auth/forgot-password",
-            "/auth/reset-password",
-            // Module Payment
+            "/users", "/users/register", "/users/verify-otp", "/users/resend-otp",
+            "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh",
+            "/auth/forgot-password", "/auth/reset-password",
             "/payments/*/execute",
-            // Cho phép kết nối WebSocket ban đầu
             "/ws/**"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
-            "/movies", "/movies/**",
-            "/showtimes", "/showtimes/**",
+            "/movies", "/movies/**", "/cinema/movies/**",
+            "/showtimes", "/showtimes/**", "/cinema/showtimes/**",
             "/reviews/movie/**", "/reviews/*",
-            "/cinemas", "/cinemas/**",
-            "/halls", "/halls/**",
-            "/banners", "/banners/**",
-            "/seats/hall/**",
+            "/cinemas", "/cinemas/**", "/cinema/cinemas/**",
+            "/halls", "/halls/**", "/cinema/halls/**",
+
+            // 🔥 ĐÃ BỔ SUNG CÁC TIỀN TỐ CHO BANNERS
+            "/banners", "/banners/**", "/cinema/banners/**",
+
+            "/seats/hall/**", "/cinema/seats/**",
             "/seats/status/**",
-            "/articles", "/articles/**",
-            "/concessions", "/concessions/**",
-            "/promotions", "/promotions/**",
+            "/articles", "/articles/**", "/cinema/articles/**",
+            "/concessions", "/concessions/**", "/cinema/concessions/**",
+            "/promotions", "/promotions/**", "/cinema/promotions/**",
 
-            // 🔥 CỤM CẤU HÌNH VNPAY:
-            // Thêm /** để Spring Security không chặn nếu đường dẫn có dấu / ở cuối hoặc biến động
-            "/payments/vnpay/return",
-            "/payments/vnpay/return/**",
-            "/payments/vnpay/ipn",
-            "/payments/vnpay/ipn/**",
-
-            "/ws/**"
+            "/payments/vnpay/return", "/payments/vnpay/return/**",
+            "/payments/vnpay/ipn", "/payments/vnpay/ipn/**",
+            "/ws/**", "/images/**"
     };
 
     @Value("${jwt.signerKey}")
@@ -70,23 +63,17 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> request
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                // Cấu hình phân dải cho POST và GET
                 .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
-
                 .anyRequest().authenticated());
 
-        // Kích hoạt CORS
         httpSecurity.cors(Customizer.withDefaults());
 
-        // Cấu hình Exception Handling và JWT
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
-        // Bắt lỗi 403 Forbidden
         httpSecurity.exceptionHandling(exceptions -> exceptions
                 .accessDeniedHandler(new CustomAccessDeniedHandler()));
 
@@ -98,8 +85,6 @@ public class SecurityConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-
-        // Cấu hình tên miền Frontend được phép gọi vào API
         corsConfiguration.addAllowedOrigin("http://localhost:3000");
         corsConfiguration.addAllowedMethod("*");
         corsConfiguration.addAllowedHeader("*");
@@ -114,10 +99,8 @@ public class SecurityConfig {
     JwtAuthenticationConverter jwtAuthenticationConverter(){
         JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
         jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
-
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
-
         return jwtAuthenticationConverter;
     }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, Row, Col, Table, Progress, Statistic, Tag, Tabs } from "antd";
 import {
   BarChart,
@@ -12,426 +13,523 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  ScatterChart,
-  Scatter,
 } from "recharts";
-import { Dayjs } from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 
 interface MoviePerformanceProps {
   dateRange: [Dayjs, Dayjs] | null;
   selectedTheater: string;
 }
 
-// Mock data for movies
-const mockBoxOffice = [
-  {
-    id: 1,
-    title: "Avatar: The Way of Water",
-    ticketsSold: 85000,
-    revenue: 320000000,
-    occupancyRate: 92,
-    genre: "Sci-Fi",
-    format: "3D/IMAX",
-  },
-  {
-    id: 2,
-    title: "Fast & Furious 10",
-    ticketsSold: 72000,
-    revenue: 280000000,
-    occupancyRate: 88,
-    genre: "Action",
-    format: "2D",
-  },
-  {
-    id: 3,
-    title: "Oppenheimer",
-    ticketsSold: 50000,
-    revenue: 210000000,
-    occupancyRate: 75,
-    genre: "Drama",
-    format: "2D/IMAX",
-  },
-  {
-    id: 4,
-    title: "Barbie",
-    ticketsSold: 48000,
-    revenue: 195000000,
-    occupancyRate: 72,
-    genre: "Comedy",
-    format: "2D",
-  },
-  {
-    id: 5,
-    title: "Dune: Part 2",
-    ticketsSold: 45000,
-    revenue: 175000000,
-    occupancyRate: 68,
-    genre: "Sci-Fi",
-    format: "IMAX",
-  },
-];
-
-// Mock data for hourly trends
-const mockHourlyTrends = [
-  { time: "09:00", occupancy: 15 },
-  { time: "10:00", occupancy: 22 },
-  { time: "11:00", occupancy: 35 },
-  { time: "12:00", occupancy: 45 },
-  { time: "13:00", occupancy: 52 },
-  { time: "14:00", occupancy: 48 },
-  { time: "15:00", occupancy: 60 },
-  { time: "16:00", occupancy: 75 },
-  { time: "17:00", occupancy: 85 },
-  { time: "18:00", occupancy: 92 },
-  { time: "19:00", occupancy: 95 },
-  { time: "20:00", occupancy: 98 },
-  { time: "21:00", occupancy: 85 },
-  { time: "22:00", occupancy: 60 },
-];
-
-// Mock data for genre preferences
-const mockGenrePreferences = [
-  { genre: "Action", viewers: 185000, revenue: 720000000, avgOccupancy: 85 },
-  { genre: "Sci-Fi", viewers: 145000, revenue: 610000000, avgOccupancy: 82 },
-  { genre: "Comedy", viewers: 125000, revenue: 480000000, avgOccupancy: 75 },
-  { genre: "Drama", viewers: 95000, revenue: 390000000, avgOccupancy: 68 },
-  { genre: "Horror", viewers: 75000, revenue: 250000000, avgOccupancy: 60 },
-];
-
-// Mock data for format performance
-const mockFormatPerformance = [
-  {
-    hallId: 1,
-    hallName: "Hall 1 - Standard 2D",
-    format: "2D",
-    seatType: "Standard",
-    totalSeats: 150,
-    avgOccupancy: 72,
-    revenue: 180000000,
-  },
-  {
-    hallId: 2,
-    hallName: "Hall 2 - VIP",
-    format: "2D",
-    seatType: "VIP",
-    totalSeats: 80,
-    avgOccupancy: 85,
-    revenue: 210000000,
-  },
-  {
-    hallId: 3,
-    hallName: "Hall 3 - IMAX",
-    format: "IMAX",
-    seatType: "Premium",
-    totalSeats: 200,
-    avgOccupancy: 92,
-    revenue: 380000000,
-  },
-  {
-    hallId: 4,
-    hallName: "Hall 4 - 3D",
-    format: "3D",
-    seatType: "Standard",
-    totalSeats: 160,
-    avgOccupancy: 88,
-    revenue: 250000000,
-  },
-  {
-    hallId: 5,
-    hallName: "Hall 5 - Couple Seat",
-    format: "2D",
-    seatType: "Couple",
-    totalSeats: 50,
-    avgOccupancy: 95,
-    revenue: 140000000,
-  },
-];
+const cardHeaderStyle = {
+  backgroundColor: "#a61d24",
+  borderTopLeftRadius: "12px",
+  borderTopRightRadius: "12px",
+  borderBottom: "none",
+  padding: "16px 24px",
+};
 
 export default function MoviePerformance({
   dateRange,
   selectedTheater,
 }: MoviePerformanceProps) {
+  const [movieData, setMovieData] = useState<any[]>([]);
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [hallData, setHallData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchMoviePerformance = async () => {
+      setLoading(true);
+      try {
+        const start = dateRange
+          ? dateRange[0].format("YYYY-MM-DD")
+          : dayjs().subtract(7, "day").format("YYYY-MM-DD");
+        const end = dateRange
+          ? dateRange[1].format("YYYY-MM-DD")
+          : dayjs().format("YYYY-MM-DD");
+
+        let token = null;
+        const sessionStr = localStorage.getItem("kct-auth-session");
+        if (sessionStr) {
+          try {
+            token = JSON.parse(sessionStr).token;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        if (!token)
+          token =
+            localStorage.getItem("token") || sessionStorage.getItem("token");
+        if (token === "null" || token === "undefined") token = null;
+
+        const headers: any = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const baseUrl = "http://localhost:9090/cinema/statistics";
+
+        const [resMovie, resHourly, resHall] = await Promise.all([
+          fetch(
+            `${baseUrl}/movie-performance?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+            { headers },
+          ),
+          fetch(
+            `${baseUrl}/hourly-trends?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+            { headers },
+          ),
+          fetch(
+            `${baseUrl}/hall-performance?startDate=${start}&endDate=${end}&cinemaId=${selectedTheater}`,
+            { headers },
+          ),
+        ]);
+
+        const dataMovie = await resMovie.json();
+        const dataHourly = await resHourly.json();
+        const dataHall = await resHall.json();
+
+        if (dataMovie.code === 1000) setMovieData(dataMovie.result || []);
+        if (dataHourly.code === 1000) setHourlyData(dataHourly.result || []);
+        if (dataHall.code === 1000) setHallData(dataHall.result || []);
+      } catch (error) {
+        console.error("Lỗi lấy dữ liệu thống kê phim", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMoviePerformance();
+  }, [dateRange, selectedTheater]);
+
   const avgOccupancy =
-    mockBoxOffice.reduce((sum, item) => sum + item.occupancyRate, 0) / mockBoxOffice.length;
-  const totalTickets = mockBoxOffice.reduce((sum, item) => sum + item.ticketsSold, 0);
+    movieData.length > 0
+      ? movieData.reduce((sum, item) => sum + item.occupancyRate, 0) /
+        movieData.length
+      : 0;
+  const totalTickets = movieData.reduce(
+    (sum, item) => sum + item.ticketsSold,
+    0,
+  );
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
+      <style>{`
+        .custom-table .ant-table-thead > tr > th {
+          background-color: #fff1f0 !important;
+          color: #a61d24 !important;
+          font-weight: 700 !important;
+          text-transform: uppercase;
+          font-size: 13px;
+          border-bottom: 2px solid #ffccc7 !important;
+        }
+        .custom-table .ant-table-tbody > tr:hover > td {
+          background-color: #fffbfb !important;
+        }
+      `}</style>
+
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-[#a61d24] bg-gradient-to-br from-white to-red-50/30"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Tỷ Lệ Lấp Đầy Ghế Trung Bình"
+              title={
+                <span className="text-gray-600 font-medium">
+                  Tỷ Lệ Lấp Đầy TB
+                </span>
+              }
               value={avgOccupancy}
               suffix="%"
               precision={1}
+              valueStyle={{ color: "#a61d24", fontWeight: "bold" }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-green-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Tổng Vé Bán Ra"
+              title={
+                <span className="text-gray-600 font-medium">
+                  Tổng Vé Bán Ra
+                </span>
+              }
               value={totalTickets}
-              formatter={(value) => {
-                const val = value as number;
-                if (val >= 1000) {
-                  return `${(val / 1000).toFixed(1)}K`;
-                }
-                return val.toLocaleString("vi-VN");
-              }}
+              formatter={(val) => Number(val).toLocaleString("vi-VN")}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-orange-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-orange-500 bg-gradient-to-br from-white to-orange-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Phim Đang Chiếu"
-              value={mockBoxOffice.length}
+              title={
+                <span className="text-gray-600 font-medium">
+                  Phim Đã Bán Vé
+                </span>
+              }
+              value={movieData.length}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card className="shadow-sm border-l-4 border-l-purple-500">
+          <Card
+            className="shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-purple-500 bg-gradient-to-br from-white to-purple-50/40"
+            loading={loading}
+            bordered={false}
+          >
             <Statistic
-              title="Phim Ăn Khách Nhất"
-              value={mockBoxOffice[0]?.title.substring(0, 15) + "..."}
+              title={
+                <span className="text-gray-600 font-medium">
+                  Phim Ăn Khách Nhất
+                </span>
+              }
+              value={
+                movieData.length > 0
+                  ? movieData[0]?.title.substring(0, 15) + "..."
+                  : "Chưa có"
+              }
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Tabs for different views */}
-      <Card className="shadow-sm">
+      <Card
+        className="shadow-sm border-0 bg-transparent"
+        bodyStyle={{ padding: 0 }}
+      >
         <Tabs
+          type="card"
+          className="custom-tabs"
           items={[
             {
               key: "boxoffice",
-              label: "🎬 Top Phim Ăn Khách",
+              label: (
+                <span className="font-semibold text-base px-4">
+                  🎬 Top Phim Ăn Khách
+                </span>
+              ),
               children: (
-                <div className="space-y-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={mockBoxOffice}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="title"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        fontSize={12}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value) =>
-                          `${(value as number).toLocaleString("vi-VN")} vé`
-                        }
-                      />
-                      <Legend />
-                      <Bar dataKey="ticketsSold" fill="#1890ff" name="Số vé bán ra" />
-                    </BarChart>
-                  </ResponsiveContainer>
-
-                  <Table
-                    dataSource={mockBoxOffice.map((item, index) => ({
-                      key: index,
-                      ...item,
-                    }))}
-                    columns={[
-                      {
-                        title: "Xếp Hạng",
-                        render: (_, __, index) => index + 1,
-                        width: 80,
-                      },
-                      {
-                        title: "Tên Phim",
-                        dataIndex: "title",
-                        key: "title",
-                      },
-                      {
-                        title: "Thể Loại",
-                        dataIndex: "genre",
-                        key: "genre",
-                        render: (text) => <Tag color="blue">{text}</Tag>,
-                      },
-                      {
-                        title: "Định Dạng",
-                        dataIndex: "format",
-                        key: "format",
-                        render: (text) => <Tag color="cyan">{text}</Tag>,
-                      },
-                      {
-                        title: "Vé Bán",
-                        dataIndex: "ticketsSold",
-                        key: "ticketsSold",
-                        render: (text) => (text as number).toLocaleString("vi-VN"),
-                        sorter: (a, b) => (a.ticketsSold as number) - (b.ticketsSold as number),
-                      },
-                      {
-                        title: "Tỷ Lệ Lấp Đầy",
-                        dataIndex: "occupancyRate",
-                        key: "occupancyRate",
-                        render: (text) => (
-                          <Progress
-                            type="circle"
-                            percent={text as number}
-                            width={50}
-                            format={(percent) => `${percent}%`}
+                <div className="space-y-6 mt-4">
+                  <Card
+                    title={
+                      <span className="text-lg font-bold text-white tracking-wide">
+                        📊 Biểu Đồ Số Lượng Vé Phim
+                      </span>
+                    }
+                    headStyle={cardHeaderStyle}
+                    className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
+                  >
+                    {movieData.length > 0 ? (
+                      <ResponsiveContainer
+                        width="100%"
+                        height={320}
+                        className="mt-4"
+                      >
+                        <BarChart data={movieData}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            vertical={false}
+                            stroke="#e5e7eb"
                           />
-                        ),
-                        sorter: (a, b) =>
-                          (a.occupancyRate as number) - (b.occupancyRate as number),
-                      },
-                    ]}
-                    pagination={{ pageSize: 10 }}
-                  />
+                          <XAxis
+                            dataKey="title"
+                            angle={-45}
+                            textAnchor="end"
+                            height={120}
+                            fontSize={11}
+                            tickMargin={5}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis axisLine={false} tickLine={false} />
+                          <Tooltip
+                            cursor={{ fill: "#f3f4f6" }}
+                            contentStyle={{
+                              borderRadius: "8px",
+                              border: "none",
+                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                            }}
+                            formatter={(value) =>
+                              `${(value as number).toLocaleString("vi-VN")} vé`
+                            }
+                          />
+                          <Legend wrapperStyle={{ paddingTop: "10px" }} />
+                          <Bar
+                            dataKey="ticketsSold"
+                            fill="#1890ff"
+                            name="Số vé bán ra"
+                            radius={[4, 4, 0, 0]}
+                            maxBarSize={60}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center text-gray-400 bg-gray-50/50 rounded-lg border border-dashed border-gray-200 mt-4">
+                        Không có dữ liệu phim
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card
+                    title={
+                      <span className="text-lg font-bold text-white tracking-wide">
+                        🏆 Bảng Xếp Hạng Doanh Thu Phim
+                      </span>
+                    }
+                    headStyle={cardHeaderStyle}
+                    className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
+                    bodyStyle={{ padding: 0 }}
+                  >
+                    <Table
+                      loading={loading}
+                      className="custom-table"
+                      dataSource={movieData.map((item, index) => ({
+                        key: index,
+                        ...item,
+                      }))}
+                      columns={[
+                        // 👇 BẮT ĐẦU CHỈNH SỬA CỘT HẠNG Ở ĐÂY 👇
+                        {
+                          title: "Hạng",
+                          width: 80,
+                          align: "center",
+                          render: (_, __, index) => {
+                            const rank = index + 1;
+                            let rankColor = "#8c8c8c"; // Màu xám mặc định cho hạng > 3
+                            let rankWeight = "font-normal"; // Mặc định bỏ in đậm cho hạng > 3
+
+                            if (rank === 1) {
+                              rankColor = "#ffa940"; // Vàng Gold ấm
+                              rankWeight = "font-bold text-lg"; // Đậm và to hơn
+                            } else if (rank === 2) {
+                              rankColor = "#bfbfbf"; // Bạc Silver lạnh
+                              rankWeight = "font-bold text-lg";
+                            } else if (rank === 3) {
+                              rankColor = "#c18f5e"; // Đồng Bronze ấm
+                              rankWeight = "font-bold text-lg";
+                            }
+
+                            // Áp dụng style màu sắc cho cả dấu # và số
+                            return (
+                              <span
+                                className={`${rankWeight}`}
+                                style={{ color: rankColor }}
+                              >
+                                #{rank}
+                              </span>
+                            );
+                          },
+                        },
+                        // 👆 KẾT THÚC CHỈNH SỬA CỘT HẠNG 👆
+                        {
+                          title: "Tên Phim",
+                          dataIndex: "title",
+                          key: "title",
+                          render: (text) => (
+                            <span className="font-medium text-gray-800">
+                              {text}
+                            </span>
+                          ),
+                        },
+                        {
+                          title: "Thể Loại",
+                          dataIndex: "genre",
+                          key: "genre",
+                          render: (text) => <Tag color="red">{text}</Tag>,
+                        },
+                        {
+                          title: "Vé Bán",
+                          dataIndex: "ticketsSold",
+                          key: "ticketsSold",
+                          align: "center",
+                          render: (text) => (
+                            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium">
+                              {Number(text).toLocaleString("vi-VN")}
+                            </span>
+                          ),
+                          sorter: (a, b) => a.ticketsSold - b.ticketsSold,
+                        },
+                        {
+                          title: "Tỷ Lệ Lấp Đầy",
+                          dataIndex: "occupancyRate",
+                          key: "occupancyRate",
+                          align: "center",
+                          render: (text) => (
+                            <Progress
+                              type="dashboard"
+                              percent={Number(text)}
+                              width={45}
+                              strokeColor="#a61d24"
+                              format={(p) => (
+                                <span className="text-xs">{p}%</span>
+                              )}
+                            />
+                          ),
+                          sorter: (a, b) => a.occupancyRate - b.occupancyRate,
+                        },
+                        {
+                          title: "Doanh Thu",
+                          dataIndex: "revenue",
+                          key: "revenue",
+                          align: "right",
+                          render: (text) => (
+                            <strong className="text-[#a61d24]">{`${(text as number).toLocaleString("vi-VN")}₫`}</strong>
+                          ),
+                          sorter: (a, b) => a.revenue - b.revenue,
+                        },
+                      ]}
+                      pagination={{ pageSize: 5 }}
+                    />
+                  </Card>
                 </div>
               ),
             },
             {
               key: "hourly",
-              label: "⏰ Giờ Cao Điểm vs Thấp Điểm",
-              children: (
-                <div className="space-y-4">
-                  <p className="text-gray-600 text-sm">
-                    Tỷ lệ lấp đầy ghế trung bình theo từng khung giờ trong ngày
-                  </p>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={mockHourlyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="time" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => `${value}%`} />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="occupancy"
-                        stroke="#1890ff"
-                        strokeWidth={2}
-                        name="Tỷ lệ lấp đầy (%)"
-                        dot={{ r: 3 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+              label: (
+                <span className="font-semibold text-base px-4">
+                  ⏰ Giờ Cao Điểm
+                </span>
               ),
-            },
-            {
-              key: "genre",
-              label: "🎭 Thể Loại Phim Được Yêu Thích",
               children: (
-                <div className="space-y-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={mockGenrePreferences}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="genre" />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value) => (value as number).toLocaleString("vi-VN")}
-                      />
-                      <Legend />
-                      <Bar dataKey="viewers" fill="#52c41a" name="Số lượng khán giả" />
-                    </BarChart>
-                  </ResponsiveContainer>
-
-                  <Table
-                    dataSource={mockGenrePreferences.map((item, index) => ({
-                      key: index,
-                      ...item,
-                    }))}
-                    columns={[
-                      {
-                        title: "Thể Loại",
-                        dataIndex: "genre",
-                        key: "genre",
-                      },
-                      {
-                        title: "Số Khán Giả",
-                        dataIndex: "viewers",
-                        key: "viewers",
-                        render: (text) => (text as number).toLocaleString("vi-VN"),
-                        sorter: (a, b) => (a.viewers as number) - (b.viewers as number),
-                      },
-                      {
-                        title: "Doanh Thu",
-                        dataIndex: "revenue",
-                        key: "revenue",
-                        render: (text) =>
-                          `${((text as number) / 1000000).toFixed(1)}M₫`,
-                        sorter: (a, b) => (a.revenue as number) - (b.revenue as number),
-                      },
-                      {
-                        title: "Tỷ Lệ Lấp Đầy TB",
-                        dataIndex: "avgOccupancy",
-                        key: "avgOccupancy",
-                        render: (text) => `${text}%`,
-                        sorter: (a, b) =>
-                          (a.avgOccupancy as number) - (b.avgOccupancy as number),
-                      },
-                    ]}
-                    pagination={{ pageSize: 10 }}
-                  />
+                <div className="space-y-4 mt-4">
+                  <Card
+                    title={
+                      <span className="text-lg font-bold text-white tracking-wide">
+                        📈 Biểu Đồ Lượng Vé Mua Theo Giờ (Real-time)
+                      </span>
+                    }
+                    headStyle={cardHeaderStyle}
+                    className="shadow-sm rounded-xl overflow-hidden border-0"
+                  >
+                    <ResponsiveContainer
+                      width="100%"
+                      height={300}
+                      className="mt-4"
+                    >
+                      <LineChart data={hourlyData}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="#e5e7eb"
+                        />
+                        <XAxis
+                          dataKey="time"
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "none" }}
+                          formatter={(val) => `${val} vé`}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="tickets"
+                          stroke="#a61d24"
+                          strokeWidth={3}
+                          name="Số lượng vé bán ra"
+                          dot={{
+                            r: 4,
+                            fill: "#a61d24",
+                            strokeWidth: 2,
+                            stroke: "#fff",
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Card>
                 </div>
               ),
             },
             {
               key: "hall",
-              label: "🏛️ Hiệu Suất Phòng Chiếu",
+              label: (
+                <span className="font-semibold text-base px-4">
+                  🏛️ Hiệu Suất Phòng Chiếu
+                </span>
+              ),
               children: (
-                <div className="space-y-6">
-                  <Table
-                    dataSource={mockFormatPerformance.map((item, index) => ({
-                      key: index,
-                      ...item,
-                    }))}
-                    columns={[
-                      {
-                        title: "Tên Phòng",
-                        dataIndex: "hallName",
-                        key: "hallName",
-                      },
-                      {
-                        title: "Định Dạng",
-                        dataIndex: "format",
-                        key: "format",
-                        render: (text) => <Tag color="blue">{text}</Tag>,
-                      },
-                      {
-                        title: "Loại Ghế",
-                        dataIndex: "seatType",
-                        key: "seatType",
-                      },
-                      {
-                        title: "Tổng Ghế",
-                        dataIndex: "totalSeats",
-                        key: "totalSeats",
-                      },
-                      {
-                        title: "Tỷ Lệ Lấp Đầy",
-                        dataIndex: "avgOccupancy",
-                        key: "avgOccupancy",
-                        render: (text) => (
-                          <Progress
-                            type="circle"
-                            percent={text as number}
-                            width={50}
-                            format={(percent) => `${percent}%`}
-                          />
-                        ),
-                        sorter: (a, b) =>
-                          (a.avgOccupancy as number) - (b.avgOccupancy as number),
-                      },
-                      {
-                        title: "Doanh Thu",
-                        dataIndex: "revenue",
-                        key: "revenue",
-                        render: (text) =>
-                          `${((text as number) / 1000000).toFixed(1)}M₫`,
-                        sorter: (a, b) => (a.revenue as number) - (b.revenue as number),
-                      },
-                    ]}
-                    pagination={{ pageSize: 10 }}
-                  />
+                <div className="space-y-6 mt-4">
+                  <Card
+                    title={
+                      <span className="text-lg font-bold text-white tracking-wide">
+                        🏢 Bảng Thống Kê Phòng Chiếu Thực Tế
+                      </span>
+                    }
+                    headStyle={cardHeaderStyle}
+                    className="shadow-sm rounded-xl overflow-hidden border-0"
+                    bodyStyle={{ padding: 0 }}
+                  >
+                    <Table
+                      className="custom-table"
+                      dataSource={hallData.map((item, index) => ({
+                        key: index,
+                        ...item,
+                      }))}
+                      columns={[
+                        {
+                          title: "Tên Phòng",
+                          dataIndex: "hallName",
+                          key: "hallName",
+                          render: (text) => (
+                            <span className="font-medium text-gray-800">
+                              {text}
+                            </span>
+                          ),
+                        },
+                        {
+                          title: "Định Dạng",
+                          dataIndex: "format",
+                          key: "format",
+                          align: "center",
+                          render: (text) => <Tag color="blue">{text}</Tag>,
+                        },
+                        {
+                          title: "Tổng Ghế",
+                          dataIndex: "totalSeats",
+                          key: "totalSeats",
+                          align: "center",
+                          render: (text) => (
+                            <span className="bg-gray-100 px-3 py-1 rounded-full">
+                              {text}
+                            </span>
+                          ),
+                        },
+                        {
+                          title: "Tỷ Lệ Lấp Đầy",
+                          dataIndex: "avgOccupancy",
+                          key: "avgOccupancy",
+                          align: "center",
+                          render: (text) => (
+                            <Progress
+                              percent={Number(text)}
+                              strokeColor="#a61d24"
+                            />
+                          ),
+                        },
+                        {
+                          title: "Doanh Thu",
+                          dataIndex: "revenue",
+                          key: "revenue",
+                          align: "right",
+                          render: (text) => (
+                            <strong className="text-[#a61d24] bg-red-50 px-3 py-1 rounded-full">{`${(Number(text) / 1000000).toFixed(1)}M₫`}</strong>
+                          ),
+                        },
+                      ]}
+                      pagination={false}
+                    />
+                  </Card>
                 </div>
               ),
             },

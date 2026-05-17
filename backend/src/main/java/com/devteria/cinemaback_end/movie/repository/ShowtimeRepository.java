@@ -14,6 +14,8 @@ import java.util.Optional;
 
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, String> {
+
+    // Đã thêm chuẩn xác
     List<Showtime> findByMovieId(String movieId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -27,7 +29,7 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, String> {
     boolean existsOverlappingShowtime(@Param("hallId") String hallId,
                                       @Param("newStartTime") LocalDateTime newStartTime,
                                       @Param("newEndTime") LocalDateTime newEndTime);
-    // 2. Dùng cho Update (loại trừ ID của chính nó)
+
     @Query("SELECT COUNT(s) > 0 FROM Showtime s WHERE s.hall.id = :hallId " +
             "AND s.status != 'CANCELLED' " +
             "AND s.id != :excludeId " +

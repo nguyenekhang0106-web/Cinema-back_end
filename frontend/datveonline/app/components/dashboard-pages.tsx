@@ -844,7 +844,7 @@ export function AdminDashboardPage() {
     message.success(copy.userDeleted);
   }
 
-  // 🔥 THÊM CARD BẮP NƯỚC VÀ ĐIỀU CHỈNH GIAO DIỆN LƯỚI
+  // 🔥 THÊM CARD BẮP NƯỚC, KHUYẾN MÃI VÀ THỐNG KÊ VÀO GIAO DIỆN LƯỚI
   const moduleCards = [
     {
       title: copy.moduleMoviesTitle,
@@ -874,11 +874,9 @@ export function AdminDashboardPage() {
         locale === "vi"
           ? "Thêm, sửa, xóa danh sách đồ ăn, thức uống."
           : "Manage food and drinks list.",
-      // ✅ SỬA THÀNH DÒNG NÀY: Mở trạng thái Modal thành true
       action: () => setConcessionModalOpen(true),
       actionLabel: locale === "vi" ? "Mở quản lý" : "Manage Concessions",
     },
-    // 🔥 BỔ SUNG CARD THỨ 5 CHO KHUYẾN MÃI
     {
       title: locale === "vi" ? "Quản lý Khuyến Mãi" : "Promotions",
       value: "Promo",
@@ -888,6 +886,18 @@ export function AdminDashboardPage() {
           : "Manage discount codes and conditions.",
       action: () => setPromoModalOpen(true),
       actionLabel: locale === "vi" ? "Mở quản lý" : "Manage Promotions",
+    },
+    // 🔥 BỔ SUNG CARD THỨ 6 DÀNH CHO THỐNG KÊ DOANH THU
+    {
+      title: locale === "vi" ? "Thống Kê & Báo Cáo" : "Analytics & Reports",
+      value: "Chart",
+      desc:
+        locale === "vi"
+          ? "Xem biểu đồ doanh thu, vé bán và hiệu suất rạp."
+          : "View revenue, tickets and theater performance.",
+      action: () =>
+        router.push(locale === "vi" ? "/admin/thong-ke" : "/en/admin/thong-ke"),
+      actionLabel: locale === "vi" ? "Xem Biểu Đồ" : "View Analytics",
     },
   ];
 
@@ -905,8 +915,8 @@ export function AdminDashboardPage() {
 
           <Row gutter={[24, 24]} className="mt-8">
             {moduleCards.map((card) => (
-              // 🔥 Tinh chỉnh Col lg={6} để 4 thẻ Card xếp vừa vặn trên 1 dòng
-              <Col xs={24} sm={12} lg={6} key={card.title}>
+              // 🔥 Tinh chỉnh Col lg={8} để 6 thẻ Card xếp vừa vặn thành 2 hàng (mỗi hàng 3 thẻ)
+              <Col xs={24} sm={12} lg={8} key={card.title}>
                 <Card
                   bordered={false}
                   className="cinema-paper h-full rounded-[24px]"

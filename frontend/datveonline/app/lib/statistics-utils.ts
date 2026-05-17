@@ -8,33 +8,65 @@ interface ExportData {
 }
 
 /**
- * Export statistics data to Excel file
+ * Export statistics data to Excel file (CSV with UTF-8 BOM)
  */
 export function exportToExcel(data: ExportData) {
   try {
-    // Create a simple CSV format that can be opened in Excel
-    const timestamp = new Date().toLocaleString("vi-VN");
-    const csvContent = [
-      ["Báo Cáo Thống Kê Rạp Chiếu Phim"],
-      [],
-      ["Thời gian xuất báo cáo:", timestamp],
-      ["Khoảng thời gian:", data.dateRange],
-      ["Cụm rạp:", data.theater],
-      ["Loại thống kê:", data.tab],
-      [],
-      ["Ghi chú: Dữ liệu này là dữ liệu mô phỏng (Mock Data)"],
-      ["Để có dữ liệu thực tế, vui lòng kết nối với backend API"],
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
+    // 1. Thêm cờ BOM \uFEFF để Excel ép buộc đọc file theo chuẩn UTF-8 (Sửa lỗi font tiếng Việt)
+    let csvContent = "\uFEFF";
 
-    // Create a blob and trigger download
+    // 2. Tạo Header thông tin báo cáo
+    const timestamp = new Date().toLocaleString("vi-VN");
+    csvContent += "BÁO CÁO THỐNG KÊ KCT CINEMA\n\n";
+    csvContent += `Thời gian xuất báo cáo:,${timestamp}\n`;
+    csvContent += `Khoảng thời gian:,${data.dateRange}\n`;
+    csvContent += `Cụm rạp:,${data.theater}\n`;
+    csvContent += `Loại thống kê:,${getTabLabel(data.tab)}\n\n`;
+
+    // 3. Thuật toán quét và trích xuất dữ liệu từ các Bảng HTML (Table)
+    if (data.htmlContent) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data.htmlContent, "text/html");
+      const tables = doc.querySelectorAll("table");
+
+      if (tables.length > 0) {
+        tables.forEach((table, index) => {
+          csvContent += `--- BẢNG DỮ LIỆU ${index + 1} ---\n`;
+          const rows = table.querySelectorAll("tr");
+
+          rows.forEach((row) => {
+            const cols = row.querySelectorAll("th, td");
+            const rowData: string[] = [];
+
+            cols.forEach((col) => {
+              let text = col.textContent?.trim() || "";
+              // Xử lý chuỗi để không bị vỡ cột CSV (Bọc trong ngoặc kép nếu có dấu phẩy hoặc xuống dòng)
+              text = text.replace(/"/g, '""');
+              if (
+                text.includes(",") ||
+                text.includes("\n") ||
+                text.includes('"')
+              ) {
+                text = `"${text}"`;
+              }
+              rowData.push(text);
+            });
+            csvContent += rowData.join(",") + "\n";
+          });
+          csvContent += "\n"; // Cách dòng giữa các bảng
+        });
+      } else {
+        csvContent += "Không có dữ liệu dạng bảng trong tab báo cáo này.\n";
+      }
+    }
+
+    // 4. Tạo file và ép trình duyệt tải xuống
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
 
     link.setAttribute("href", url);
-    link.setAttribute("download", `thong-ke-${Date.now()}.csv`);
+    link.setAttribute("download", `Bao_Cao_${data.tab}_${Date.now()}.csv`);
     link.style.visibility = "hidden";
 
     document.body.appendChild(link);
@@ -48,20 +80,18 @@ export function exportToExcel(data: ExportData) {
 
 /**
  * Export statistics data to PDF file
- * Note: This is a simplified version that opens print dialog
- * For production, use libraries like jsPDF or html2pdf
  */
 export function exportToPDF(data: ExportData) {
   try {
     const timestamp = new Date().toLocaleString("vi-VN");
-    const printWindow = window.open("", "", "height=600,width=800");
+    const printWindow = window.open("", "", "height=800,width=1000");
 
     if (printWindow) {
       const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Báo Cáo Thống Kê</title>
+            <title>Báo Cáo Thống Kê KCT Cinema</title>
             <style>
               body {
                 font-family: Arial, sans-serif;
@@ -69,42 +99,58 @@ export function exportToPDF(data: ExportData) {
                 color: #333;
               }
               h1 {
-                color: #1890ff;
+                color: #a61d24; /* Đổi sang màu đỏ KCT Cinema */
                 text-align: center;
-                border-bottom: 2px solid #1890ff;
+                border-bottom: 2px solid #a61d24;
                 padding-bottom: 10px;
+                text-transform: uppercase;
               }
               .info {
-                background-color: #f5f5f5;
+                background-color: #fcfcfc;
                 padding: 15px;
-                border-radius: 5px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
                 margin: 20px 0;
               }
               .info-row {
                 display: flex;
                 justify-content: space-between;
                 margin: 8px 0;
+                font-size: 14px;
               }
               .info-label {
                 font-weight: bold;
-                color: #1890ff;
+                color: #a61d24;
               }
               .content {
                 margin-top: 30px;
               }
-              .note {
-                background-color: #fffbe6;
-                padding: 10px;
-                border-left: 4px solid #faad14;
+              /* Xóa phần .note cũ */
+              
+              /* CSS Tối ưu cho bảng in */
+              table {
+                width: 100%;
+                border-collapse: collapse;
                 margin-top: 20px;
+              }
+              th, td {
+                border: 1px solid #e5e7eb;
+                padding: 10px;
+                text-align: left;
+              }
+              th {
+                background-color: #fff1f0;
+                color: #a61d24;
               }
               @media print {
                 body { margin: 0; }
+                .info { border: 1px solid #000; }
+                th { background-color: #eee !important; -webkit-print-color-adjust: exact; }
               }
             </style>
           </head>
           <body>
-            <h1>📊 Báo Cáo Thống Kê Rạp Chiếu Phim</h1>
+            <h1>Báo Cáo Thống Kê</h1>
             <div class="info">
               <div class="info-row">
                 <span class="info-label">Thời gian xuất báo cáo:</span>
@@ -126,10 +172,6 @@ export function exportToPDF(data: ExportData) {
             <div class="content">
               ${data.htmlContent || "<p>Không có nội dung để in</p>"}
             </div>
-            <div class="note">
-              <strong>📝 Ghi chú:</strong> Báo cáo này chứa dữ liệu mô phỏng. 
-              Để có dữ liệu thực tế, vui lòng kết nối với backend API.
-            </div>
           </body>
         </html>
       `;
@@ -140,7 +182,7 @@ export function exportToPDF(data: ExportData) {
       // Trigger print dialog after content loads
       setTimeout(() => {
         printWindow.print();
-      }, 250);
+      }, 500);
     }
   } catch (error) {
     console.error("Error exporting to PDF:", error);
@@ -153,10 +195,10 @@ export function exportToPDF(data: ExportData) {
  */
 function getTabLabel(tab: string): string {
   const labels: { [key: string]: string } = {
-    revenue: "💰 Thống Kê Doanh Thu",
-    movie: "🎬 Hiệu Suất Phim",
-    user: "👥 Thống Kê Người Dùng",
-    theater: "🏢 Thống Kê Rạp & Phòng Chiếu",
+    revenue: "Thống Kê Doanh Thu",
+    movie: "Hiệu Suất Phim",
+    user: "Thống Kê Người Dùng",
+    theater: "Thống Kê Rạp & Phòng Chiếu",
   };
   return labels[tab] || tab;
 }

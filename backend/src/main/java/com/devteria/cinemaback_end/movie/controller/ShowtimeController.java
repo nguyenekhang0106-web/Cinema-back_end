@@ -38,6 +38,15 @@ public class ShowtimeController {
                 .build();
     }
 
+    // 🔥 API MỚI: Lấy danh sách lịch chiếu theo ID Phim
+    @GetMapping("/movie/{movieId}")
+    public ApiResponse<List<ShowtimeResponse>> getShowtimesByMovie(@PathVariable String movieId) {
+        return ApiResponse.<List<ShowtimeResponse>>builder()
+                .code(1000)
+                .result(showtimeService.getShowtimesByMovie(movieId))
+                .build();
+    }
+
     // Tạo mới lịch chiếu
     @PostMapping
     public ApiResponse<ShowtimeResponse> createShowtime(@RequestBody @Valid ShowtimeRequest request) {
