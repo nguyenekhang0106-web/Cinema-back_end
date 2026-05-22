@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.user.service;
 
+import com.devteria.cinemaback_end.booking.repository.BookingRepository;
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.user.dto.UserRequest;
@@ -8,15 +9,18 @@ import com.devteria.cinemaback_end.user.dto.ChangePasswordRequest;
 import com.devteria.cinemaback_end.user.dto.UserResponse;
 import com.devteria.cinemaback_end.user.entity.Role;
 import com.devteria.cinemaback_end.user.entity.User;
+import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import com.devteria.cinemaback_end.user.entity.enums.RoleName;
 import com.devteria.cinemaback_end.user.mapper.UserMapper;
 import com.devteria.cinemaback_end.user.repository.RoleRepository;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
 import com.devteria.cinemaback_end.util.S3Service;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +40,7 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     S3Service s3Service;
+    BookingRepository bookingRepository;
 
     private static final String DEFAULT_AVATAR_KEY = "avatar/DefaultAvatar.png";
 
@@ -165,5 +170,73 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void syncHistoricalSpendingAndPoints1() {
+        log.info("Bắt đầu đồng bộ dữ liệu chi tiêu và điểm thưởng cho toàn bộ User...");
+        List<User> users = userRepository.findAll();
+
+        for (User user : users) {
+            // 1. Gọi DB lấy tổng tiền đã tiêu (Chỉ lấy đơn PAID)
+            Double totalSpent = bookingRepository.sumTotalSpendingByCustomerId(user.getId());
+
+            if (totalSpent == null) {
+                totalSpent = 0.0;
+            }
+
+            // 2. Cập nhật lại số liệu
+            user.setTotalSpending(totalSpent);
+
+            // 3. Quy đổi điểm (10.000đ = 1đ)
+            int earnedPoints = (int) (totalSpent / 10000);
+            user.setTotalRewardPoints(earnedPoints);
+
+            // 4. 🔥 XÉT LẠI HẠNG CHO CÁC TÀI KHOẢN CŨ
+            if (totalSpent >= 5000000) {
+                user.setMemberTier(MemberTier.PLATINUM);
+            } else if (totalSpent >= 3000000) {
+                user.setMemberTier(MemberTier.GOLD);
+            } else if (totalSpent >= 1500000) {
+                user.setMemberTier(MemberTier.SILVER);
+            } else {
+                user.setMemberTier(MemberTier.BASIC);
+            }
+        }
+
+        userRepository.saveAll(users);
+        log.info("Đã đồng bộ xong dữ liệu cho {} users!", users.size());
+    }
+
+    @Transactional
+    public void syncHistoricalSpendingAndPoints() {
+        log.info("Đang đồng bộ chi tiêu năm {}...", java.time.LocalDate.now().getYear());
+        List<User> users = userRepository.findAll();
+
+        for (User user : users) {
+            // Lấy doanh thu CHỈ TRONG NĂM NAY
+            Double yearSpending = bookingRepository.sumCurrentYearSpendingByCustomerId(user.getId());
+            if (yearSpending == null) yearSpending = 0.0;
+
+            user.setTotalSpending(yearSpending);
+
+            // Logic xét hạng dựa trên doanh thu năm nay
+            if (yearSpending >= 5000000) user.setMemberTier(MemberTier.PLATINUM);
+            else if (yearSpending >= 3000000) user.setMemberTier(MemberTier.GOLD);
+            else if (yearSpending >= 1500000) user.setMemberTier(MemberTier.SILVER);
+            else user.setMemberTier(MemberTier.BASIC);
+
+            // Lưu ý: Điểm thưởng (Reward Points) thường là tích lũy trọn đời hoặc lâu dài,
+            // nên ta KHÔNG lọc theo năm khi tính điểm để tránh thiệt cho khách.
+        }
+        userRepository.saveAll(users);
+    }
+
+    @Scheduled(cron = "0 0 0 1 1 ?")
+    @Transactional
+    public void scheduleYearlyReset() {
+        log.info("Bắt đầu thực hiện chiến dịch Năm Mới: Reset Chi tiêu và Hạng thành viên...");
+        userRepository.resetYearlySpendingAndTier(MemberTier.BASIC);
+        log.info("Hoàn tất chiến dịch Reset Năm Mới!");
     }
 }

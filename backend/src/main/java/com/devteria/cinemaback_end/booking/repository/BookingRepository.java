@@ -237,4 +237,13 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate,
             @Param("cinemaId") String cinemaId);
+
+    @Query("SELECT SUM(b.totalAmount) FROM Booking b WHERE b.customer.id = :customerId AND b.status = 'PAID'")
+    Double sumTotalSpendingByCustomerId(@Param("customerId") String customerId);
+
+    @Query("SELECT SUM(b.totalAmount) FROM Booking b " +
+            "WHERE b.customer.id = :customerId " +
+            "AND b.status = 'PAID' " +
+            "AND YEAR(b.bookingDate) = YEAR(CURRENT_DATE)")
+    Double sumCurrentYearSpendingByCustomerId(@Param("customerId") String customerId);
 }

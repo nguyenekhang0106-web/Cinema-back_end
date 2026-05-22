@@ -4,6 +4,7 @@ import com.devteria.cinemaback_end.promotion.entity.Promotion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,4 +22,9 @@ public interface PromotionRepository extends JpaRepository<Promotion, String> {
 
     // Lấy các mã đang hoạt động cho khách hàng xem
     List<Promotion> findAllByActiveTrueOrderByValidUntilAsc();
+
+    // 🔥 HÀM MỚI: Chỉ lấy mã Active và ValidUntil > Thời gian hiện tại (Now)
+    List<Promotion> findAllByActiveTrueAndValidUntilAfterOrderByValidUntilAsc(LocalDateTime now);
+
+
 }

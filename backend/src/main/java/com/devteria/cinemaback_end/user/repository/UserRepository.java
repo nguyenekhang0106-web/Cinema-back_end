@@ -1,6 +1,7 @@
 package com.devteria.cinemaback_end.user.repository;
 
 import com.devteria.cinemaback_end.user.entity.User;
+import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -34,4 +35,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     List<Object[]> getDailyNewUsersRaw(
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate);
+
+    @Modifying
+    @Query("UPDATE User u SET u.totalSpending = 0.0, u.memberTier = :basicTier")
+    void resetYearlySpendingAndTier(@Param("basicTier") MemberTier basicTier);
 }

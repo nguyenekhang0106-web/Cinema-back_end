@@ -19,20 +19,27 @@ public class BookingResponse {
     LocalDateTime expiresAt;
     BookingStatus status;
 
-    // Phân tích dòng tiền
+    // --- Phân tích dòng tiền ---
     Double ticketTotal;
     Double concessionTotal;
+
+    // Giảm giá từ mã khuyến mãi (Voucher)
     Double discountAmount;
+
+    // 🔥 BỔ SUNG: Tiền giảm từ đặc quyền hạng thẻ
+    Double memberDiscountAmount;
+
+    // Tiền cuối cùng khách phải trả
     Double totalAmount;
 
-    // Thông tin cơ bản để hiển thị nhanh
+    // --- Thông tin cơ bản để hiển thị nhanh ---
     String customerName;
     String movieTitle;
     String cinemaName;
     String hallName;
     LocalDateTime showTimeStart;
 
-    // Danh sách vé và đồ ăn (Trả về dạng chuỗi cho gọn, hoặc bạn có thể tạo DTO riêng nếu muốn hiển thị phức tạp hơn)
-    List<String> seatNames; // Vd: ["A1", "A2", "A3"]
-    List<String> concessionDetails; // Vd: ["2x Bắp Phô Mai", "1x Nước Ngọt L"]
+    // Danh sách vé và đồ ăn
+    List<String> seatNames;
+    List<String> concessionDetails;
 }

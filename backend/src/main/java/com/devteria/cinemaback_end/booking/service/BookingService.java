@@ -3,6 +3,7 @@ package com.devteria.cinemaback_end.booking.service;
 import com.devteria.cinemaback_end.booking.dto.BookingRequest;
 import com.devteria.cinemaback_end.booking.dto.BookingResponse;
 import com.devteria.cinemaback_end.booking.entity.Booking;
+import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import com.devteria.cinemaback_end.booking.entity.Payment;
 import com.devteria.cinemaback_end.booking.entity.Ticket;
 import com.devteria.cinemaback_end.booking.entity.enums.BookingStatus;
@@ -77,6 +78,7 @@ public class BookingService {
                 .ticketTotal(0.0)
                 .concessionTotal(0.0)
                 .discountAmount(0.0)
+                .memberDiscountAmount(0.0) // 🔥 KHỞI TẠO TIỀN GIẢM HẠNG BẰNG 0
                 .totalAmount(0.0)
                 .tickets(new ArrayList<>())
                 .concessions(new ArrayList<>())
@@ -88,17 +90,32 @@ public class BookingService {
 
             double ticketTotal = buildTickets(request, showtime, savedBooking);
             double concessionTotal = buildConcessions(request, savedBooking);
-            double discountAmount = applyPromotion(
+
+            // 1. Giảm giá từ mã khuyến mãi (Voucher)
+            double promoDiscount = applyPromotion(
                     request,
                     savedBooking,
                     ticketTotal + concessionTotal,
                     ticketTotal,
                     concessionTotal);
 
+            // 2. 🔥 TÍNH TIỀN GIẢM TỪ ĐẶC QUYỀN HẠNG THÀNH VIÊN
+            double memberDiscountPercent = switch (customer.getMemberTier()) {
+                case SILVER -> 0.05; // 5%
+                case GOLD -> 0.10;   // 10%
+                case PLATINUM -> 0.15; // 15%
+                default -> 0.0;      // BASIC 0%
+            };
+            // Áp dụng giảm giá hạng thành viên trên tổng bill (Vé + Bắp nước)
+            double memberDiscountAmount = (ticketTotal + concessionTotal) * memberDiscountPercent;
+
             savedBooking.setTicketTotal(ticketTotal);
             savedBooking.setConcessionTotal(concessionTotal);
-            savedBooking.setDiscountAmount(discountAmount);
-            savedBooking.setTotalAmount(ticketTotal + concessionTotal - discountAmount);
+            savedBooking.setDiscountAmount(promoDiscount); // Lưu tiền Voucher
+            savedBooking.setMemberDiscountAmount(memberDiscountAmount); // 🔥 LƯU TIỀN GIẢM HẠNG
+
+            // 🔥 TỔNG TIỀN CUỐI CÙNG = TỔNG - GIẢM VOUCHER - GIẢM HẠNG
+            savedBooking.setTotalAmount(ticketTotal + concessionTotal - promoDiscount - memberDiscountAmount);
 
             Booking persistedBooking = bookingRepository.save(savedBooking);
             bookingRedisService.setBookingHold(persistedBooking.getId(), expiresAt);
@@ -170,6 +187,33 @@ public class BookingService {
             promo.setUsedCount(promo.getUsedCount() + 1);
             promotionRepository.save(promo); // Lưu thẳng xuống DB
         }
+
+        User customer = booking.getCustomer();
+        double amountPaid = booking.getTotalAmount();
+
+        // 1. Cộng tổng chi tiêu
+        double currentSpending = customer.getTotalSpending() != null ? customer.getTotalSpending() : 0.0;
+        double newSpending = currentSpending + amountPaid;
+        customer.setTotalSpending(newSpending);
+
+        // 2. 🔥 XÉT THĂNG HẠNG TỰ ĐỘNG DỰA TRÊN TỔNG CHI TIÊU MỚI
+        if (newSpending >= 5000000) {
+            customer.setMemberTier(MemberTier.PLATINUM);
+        } else if (newSpending >= 3000000) {
+            customer.setMemberTier(MemberTier.GOLD);
+        } else if (newSpending >= 1500000) {
+            customer.setMemberTier(MemberTier.SILVER);
+        } else {
+            customer.setMemberTier(MemberTier.BASIC);
+        }
+
+        // 3. Cộng điểm thưởng (10.000 VNĐ = 1 điểm)
+        int earnedPoints = (int) (amountPaid / 10000);
+        int currentPoints = customer.getTotalRewardPoints() != null ? customer.getTotalRewardPoints() : 0;
+        customer.setTotalRewardPoints(currentPoints + earnedPoints);
+
+        userRepository.save(customer);
+        // ======================================================================
 
         Booking savedBooking = bookingRepository.save(booking);
         outboxEventService.enqueueBookingPaid(savedBooking);

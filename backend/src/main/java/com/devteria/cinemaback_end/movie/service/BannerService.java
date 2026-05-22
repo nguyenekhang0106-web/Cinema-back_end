@@ -25,9 +25,9 @@ public class BannerService {
     BannerMapper bannerMapper;
     CinemaRepository cinemaRepository;
 
+    // 🔴 KHÓA: Chỉ Admin mới được TẠO
     @PreAuthorize("hasRole('ADMIN')")
     public BannerResponse createBanner(BannerRequest request) {
-        // 🔥 KIỂM TRA TRÙNG TÊN TRƯỚC KHI TẠO
         if (request.getTitle() != null && !request.getTitle().isBlank() && bannerRepository.existsByTitle(request.getTitle())) {
             throw new AppException(ErrorCode.BANNER_TITLE_EXISTED);
         }
@@ -43,35 +43,36 @@ public class BannerService {
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 
-    // Các hàm GET giữ nguyên...
+    // 🟢 MỞ: Cho phép lấy danh sách Banner đang hoạt động
     public List<BannerResponse> getActiveBanners() {
         return bannerRepository.findAllByActiveTrueAndCinemaIsNullOrderByDisplayOrderAsc().stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    // 🟢 MỞ: Đã gỡ @PreAuthorize để Frontend không bị lỗi 403 khi gọi /all
     public List<BannerResponse> getAllBanners() {
         return bannerRepository.findAllByCinemaIsNullOrderByDisplayOrderAsc().stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
+    // 🟢 MỞ: Cho phép lấy danh sách Banner hoạt động của Rạp
     public List<BannerResponse> getActiveBannersByCinema(String cinemaId) {
         return bannerRepository.findAllByCinemaIdAndActiveTrueOrderByDisplayOrderAsc(cinemaId).stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    // 🟢 MỞ: Đã gỡ @PreAuthorize để trang chủ load được mà không báo lỗi 403/Timeout
     public List<BannerResponse> getAllBannersByCinema(String cinemaId) {
         return bannerRepository.findAllByCinemaIdOrderByDisplayOrderAsc(cinemaId).stream()
                 .map(bannerMapper::toBannerResponse).toList();
     }
 
+    // 🔴 KHÓA: Chỉ Admin mới được CẬP NHẬT
     @PreAuthorize("hasRole('ADMIN')")
     public BannerResponse updateBanner(String id, BannerRequest request) {
         Banner banner = bannerRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
 
-        // 🔥 KIỂM TRA TRÙNG TÊN (Ngoại trừ chính nó)
         if (request.getTitle() != null && !request.getTitle().isBlank()
                 && !request.getTitle().equals(banner.getTitle())
                 && bannerRepository.existsByTitle(request.getTitle())) {
@@ -82,6 +83,7 @@ public class BannerService {
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 
+    // 🔴 KHÓA: Chỉ Admin mới được XÓA
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteBanner(String id) {
         bannerRepository.deleteById(id);

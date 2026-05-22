@@ -55,4 +55,23 @@ public class PromotionController {
         promotionService.deletePromotion(id);
         return ApiResponse.<Void>builder().message("Đã xóa mã khuyến mãi").build();
     }
+
+    // ==========================================
+    // 🔥 TÍNH NĂNG VÍ VOUCHER CHO NGƯỜI DÙNG
+    // ==========================================
+
+    @PostMapping("/{promotionId}/collect")
+    public ApiResponse<Void> collectVoucher(@PathVariable String promotionId) {
+        promotionService.collectVoucher(promotionId);
+        return ApiResponse.<Void>builder()
+                .message("Đã lưu mã ưu đãi vào Ví Voucher của bạn!")
+                .build();
+    }
+
+    @GetMapping("/my-vouchers")
+    public ApiResponse<List<PromotionResponse>> getMyVouchers() {
+        return ApiResponse.<List<PromotionResponse>>builder()
+                .result(promotionService.getMyVouchers())
+                .build();
+    }
 }

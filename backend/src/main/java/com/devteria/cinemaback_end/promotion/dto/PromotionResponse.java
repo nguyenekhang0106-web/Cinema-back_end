@@ -18,7 +18,6 @@ public class PromotionResponse {
     String discountCode;
     Double discountPercent;
 
-    // BỔ SUNG
     PromotionTarget target;
 
     LocalDateTime validFrom;
@@ -28,4 +27,7 @@ public class PromotionResponse {
     Integer usageLimit;
     Integer usedCount;
     boolean active;
+
+    // 🔥 BỔ SUNG: Trạng thái User đã sử dụng mã này chưa (Chỉ dùng cho API Ví Voucher)
+    Boolean isUsed;
 }

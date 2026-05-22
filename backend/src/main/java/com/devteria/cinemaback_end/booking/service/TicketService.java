@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,19 @@ public class TicketService {
 
     TicketRepository ticketRepository;
     TicketMapper ticketMapper;
+
+    // 🔥 BỔ SUNG: Hàm lấy danh sách vé cho User đang đăng nhập
+    public List<TicketResponse> getMyTickets() {
+        // Lấy Email từ SecurityContext (Token)
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // Gọi hàm repository vừa tạo ở trên
+        List<Ticket> tickets = ticketRepository.findByBooking_Customer_EmailOrderByShowtime_StartTimeDesc(email);
+
+        return tickets.stream()
+                .map(ticketMapper::toTicketResponse)
+                .toList();
+    }
 
     public TicketResponse getTicketById(String id) {
         Ticket ticket = ticketRepository.findById(id)

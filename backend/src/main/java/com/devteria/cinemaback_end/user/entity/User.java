@@ -2,6 +2,7 @@ package com.devteria.cinemaback_end.user.entity;
 
 import com.devteria.cinemaback_end.cinema.entity.Cinema;
 import com.devteria.cinemaback_end.movie.entity.enums.Area;
+import com.devteria.cinemaback_end.promotion.entity.UserVoucher;
 import com.devteria.cinemaback_end.user.entity.enums.Gender;
 import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import jakarta.persistence.*;
@@ -11,6 +12,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -81,7 +83,15 @@ public class User {
     )
     Set<Role> roles;
 
-    // 🔥 BỔ SUNG: Tự động gắn ngày giờ hiện tại khi lưu User mới vào Database
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    List<UserVoucher> vouchers;
+
+    // 🔥 BỔ SUNG: Tổng chi tiêu tích lũy (Không bao giờ bị trừ)
+    @Builder.Default
+    Double totalSpending = 0.0;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

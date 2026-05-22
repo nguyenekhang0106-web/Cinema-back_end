@@ -256,6 +256,7 @@ public enum ErrorCode {
     SEAT_NOT_AVAILABLE(1188, "Ghế hiện không khả dụng", HttpStatus.CONFLICT),
 
     BOOKING_ALREADY_EXPIRED(1189, "Hóa đơn đã hết hạn trước đó", HttpStatus.BAD_REQUEST),
+    PROMO_ALREADY_COLLECTED(1190, "Bạn đã lưu mã ưu đãi này rồi!", HttpStatus.BAD_REQUEST)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

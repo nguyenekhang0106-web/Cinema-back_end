@@ -68,4 +68,7 @@ public class Booking {
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
     List<BookingConcession> concessions;
+
+    @Builder.Default
+    Double memberDiscountAmount = 0.0;
 }

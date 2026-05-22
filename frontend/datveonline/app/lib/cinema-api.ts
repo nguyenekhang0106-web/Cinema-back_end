@@ -266,6 +266,7 @@ export async function getMyProfile(token: string) {
   return request<any>("/users/myInfo", {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store", // 🔥 BẮT BUỘC THÊM DÒNG NÀY ĐỂ XÓA CACHE
   });
 }
 
@@ -489,4 +490,50 @@ export async function getCinemas(): Promise<CinemaItem[]> {
     console.error("Lỗi khi fetch danh sách rạp:", error);
     return [];
   }
+}
+
+export async function getMyTicketsApi(token: string) {
+  const res = await fetch("http://localhost:9090/cinema/tickets/my-tickets", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to fetch tickets");
+  return res.json();
+}
+
+// Lấy danh sách voucher trong ví của User
+export async function getMyVouchersApi(token: string) {
+  const res = await fetch(
+    "http://localhost:9090/cinema/promotions/my-vouchers",
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  if (!res.ok) throw new Error("Failed to fetch vouchers");
+  return res.json();
+}
+
+// Chức năng: User bấm nút Nhận mã ưu đãi
+export async function collectVoucherApi(token: string, promotionId: string) {
+  const res = await fetch(
+    `http://localhost:9090/cinema/promotions/${promotionId}/collect`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || "Lỗi khi nhận mã");
+  }
+  return res.json();
 }

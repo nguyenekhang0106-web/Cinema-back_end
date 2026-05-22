@@ -120,4 +120,13 @@ public class UserController {
                 .message("Đổi mật khẩu thành công")
                 .build();
     }
+
+    @PostMapping("/sync-data")
+    public ApiResponse<String> syncHistoricalData() {
+        userService.syncHistoricalSpendingAndPoints();
+        return ApiResponse.<String>builder()
+                .code(1000)
+                .message("Đồng bộ dữ liệu chi tiêu và điểm thưởng thành công!")
+                .build();
+    }
 }

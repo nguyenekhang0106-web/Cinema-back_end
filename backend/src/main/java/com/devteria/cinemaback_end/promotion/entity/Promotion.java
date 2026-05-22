@@ -6,6 +6,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -57,4 +58,9 @@ public class Promotion {
 
     @Builder.Default
     boolean active = true;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
+    List<UserVoucher> userVouchers;
 }

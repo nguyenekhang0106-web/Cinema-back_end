@@ -31,4 +31,5 @@ public class UserResponse {
 
     // 🔥 BỔ SUNG: Trả về thời gian tạo tài khoản để Frontend hiển thị "Ngày Tham Gia"
     LocalDateTime createdAt;
+    Double totalSpending;
 }

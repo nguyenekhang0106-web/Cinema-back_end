@@ -494,3 +494,73 @@ button {
 .metiz-auth-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
   color: white !important;
 }
+
+/* ==========================================
+   CSS CUSTOM CHO TAB & THẺ THÀNH VIÊN
+   ========================================== */
+
+/* 1. Đổ nền đỏ, viền đỏ cho Tab đang được chọn */
+.cinema-red-tabs .ant-tabs-tab.ant-tabs-tab-active {
+  background-color: #a61d24 !important;
+  border-color: #a61d24 !important;
+}
+
+/* 2. Đổi chữ Tab đang chọn thành màu trắng, in đậm */
+.cinema-red-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* 3. Hiệu ứng Hover: Đổ nền đỏ tươi khi di chuột qua các Tab khác */
+.cinema-red-tabs .ant-tabs-tab:hover {
+  background-color: #ef4444 !important;
+  border-color: #ef4444 !important;
+}
+
+/* 4. Đổi chữ thành màu trắng khi Hover */
+.cinema-red-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+  color: #ffffff !important;
+}
+
+/* 5. Mã vạch mô phỏng */
+.fake-barcode {
+  height: 40px;
+  width: 80%;
+  margin: 0 auto;
+  background: repeating-linear-gradient(
+    90deg,
+    #1f1f1f,
+    #1f1f1f 2px,
+    transparent 2px,
+    transparent 4px,
+    #1f1f1f 4px,
+    #1f1f1f 5px,
+    transparent 5px,
+    transparent 8px,
+    #1f1f1f 8px,
+    #1f1f1f 11px,
+    transparent 11px,
+    transparent 12px
+  );
+}
+
+/* 6. Hiệu ứng lấp lánh cho nền thẻ - CẬP NHẬT MÀU SANG ĐỎ KCT */
+.member-card-bg {
+  /* background: linear-gradient(135deg, #e6e6e6 0%, #ffffff 50%, #e6e6e6 100%); <- XÓA CŨ */
+  background: linear-gradient(135deg, #a61d24 0%, #ce4c4f 100%); /* <- THÊM MỚI (Gradient đỏ KCT) */
+  position: relative;
+  overflow: hidden;
+}
+
+.member-card-bg::after {
+  content: 'KCT';
+  position: absolute;
+  right: -20px;
+  bottom: -30px;
+  font-size: 120px;
+  font-weight: 900;
+  /* color: rgba(0,0,0,0.03); <- XÓA CŨ */
+  color: rgba(255, 255, 255, 0.06); /* <- THÊM MỚI (Đổi màu KCT chìm thành Trắng mờ trên nền đỏ) */
+  font-style: italic;
+  z-index: 0;
+}

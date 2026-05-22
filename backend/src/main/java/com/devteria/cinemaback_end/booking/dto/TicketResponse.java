@@ -21,9 +21,14 @@ public class TicketResponse {
     LocalDateTime scannedAt;
     String scannedBy;
 
-    // Trả về thông tin ghế để in lên vé (Ví dụ: Ghế A1, Loại VIP)
+    // --- CÁC TRƯỜNG CỦA GHẾ ---
     String seatId;
     String seatRowName;
     Integer seatNumber;
     String seatType;
+
+    // 🔥 BỔ SUNG CÁC TRƯỜNG THÔNG TIN HIỂN THỊ LÊN BẢNG VÉ CỦA USER
+    String movieTitle;
+    String cinemaName;
+    LocalDateTime showtimeTime;
 }

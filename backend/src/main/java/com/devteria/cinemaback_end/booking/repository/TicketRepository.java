@@ -30,4 +30,7 @@ public interface TicketRepository extends JpaRepository<Ticket, String> {
     Optional<Ticket> findByTicketCode(String ticketCode);
 
     boolean existsByTicketCodeAndIdNot(String ticketCode, String id);
+
+    // 🔥 BỔ SUNG: Hàm lấy danh sách vé của user theo Email, sắp xếp thời gian chiếu giảm dần
+    List<Ticket> findByBooking_Customer_EmailOrderByShowtime_StartTimeDesc(String email);
 }
