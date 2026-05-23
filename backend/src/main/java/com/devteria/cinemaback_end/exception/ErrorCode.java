@@ -256,7 +256,15 @@ public enum ErrorCode {
     SEAT_NOT_AVAILABLE(1188, "Ghế hiện không khả dụng", HttpStatus.CONFLICT),
 
     BOOKING_ALREADY_EXPIRED(1189, "Hóa đơn đã hết hạn trước đó", HttpStatus.BAD_REQUEST),
-    PROMO_ALREADY_COLLECTED(1190, "Bạn đã lưu mã ưu đãi này rồi!", HttpStatus.BAD_REQUEST)
+    PROMO_ALREADY_COLLECTED(1190, "Bạn đã lưu mã ưu đãi này rồi!", HttpStatus.BAD_REQUEST),
+
+    // Bổ sung các lỗi cho Module Promotion
+    TIER_NOT_MET(4001, "Hạng thành viên của bạn chưa đủ để nhận ưu đãi này", HttpStatus.BAD_REQUEST),
+    DOB_NOT_UPDATED(4002, "Vui lòng cập nhật ngày sinh trong hồ sơ để nhận quà sinh nhật", HttpStatus.BAD_REQUEST),
+    NOT_BIRTHDAY_MONTH(4003, "Chưa tới tháng sinh nhật của bạn! Không thể nhận quà", HttpStatus.BAD_REQUEST),
+    NOT_ENOUGH_POINTS(4004, "Số điểm tích lũy của bạn không đủ để đổi mã này", HttpStatus.BAD_REQUEST),
+    VOUCHER_NOT_OWNED(4005, "KHÔNG SỠ HỮU VOUCHER NÀY", HttpStatus.BAD_REQUEST),
+    VOUCHER_ALREADY_USED(4006, "VOUCHER NÀY ĐÃ SỬ DỤNG RỒI", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

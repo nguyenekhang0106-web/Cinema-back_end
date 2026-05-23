@@ -1,6 +1,7 @@
 package com.devteria.cinemaback_end.promotion.dto;
 
 import com.devteria.cinemaback_end.promotion.entity.enums.PromotionTarget;
+import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -27,6 +28,10 @@ public class PromotionResponse {
     Integer usageLimit;
     Integer usedCount;
     boolean active;
+
+    Integer requiredRewardPoints;
+    MemberTier requiredMemberTier;
+    Boolean isBirthdayPromo;
 
     // 🔥 BỔ SUNG: Trạng thái User đã sử dụng mã này chưa (Chỉ dùng cho API Ví Voucher)
     Boolean isUsed;

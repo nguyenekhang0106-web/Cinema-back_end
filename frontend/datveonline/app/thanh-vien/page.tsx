@@ -40,7 +40,7 @@ export default function MemberPage() {
   const [ticketCount, setTicketCount] = useState(0);
 
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
-  const [myVouchers, setMyVouchers] = useState<any[]>([]); 
+  const [myVouchers, setMyVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 🔥 THÊM HÀM NÀY: Hàm format chuẩn hóa dữ liệu dùng chung
@@ -63,7 +63,7 @@ export default function MemberPage() {
 
   useEffect(() => {
     setLoading(true);
-    const now = dayjs(); 
+    const now = dayjs();
 
     // 1. Lấy danh sách Khuyến mãi chung của hệ thống
     fetch("http://localhost:9090/cinema/promotions")
@@ -83,7 +83,7 @@ export default function MemberPage() {
       Promise.all([
         getMyProfile(token),
         getMyTicketsApi(token),
-        getMyVouchersApi(token), 
+        getMyVouchersApi(token),
       ])
         .then(([profileData, ticketData, voucherData]) => {
           if (profileData) {
@@ -207,7 +207,6 @@ export default function MemberPage() {
 
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
-
           {/* Hàng 1: Cấp bậc & Lịch sử vé */}
           <Row gutter={[24, 24]} className="mb-8">
             <Col xs={24} md={12}>
@@ -309,6 +308,9 @@ export default function MemberPage() {
                             const isCollected = myVouchers.some(
                               (v) => v.id === promo.id,
                             );
+                            const isNotStarted = dayjs().isBefore(
+                              dayjs(promo.validFrom),
+                            );
 
                             return (
                               <Col xs={24} sm={12} lg={8} key={promo.id}>
@@ -346,12 +348,27 @@ export default function MemberPage() {
                                       {promo.description ||
                                         "Áp dụng cho toàn bộ các suất chiếu tại hệ thống."}
                                     </Typography.Text>
-                                    <Typography.Text className="text-xs text-gray-400 mt-auto">
-                                      HSD:{" "}
-                                      {dayjs(promo.validUntil).format(
-                                        "DD/MM/YYYY",
+                                    <div className="mt-auto space-y-1">
+                                      <Typography.Text className="block text-xs text-gray-500">
+                                        Bắt đầu:{" "}
+                                        {dayjs(promo.validFrom).format(
+                                          "DD/MM/YYYY HH:mm",
+                                        )}
+                                      </Typography.Text>
+
+                                      <Typography.Text className="block text-xs text-gray-500">
+                                        HSD:{" "}
+                                        {dayjs(promo.validUntil).format(
+                                          "DD/MM/YYYY HH:mm",
+                                        )}
+                                      </Typography.Text>
+
+                                      {isNotStarted && (
+                                        <Tag color="gold" className="w-fit">
+                                          Chưa có hiệu lực
+                                        </Tag>
                                       )}
-                                    </Typography.Text>
+                                    </div>
                                   </div>
 
                                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
@@ -361,12 +378,16 @@ export default function MemberPage() {
                                     <Button
                                       type={isCollected ? "default" : "primary"}
                                       size="small"
-                                      danger={!isCollected}
-                                      disabled={isCollected} // Khóa nút nếu đã nhận
+                                      danger={!isCollected && !isNotStarted}
+                                      disabled={isCollected || isNotStarted}
                                       className="rounded-full font-semibold px-4"
                                       onClick={() => handleCollect(promo.id)}
                                     >
-                                      {isCollected ? "Đã nhận" : "Nhận mã"}
+                                      {isCollected
+                                        ? "Đã nhận"
+                                        : isNotStarted
+                                          ? "Chưa tới hạn"
+                                          : "Nhận mã"}
                                     </Button>
                                   </div>
                                 </Card>

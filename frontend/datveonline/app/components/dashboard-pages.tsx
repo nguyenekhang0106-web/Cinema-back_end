@@ -108,6 +108,8 @@ type UserRecord = {
   role: UserRole;
   status: UserStatus;
   vouchers: number;
+  memberTier: string;
+  totalSpending: number;
 };
 
 type TicketRecord = {
@@ -182,6 +184,9 @@ const initialUsers: UserRecord[] = [
     role: "admin",
     status: "active",
     vouchers: 8,
+    // 🔥 KHỞI TẠO DỮ LIỆU MẪU CHO ADMIN
+    memberTier: "PLATINUM",
+    totalSpending: 15500000,
   },
 ];
 
@@ -571,6 +576,39 @@ export function AdminDashboardPage() {
   const userColumns: ColumnsType<UserRecord> = [
     { title: copy.userColumns.name, dataIndex: "fullName", key: "fullName" },
     { title: copy.userColumns.email, dataIndex: "email", key: "email" },
+
+    // 🔥 BỔ SUNG CỘT HẠNG THÀNH VIÊN CHO TRANG QUẢN LÝ
+    {
+      title: locale === "vi" ? "Hạng" : "Tier",
+      dataIndex: "memberTier",
+      key: "memberTier",
+      render: (tier: string) => {
+        const colorMap: Record<string, string> = {
+          PLATINUM: "red",
+          GOLD: "gold",
+          SILVER: "blue",
+          BASIC: "default",
+        };
+        return (
+          <Tag color={colorMap[tier?.toUpperCase()] || "default"}>
+            {tier || "BASIC"}
+          </Tag>
+        );
+      },
+    },
+
+    // 🔥 BỔ SUNG CỘT TỔNG CHI TIÊU
+    {
+      title: locale === "vi" ? "Tổng chi tiêu" : "Total Spending",
+      dataIndex: "totalSpending",
+      key: "totalSpending",
+      render: (val: number) => (
+        <Typography.Text strong className="text-[#a61d24]">
+          {(val || 0).toLocaleString("vi-VN")} đ
+        </Typography.Text>
+      ),
+    },
+
     {
       title: copy.userColumns.role,
       dataIndex: "role",
@@ -591,11 +629,6 @@ export function AdminDashboardPage() {
           label={copy.userStatus[value]}
         />
       ),
-    },
-    {
-      title: copy.userColumns.vouchers,
-      dataIndex: "vouchers",
-      key: "vouchers",
     },
     {
       title: copy.actions,
@@ -654,6 +687,8 @@ export function AdminDashboardPage() {
         role: "user",
         status: "active",
         vouchers: 0,
+        memberTier: "BASIC", // Đặt mặc định
+        totalSpending: 0, // Đặt mặc định
       },
     );
   }
@@ -1015,7 +1050,7 @@ export function AdminDashboardPage() {
 }
 
 export function UserDashboardPage() {
-  const { message, notification } = App.useApp();
+  const { message, notification } = App.useApp(); // Thêm notification để thông báo copy
   const dictionary = useDictionary();
   const locale = useLocale();
   const copy = locale === "en" ? userCopy.en : userCopy.vi;
@@ -1024,8 +1059,12 @@ export function UserDashboardPage() {
   const { token, user, logout } = useAuthSession();
 
   const [profile, setProfile] = useState(initialProfile);
-  const [upcomingTickets, setUpcomingTickets] = useState(initialUpcomingTickets);
+  const [upcomingTickets, setUpcomingTickets] = useState(
+    initialUpcomingTickets,
+  );
   const [bookingHistory, setBookingHistory] = useState(initialBookingHistory);
+
+  // 🔥 Đổi state chứa voucher thành mảng rỗng ban đầu
   const [vouchers, setVouchers] = useState<any[]>([]);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -1033,8 +1072,13 @@ export function UserDashboardPage() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordForm] = Form.useForm();
 
-  // 🎨 CẤU HÌNH MÀU SẮC CHO TỪNG HẠNG THÀNH VIÊN
-  const TIER_STYLES: Record<string, { color: string; gradient: string; label: string }> = {
+  // ========================================================
+  // 🎨 CẤU HÌNH MÀU SẮC VÀ ĐỊNH DẠNG CHO TỪNG HẠNG THÀNH VIÊN
+  // ========================================================
+  const TIER_STYLES: Record<
+    string,
+    { color: string; gradient: string; label: string }
+  > = {
     BASIC: {
       color: "#e5e7eb", // Màu xám sáng cho chữ Basic trên nền đỏ
       gradient: "from-gray-400 to-gray-600",
@@ -1059,6 +1103,7 @@ export function UserDashboardPage() {
 
   const currentTier = profile.memberTier?.toUpperCase() || "BASIC";
   const tierStyle = TIER_STYLES[currentTier] || TIER_STYLES.BASIC;
+  // ========================================================
 
   const handleChangePassword = async (values: any) => {
     if (values.newPassword !== values.confirmPassword) {
@@ -1082,12 +1127,14 @@ export function UserDashboardPage() {
 
   useEffect(() => {
     if (token) {
+      // 🔥 1. Chạy song song cả lấy Profile, Vé và VOUCHER
       Promise.all([
         getMyProfile(token),
         getMyTicketsApi(token),
-        getMyVouchersApi(token),
+        getMyVouchersApi(token), // Gọi API lấy Ví Voucher
       ])
         .then(([profileData, ticketData, voucherData]) => {
+          // --- XỬ LÝ PROFILE ---
           if (profileData) {
             const dobParts = profileData.dateOfBirth
               ? profileData.dateOfBirth.split("-")
@@ -1110,7 +1157,11 @@ export function UserDashboardPage() {
                 : "",
               citizenId: profileData.citizenIdNumber || "",
               memberTier: profileData.memberTier || "BASIC",
-              points: profileData.totalRewardPoints || profileData.rewardPoints || 0,
+
+              // 🔥 SỬA DÒNG NÀY: Quét cả 2 trường hợp tên biến để không bị lọt
+              points:
+                profileData.totalRewardPoints || profileData.rewardPoints || 0,
+
               totalSpending: profileData.totalSpending || 0,
               avatarUrl:
                 profileData.avatarUrl ||
@@ -1120,6 +1171,7 @@ export function UserDashboardPage() {
             profileForm.setFieldsValue(mappedData);
           }
 
+          // --- XỬ LÝ VÉ THẬT ---
           if (ticketData && ticketData.result) {
             const fetchedTickets = ticketData.result;
             const upcoming: TicketRecord[] = [];
@@ -1154,6 +1206,7 @@ export function UserDashboardPage() {
             setBookingHistory(history);
           }
 
+          // --- XỬ LÝ VOUCHER THẬT ---
           if (voucherData && voucherData.result) {
             const fetchedVouchers = voucherData.result.map((v: any) => ({
               key: v.id,
@@ -1173,7 +1226,9 @@ export function UserDashboardPage() {
             error.message?.includes("Unauthenticated") ||
             error.message?.includes("Token Invalid")
           ) {
-            message.warning("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+            message.warning(
+              "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!",
+            );
             if (logout) logout();
             router.push("/");
           } else {
@@ -1229,6 +1284,7 @@ export function UserDashboardPage() {
     { title: copy.ticketTotal, dataIndex: "total", key: "total" },
   ];
 
+  // 🔥 CẬP NHẬT CỘT VOUCHER CHUẨN THỰC TẾ
   const voucherColumns: ColumnsType<any> = [
     {
       title: copy.voucherCode,
@@ -1247,9 +1303,12 @@ export function UserDashboardPage() {
       title: copy.voucherStatus,
       key: "status",
       render: (_, record) => {
-        if (record.isUsed) return <Tag color="default">Đã dùng</Tag>;
-        if (dayjs().isAfter(dayjs(record.validUntil)))
+        if (record.isUsed) {
+          return <Tag color="default">Đã dùng</Tag>;
+        }
+        if (dayjs().isAfter(dayjs(record.validUntil))) {
           return <Tag color="red">Hết hạn</Tag>;
+        }
         return <Tag color="green">Sẵn sàng</Tag>;
       },
     },
@@ -1308,11 +1367,15 @@ export function UserDashboardPage() {
           birthYear: values.birthYear,
         }));
         setProfileModalOpen(false);
-        message.success(copy.profileUpdated || "Cập nhật thông tin thành công!");
+        message.success(
+          copy.profileUpdated || "Cập nhật thông tin thành công!",
+        );
       }
     } catch (error: any) {
       console.error("Lỗi cập nhật Profile:", error);
-      message.error(error.message || "Cập nhật thất bại. Vui lòng kiểm tra lại thông tin!");
+      message.error(
+        error.message || "Cập nhật thất bại. Vui lòng kiểm tra lại thông tin!",
+      );
     }
   };
 
@@ -1345,70 +1408,158 @@ export function UserDashboardPage() {
             <div className="grid gap-x-8 md:grid-cols-2">
               <Form.Item
                 name="fullName"
-                label={<strong className="text-gray-600">{copy.profileName}</strong>}
+                label={
+                  <strong className="text-gray-600">{copy.profileName}</strong>
+                }
                 rules={[{ required: true }]}
               >
-                <Input size="large" prefix={<UserOutlined className="text-gray-400 mr-2" />} className="rounded-lg bg-gray-50/50" />
+                <Input
+                  size="large"
+                  prefix={<UserOutlined className="text-gray-400 mr-2" />}
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
               <Form.Item
                 name="email"
-                label={<strong className="text-gray-600">{copy.profileEmail}</strong>}
+                label={
+                  <strong className="text-gray-600">{copy.profileEmail}</strong>
+                }
               >
-                <Input size="large" prefix={<MailOutlined className="text-gray-400 mr-2" />} disabled className="rounded-lg" />
+                <Input
+                  size="large"
+                  prefix={<MailOutlined className="text-gray-400 mr-2" />}
+                  disabled
+                  className="rounded-lg"
+                />
               </Form.Item>
             </div>
 
             <div className="grid gap-x-8 md:grid-cols-2 mt-2">
-              <Form.Item label={<strong className="text-gray-600">{copy.profileDob}</strong>} required className="mb-6">
+              <Form.Item
+                label={
+                  <strong className="text-gray-600">{copy.profileDob}</strong>
+                }
+                required
+                className="mb-6"
+              >
                 <div className="grid gap-3 grid-cols-3">
-                  <Form.Item name="birthDay" noStyle rules={[{ required: true }]}>
-                    <Select size="large" placeholder={copy.day} options={days.map((day) => ({ label: day, value: day }))} />
+                  <Form.Item
+                    name="birthDay"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      size="large"
+                      placeholder={copy.day}
+                      options={days.map((day) => ({ label: day, value: day }))}
+                    />
                   </Form.Item>
-                  <Form.Item name="birthMonth" noStyle rules={[{ required: true }]}>
-                    <Select size="large" placeholder={copy.month} options={months.map((month) => ({ label: month, value: month }))} />
+                  <Form.Item
+                    name="birthMonth"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      size="large"
+                      placeholder={copy.month}
+                      options={months.map((month) => ({
+                        label: month,
+                        value: month,
+                      }))}
+                    />
                   </Form.Item>
-                  <Form.Item name="birthYear" noStyle rules={[{ required: true }]}>
-                    <Select size="large" placeholder={copy.year} options={years.map((year) => ({ label: year, value: year }))} showSearch />
+                  <Form.Item
+                    name="birthYear"
+                    noStyle
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      size="large"
+                      placeholder={copy.year}
+                      options={years.map((year) => ({
+                        label: year,
+                        value: year,
+                      }))}
+                      showSearch
+                    />
                   </Form.Item>
                 </div>
               </Form.Item>
               <Form.Item
                 name="phone"
-                label={<strong className="text-gray-600">{copy.profilePhone}</strong>}
+                label={
+                  <strong className="text-gray-600">{copy.profilePhone}</strong>
+                }
                 rules={[{ required: true }]}
               >
-                <Input size="large" prefix={<PhoneOutlined className="text-gray-400 mr-2" />} className="rounded-lg bg-gray-50/50" />
+                <Input
+                  size="large"
+                  prefix={<PhoneOutlined className="text-gray-400 mr-2" />}
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
             </div>
 
             <div className="grid gap-x-8 md:grid-cols-2 mt-2">
               <Form.Item
                 name="citizenId"
-                label={<strong className="text-gray-600">{copy.profileCitizenId}</strong>}
+                label={
+                  <strong className="text-gray-600">
+                    {copy.profileCitizenId}
+                  </strong>
+                }
                 rules={[{ required: true }]}
               >
-                <Input size="large" prefix={<IdcardOutlined className="text-gray-400 mr-2" />} maxLength={12} className="rounded-lg bg-gray-50/50" />
+                <Input
+                  size="large"
+                  prefix={<IdcardOutlined className="text-gray-400 mr-2" />}
+                  maxLength={12}
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
               <Form.Item
                 name="province"
-                label={<strong className="text-gray-600">{copy.profileProvince}</strong>}
+                label={
+                  <strong className="text-gray-600">
+                    {copy.profileProvince}
+                  </strong>
+                }
                 rules={[{ required: true }]}
               >
-                <Select size="large" showSearch options={VIETNAM_PROVINCES.map((p) => ({ label: p, value: p }))} />
+                <Select
+                  size="large"
+                  showSearch
+                  options={VIETNAM_PROVINCES.map((p) => ({
+                    label: p,
+                    value: p,
+                  }))}
+                />
               </Form.Item>
             </div>
 
             <div className="grid gap-x-8 md:grid-cols-2 mt-2 items-end">
               <Form.Item
                 name="gender"
-                label={<strong className="text-gray-600">{copy.profileGender}</strong>}
+                label={
+                  <strong className="text-gray-600">
+                    {copy.profileGender}
+                  </strong>
+                }
                 rules={[{ required: true }]}
                 className="mb-0"
               >
-                <Select size="large" options={[{ label: copy.male, value: "male" }, { label: copy.female, value: "female" }, { label: copy.other, value: "other" }]} />
+                <Select
+                  size="large"
+                  options={[
+                    { label: copy.male, value: "male" },
+                    { label: copy.female, value: "female" },
+                    { label: copy.other, value: "other" },
+                  ]}
+                />
               </Form.Item>
 
               <div className="flex justify-end pt-6 md:pt-0 items-center">
+                {/* 🔥 CHUYỂN MÀU HOVER CHỮ "ĐỔI MẬT KHẨU?" SANG MÀU ĐỎ KCT */}
                 <span
                   className="cursor-pointer font-semibold text-[#6d5a46] hover:text-[#a61d24] mr-6 transition-colors"
                   onClick={() => setPasswordModalOpen(true)}
@@ -1416,6 +1567,7 @@ export function UserDashboardPage() {
                   {locale === "en" ? "Change password?" : "Đổi mật khẩu?"}
                 </span>
 
+                {/* 🔥 ĐỔI MÀU NÚT "CẬP NHẬT" SANG MÀU ĐỎ KCT CINEMA */}
                 <Button
                   type="primary"
                   htmlType="submit"
@@ -1436,10 +1588,17 @@ export function UserDashboardPage() {
       label: copy.ticketTitle,
       children: (
         <div className="py-2">
-          <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 16px" }}></Typography.Paragraph>
+          <Typography.Paragraph
+            style={{ color: "#6d5a46", margin: "8px 0 16px" }}
+          ></Typography.Paragraph>
           <Table
             rowKey="key"
-            pagination={{ pageSize: 5, showSizeChanger: false, position: ["bottomCenter"] }}
+            // 🔥 THÊM PHÂN TRANG VÉ SẮP TỚI
+            pagination={{
+              pageSize: 5,
+              showSizeChanger: false,
+              position: ["bottomCenter"],
+            }}
             dataSource={upcomingTickets}
             columns={upcomingColumns}
             scroll={{ x: "max-content" }}
@@ -1452,7 +1611,9 @@ export function UserDashboardPage() {
       label: copy.historyTitle,
       children: (
         <div className="py-2">
-          <Typography.Paragraph style={{ color: "#6d5a46", margin: "8px 0 16px" }}></Typography.Paragraph>
+          <Typography.Paragraph
+            style={{ color: "#6d5a46", margin: "8px 0 16px" }}
+          ></Typography.Paragraph>
 
           <div className="rounded-[18px] border border-[#ead6bb] bg-[#fffaf4] p-4 text-[#6d5a46] mb-6 w-full shadow-sm">
             <div className="flex items-center justify-between">
@@ -1461,18 +1622,26 @@ export function UserDashboardPage() {
                 {upcomingTickets.length + bookingHistory.length}
               </strong>
             </div>
+            {/* Thêm một đường gạch mờ để phân cách cho đẹp hơn */}
             <div className="border-b border-[#ead6bb] my-2 opacity-50"></div>
             <div className="flex items-center justify-between">
               <span>{copy.paidTickets}</span>
               <strong style={{ color: "#a61d24", fontSize: "16px" }}>
-                {bookingHistory.length + upcomingTickets.filter((item) => item.status === "paid").length}
+                {bookingHistory.length +
+                  upcomingTickets.filter((item) => item.status === "paid")
+                    .length}
               </strong>
             </div>
           </div>
 
           <Table
             rowKey="key"
-            pagination={{ pageSize: 5, showSizeChanger: false, position: ["bottomCenter"] }}
+            // 🔥 THÊM PHÂN TRANG LỊCH SỬ
+            pagination={{
+              pageSize: 5,
+              showSizeChanger: false,
+              position: ["bottomCenter"],
+            }}
             dataSource={bookingHistory}
             columns={historyColumns}
             scroll={{ x: "max-content" }}
@@ -1487,7 +1656,12 @@ export function UserDashboardPage() {
         <div className="py-2">
           <Table
             rowKey="key"
-            pagination={{ pageSize: 5, showSizeChanger: false, position: ["bottomCenter"] }}
+            // 🔥 THÊM PHÂN TRANG VOUCHER
+            pagination={{
+              pageSize: 5,
+              showSizeChanger: false,
+              position: ["bottomCenter"],
+            }}
             dataSource={vouchers}
             columns={voucherColumns}
             size="small"
@@ -1505,57 +1679,83 @@ export function UserDashboardPage() {
           <Row gutter={[24, 24]} className="mt-8">
             <Col xs={24} lg={7} xl={6}>
               <div className="relative bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-100 h-full flex flex-col">
-                
                 {/* --- PHẦN 1: NỬA TRÊN (NỀN THẺ & HUY CHƯƠNG) --- */}
+                {/* 👇 Chỉnh màu viền dưới thẻ sang màu đỏ đậm border-red-700 */}
                 <div className="h-40 member-card-bg relative p-5 flex justify-between items-start z-0 border-b border-red-700">
+                  {/* Huy chương & Hạng */}
                   <div className="z-10 flex flex-col items-center">
-                    {/* 👇 HUY CHƯƠNG ĐỔI MÀU THEO HẠNG */}
-                    <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${tierStyle.gradient} shadow-lg flex items-center justify-center border-2 border-white mb-2 relative`}>
+                    {/* 👇 HUY CHƯƠNG ĐỔI MÀU VÀ HIỆU ỨNG THEO HẠNG */}
+                    <div
+                      className={`w-14 h-14 rounded-full bg-gradient-to-br ${tierStyle.gradient} shadow-lg flex items-center justify-center border-2 border-white mb-2 relative`}
+                    >
+                      {/* Vải ruy băng giả */}
                       <div className="absolute -top-6 w-3 h-6 bg-blue-500 -ml-4 z-[-1] border-r border-blue-600"></div>
                       <div className="absolute -top-6 w-3 h-6 bg-blue-500 ml-4 z-[-1] border-l border-blue-600"></div>
-                      
+
+                      {/* Biểu tượng thay đổi theo hạng */}
                       <span className="text-white text-2xl font-bold">
-                        {currentTier === 'PLATINUM' ? '💎' : '★'}
+                        {currentTier === "PLATINUM" ? "💎" : "★"}
                       </span>
                     </div>
 
-                    {/* 👇 TÊN HẠNG ĐỔI MÀU */}
-                    <Typography.Text 
-                        className="font-black text-lg tracking-wider"
-                        style={{ color: currentTier === 'PLATINUM' ? '#ffffff' : tierStyle.color }}
+                    {/* 👇 TÊN HẠNG ĐỔI MÀU (Nếu Platinum thì cho màu đỏ rực rỡ/trắng) */}
+                    <Typography.Text
+                      className="font-black text-lg tracking-wider"
+                      style={{
+                        color:
+                          currentTier === "PLATINUM"
+                            ? "#ffffff"
+                            : tierStyle.color,
+                      }}
                     >
                       {tierStyle.label}
                     </Typography.Text>
-                    
+
                     <Typography.Text className="text-xs text-white/80 uppercase font-semibold">
                       {profile.fullName}
                     </Typography.Text>
                   </div>
 
-                  <Tag color="default" className="z-10 m-0 rounded-full px-3 py-1 font-bold text-[#a61d24] bg-white border-white shadow-sm">
+                  {/* Nút điểm số (Giống Metiz) */}
+                  <Tag
+                    color="default"
+                    className="z-10 m-0 rounded-full px-3 py-1 font-bold text-[#a61d24] bg-white border-white shadow-sm"
+                  >
                     ★ {profile.points} điểm
                   </Tag>
                 </div>
 
-                {/* --- PHẦN 2: AVATAR --- */}
+                {/* --- PHẦN 2: AVATAR (Nằm đè lên ranh giới) --- */}
                 <div className="flex justify-center -mt-8 relative z-10">
                   <Upload
                     name="avatar"
                     showUploadList={false}
+                    // ... (hàm customRequest giữ nguyên như cũ) ...
                     customRequest={async (options) => {
                       const { file, onSuccess, onError } = options;
                       try {
                         if (!token || !user?.id) {
-                          message.error("Lỗi xác thực. Vui lòng đăng nhập lại!");
+                          message.error(
+                            "Lỗi xác thực. Vui lòng đăng nhập lại!",
+                          );
                           onError?.(new Error("No user id"));
                           return;
                         }
-                        const newAvatarUrl = await uploadAvatarApi(token, user.id, file as File);
-                        setProfile((prev) => ({ ...prev, avatarUrl: newAvatarUrl }));
+                        const newAvatarUrl = await uploadAvatarApi(
+                          token,
+                          user.id,
+                          file as File,
+                        );
+                        setProfile((prev) => ({
+                          ...prev,
+                          avatarUrl: newAvatarUrl,
+                        }));
                         message.success("Cập nhật ảnh đại diện thành công!");
                         onSuccess?.("ok");
                       } catch (error) {
-                        message.error("Cập nhật ảnh thất bại. Vui lòng thử lại!");
+                        message.error(
+                          "Cập nhật ảnh thất bại. Vui lòng thử lại!",
+                        );
                         onError?.(error as Error);
                       }
                     }}
@@ -1563,7 +1763,9 @@ export function UserDashboardPage() {
                     <div className="relative inline-block cursor-pointer group rounded-full overflow-hidden border-4 border-white shadow-md bg-white">
                       <Avatar size={96} src={profile.avatarUrl} />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <CameraOutlined style={{ color: "white", fontSize: 24 }} />
+                        <CameraOutlined
+                          style={{ color: "white", fontSize: 24 }}
+                        />
                       </div>
                     </div>
                   </Upload>
@@ -1571,7 +1773,7 @@ export function UserDashboardPage() {
 
                 {/* --- PHẦN 3: MÃ VẠCH & TỔNG CHI TIÊU & TIẾN TRÌNH --- */}
                 <div className="px-6 pb-6 pt-4 flex-1 flex flex-col items-center">
-                  
+                  {/* Mã vạch */}
                   <div className="w-full text-center mb-6">
                     <Typography.Text className="text-xs font-bold text-gray-800 uppercase block mb-1">
                       Mã số thành viên
@@ -1582,6 +1784,7 @@ export function UserDashboardPage() {
                     </Typography.Text>
                   </div>
 
+                  {/* Tổng chi tiêu */}
                   <div className="w-full flex justify-between items-end border-b border-gray-100 pb-2 mb-4">
                     <Typography.Text className="font-bold text-gray-800 text-sm">
                       Tổng chi tiêu {new Date().getFullYear()}
@@ -1591,37 +1794,48 @@ export function UserDashboardPage() {
                     </Typography.Text>
                   </div>
 
+                  {/* Thanh tiến trình hạng (Progress Bar) */}
                   <div className="w-full relative px-2">
+                    {/* Đường gạch ngang nền */}
                     <div className="absolute top-1/2 left-4 right-4 h-[2px] bg-gray-200 -translate-y-1/2 z-0"></div>
-                    
-                    <div className="flex justify-between items-center relative z-10">
-                      {["BASIC", "SILVER", "GOLD", "PLATINUM"].map((tier, index, arr) => {
-                        const currentTierIndex = arr.indexOf(profile.memberTier?.toUpperCase() || "BASIC");
-                        const isActive = index <= currentTierIndex;
-                        const isCurrent = index === currentTierIndex;
 
-                        return (
-                          <div key={tier} className="flex flex-col items-center bg-white px-1 cursor-default">
+                    <div className="flex justify-between items-center relative z-10">
+                      {["BASIC", "SILVER", "GOLD", "PLATINUM"].map(
+                        (tier, index, arr) => {
+                          // Tính toán logic Active
+                          const currentTierIndex = arr.indexOf(
+                            profile.memberTier?.toUpperCase() || "BASIC",
+                          );
+                          const isActive = index <= currentTierIndex;
+                          const isCurrent = index === currentTierIndex;
+
+                          return (
                             <div
-                              className={`w-4 h-4 rounded-full border-[3px] transition-colors ${
-                                isActive 
-                                  ? "border-[#a61d24] bg-[#a61d24]" 
-                                  : "border-gray-300 bg-white"
-                              } ${isCurrent ? "ring-2 ring-red-200 ring-offset-1" : ""}`}
-                            />
-                            <span
-                              className={`text-[10px] mt-1 font-bold tracking-tighter ${
-                                isActive ? "text-[#a61d24]" : "text-gray-400"
-                              }`}
+                              key={tier}
+                              className="flex flex-col items-center bg-white px-1 cursor-default"
                             >
-                              {tier}
-                            </span>
-                          </div>
-                        );
-                      })}
+                              {/* Chấm tròn */}
+                              <div
+                                className={`w-4 h-4 rounded-full border-[3px] transition-colors ${
+                                  isActive
+                                    ? "border-[#a61d24] bg-[#a61d24]"
+                                    : "border-gray-300 bg-white"
+                                } ${isCurrent ? "ring-2 ring-red-200 ring-offset-1" : ""}`}
+                              />
+                              {/* Tên hạng */}
+                              <span
+                                className={`text-[10px] mt-1 font-bold tracking-tighter ${
+                                  isActive ? "text-[#a61d24]" : "text-gray-400"
+                                }`}
+                              >
+                                {tier}
+                              </span>
+                            </div>
+                          );
+                        },
+                      )}
                     </div>
                   </div>
-
                 </div>
               </div>
             </Col>
@@ -1631,6 +1845,7 @@ export function UserDashboardPage() {
                 bordered={false}
                 className="cinema-paper rounded-[24px] min-h-[400px]"
               >
+                {/* 🔥 GẮN CLASS .cinema-red-tabs ĐỂ KÍCH HOẠT MÀU ĐỎ KCT */}
                 <Tabs
                   className="cinema-red-tabs"
                   defaultActiveKey="1"
@@ -1659,30 +1874,82 @@ export function UserDashboardPage() {
             >
               <Form.Item
                 name="oldPassword"
-                label={<strong className="text-gray-600">{locale === "en" ? "Old Password" : "Mật khẩu cũ"}</strong>}
-                rules={[{ required: true, message: locale === "en" ? "Please input your old password" : "Vui lòng nhập mật khẩu cũ" }]}
+                label={
+                  <strong className="text-gray-600">
+                    {locale === "en" ? "Old Password" : "Mật khẩu cũ"}
+                  </strong>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message:
+                      locale === "en"
+                        ? "Please input your old password"
+                        : "Vui lòng nhập mật khẩu cũ",
+                  },
+                ]}
               >
-                <Input.Password size="large" className="rounded-lg bg-gray-50/50" />
+                <Input.Password
+                  size="large"
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
 
               <Form.Item
                 name="newPassword"
-                label={<strong className="text-gray-600">{locale === "en" ? "New Password" : "Mật khẩu mới"}</strong>}
-                rules={[{ required: true, message: locale === "en" ? "Please input your new password" : "Vui lòng nhập mật khẩu mới" }]}
-                extra={locale === "en" ? "Password must be at least 8 characters, including lowercase, uppercase, numbers, and special characters." : "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ thường, chữ in hoa, số và ký tự đặc biệt."}
+                label={
+                  <strong className="text-gray-600">
+                    {locale === "en" ? "New Password" : "Mật khẩu mới"}
+                  </strong>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message:
+                      locale === "en"
+                        ? "Please input your new password"
+                        : "Vui lòng nhập mật khẩu mới",
+                  },
+                ]}
+                extra={
+                  locale === "en"
+                    ? "Password must be at least 8 characters, including lowercase, uppercase, numbers, and special characters."
+                    : "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ thường, chữ in hoa, số và ký tự đặc biệt."
+                }
               >
-                <Input.Password size="large" className="rounded-lg bg-gray-50/50" />
+                <Input.Password
+                  size="large"
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
 
               <Form.Item
                 name="confirmPassword"
-                label={<strong className="text-gray-600">{locale === "en" ? "Confirm New Password" : "Nhập lại mật khẩu mới"}</strong>}
-                rules={[{ required: true, message: locale === "en" ? "Please confirm your new password" : "Vui lòng xác nhận mật khẩu mới" }]}
+                label={
+                  <strong className="text-gray-600">
+                    {locale === "en"
+                      ? "Confirm New Password"
+                      : "Nhập lại mật khẩu mới"}
+                  </strong>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message:
+                      locale === "en"
+                        ? "Please confirm your new password"
+                        : "Vui lòng xác nhận mật khẩu mới",
+                  },
+                ]}
               >
-                <Input.Password size="large" className="rounded-lg bg-gray-50/50" />
+                <Input.Password
+                  size="large"
+                  className="rounded-lg bg-gray-50/50"
+                />
               </Form.Item>
 
               <div className="flex justify-end mt-6">
+                {/* 🔥 ĐỔI MÀU NÚT "LƯU MẬT KHẨU" SANG MÀU ĐỎ KCT CINEMA */}
                 <Button
                   type="primary"
                   htmlType="submit"

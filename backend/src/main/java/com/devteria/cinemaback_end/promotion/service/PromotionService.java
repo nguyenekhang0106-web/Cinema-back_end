@@ -95,7 +95,7 @@ public class PromotionService {
 
     @Transactional
     public void collectVoucher(String promotionId) {
-        // Lấy thông tin user đang đăng nhập
+        // 1. Lấy thông tin user đang đăng nhập
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -103,16 +103,56 @@ public class PromotionService {
         Promotion promotion = promotionRepository.findById(promotionId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROMO_NOT_EXISTED));
 
-        // Kiểm tra xem khuyến mãi còn hiệu lực không
+        // 2. Kiểm tra hiệu lực của chương trình
         if (!promotion.isActive() || promotion.getValidUntil().isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.PROMO_EXPIRED);
         }
 
-        // Kiểm tra xem User đã lấy mã này chưa (Tránh spam click)
+        // 3. Kiểm tra số lượng giới hạn của hệ thống
+        if (promotion.getUsageLimit() > 0 && promotion.getUsedCount() >= promotion.getUsageLimit()) {
+            throw new AppException(ErrorCode.PROMO_OUT_OF_USAGE); // Đã phát hết mã
+        }
+
+        // 4. Kiểm tra User đã lấy mã này chưa (Tránh spam click)
         if (userVoucherRepository.existsByUserIdAndPromotionId(user.getId(), promotion.getId())) {
             throw new AppException(ErrorCode.PROMO_ALREADY_COLLECTED);
         }
 
+        // ====================================================================
+        // 🔥 KIỂM TRA ĐIỀU KIỆN NHẬN MÃ (HẠNG, SINH NHẬT, ĐIỂM THƯỞNG)
+        // ====================================================================
+
+        // 5. Kiểm tra Hạng thành viên (Sử dụng Ordinal để so sánh cấp bậc enum: BASIC(0) < SILVER(1) < GOLD(2) < PLATINUM(3))
+        if (promotion.getRequiredMemberTier() != null) {
+            if (user.getMemberTier().ordinal() < promotion.getRequiredMemberTier().ordinal()) {
+                throw new AppException(ErrorCode.TIER_NOT_MET); // Hạng không đủ
+            }
+        }
+
+        // 6. Kiểm tra Tháng sinh nhật (Quy chuẩn rạp phim thường tặng quà theo Tháng)
+        if (promotion.isBirthdayPromo()) {
+            if (user.getDateOfBirth() == null) {
+                throw new AppException(ErrorCode.DOB_NOT_UPDATED); // Chưa cập nhật ngày sinh
+            }
+            int currentMonth = LocalDateTime.now().getMonthValue();
+            int birthMonth = user.getDateOfBirth().getMonthValue();
+            if (currentMonth != birthMonth) {
+                throw new AppException(ErrorCode.NOT_BIRTHDAY_MONTH); // Không phải tháng sinh nhật
+            }
+        }
+
+        // 7. Kiểm tra & TRỪ ĐIỂM thưởng nếu mã yêu cầu dùng điểm để đổi
+        if (promotion.getRequiredRewardPoints() != null && promotion.getRequiredRewardPoints() > 0) {
+            if (user.getTotalRewardPoints() < promotion.getRequiredRewardPoints()) {
+                throw new AppException(ErrorCode.NOT_ENOUGH_POINTS); // Không đủ điểm
+            }
+            // Trừ điểm của User và lưu lại
+            user.setTotalRewardPoints(user.getTotalRewardPoints() - promotion.getRequiredRewardPoints());
+            userRepository.save(user);
+        }
+        // ====================================================================
+
+        // 8. Cấp mã cho User
         UserVoucher userVoucher = UserVoucher.builder()
                 .user(user)
                 .promotion(promotion)
@@ -120,6 +160,10 @@ public class PromotionService {
                 .build();
 
         userVoucherRepository.save(userVoucher);
+
+        // Cập nhật số lượt đã phát (Nên cộng luôn lúc user bấm nhận thay vì chờ thanh toán để tránh lố mã)
+        promotion.setUsedCount(promotion.getUsedCount() + 1);
+        promotionRepository.save(promotion);
     }
 
     // Hiển thị ở Tab 2 - Ví Voucher của người dùng

@@ -57,6 +57,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
 
   // 🔥 STATE LƯU DỮ LIỆU KHUYẾN MÃI TỪ API
   const [promotions, setPromotions] = useState<any[]>([]);
+  const [myVouchers, setMyVouchers] = useState<any[]>([]);
 
   const [realtimeLocks, setRealtimeLocks] = useState<Record<string, string>>(
     {},
@@ -407,11 +408,31 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         }
 
         const promosRes = await fetch(
-          `http://localhost:9090/cinema/promotions`,
+          `http://localhost:9090/cinema/promotions/my-vouchers`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
         );
+
         if (promosRes.ok) {
           const promosData = await promosRes.json();
-          setPromotions(promosData.result || []);
+
+          const usableVouchers = (promosData.result || []).filter(
+            (promo: any) => {
+              const now = dayjs();
+
+              return (
+                !promo.isUsed &&
+                dayjs(promo.validFrom).isBefore(now) &&
+                dayjs(promo.validUntil).isAfter(now)
+              );
+            },
+          );
+
+          setPromotions(usableVouchers);
+          setMyVouchers(usableVouchers);
         }
       } catch (error) {
         showPremiumError(

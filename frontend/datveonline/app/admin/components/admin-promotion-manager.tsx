@@ -39,6 +39,10 @@ interface Promotion {
   usageLimit: number;
   usedCount: number;
   active: boolean;
+
+  requiredRewardPoints: number;
+  requiredMemberTier: "BASIC" | "SILVER" | "GOLD" | "PLATINUM";
+  isBirthdayPromo: boolean;
 }
 
 export function AdminPromotionManager({
@@ -94,6 +98,10 @@ export function AdminPromotionManager({
       minPurchaseAmount: 0,
       maxDiscountAmount: 0,
       usageLimit: 100,
+
+      requiredRewardPoints: 0,
+      requiredMemberTier: "BASIC",
+      isBirthdayPromo: false,
     });
     setIsModalVisible(true);
   };
@@ -299,6 +307,31 @@ export function AdminPromotionManager({
         </Space>
       ),
     },
+    {
+      title: "Điều kiện nhận mã",
+      key: "conditions",
+      render: (_: any, record: Promotion) => (
+        <Space direction="vertical" size={4}>
+          <Tag color="cyan">Điểm: {record.requiredRewardPoints || 0}</Tag>
+
+          <Tag
+            color={
+              record.requiredMemberTier === "PLATINUM"
+                ? "red"
+                : record.requiredMemberTier === "GOLD"
+                  ? "gold"
+                  : record.requiredMemberTier === "SILVER"
+                    ? "blue"
+                    : "default"
+            }
+          >
+            Hạng: {record.requiredMemberTier || "BASIC"}
+          </Tag>
+
+          {record.isBirthdayPromo && <Tag color="magenta">Quà sinh nhật</Tag>}
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -445,7 +478,15 @@ export function AdminPromotionManager({
               <Form.Item
                 name="discountPercent"
                 label="% Giảm giá"
-                rules={[{ required: true, message: "Nhập % giảm!" }]}
+                rules={[
+                  { required: true, message: "Nhập % giảm!" },
+                  {
+                    type: "number",
+                    min: 1,
+                    max: 100,
+                    message: "Phần trăm giảm giá chỉ được từ 1% đến 100%!",
+                  },
+                ]}
               >
                 <InputNumber
                   size="large"
@@ -514,6 +555,49 @@ export function AdminPromotionManager({
                   checkedChildren="Cho phép dùng"
                   unCheckedChildren="Đang khóa"
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="requiredRewardPoints"
+                label="Điểm thưởng cần đổi"
+                rules={[{ required: true }]}
+              >
+                <InputNumber
+                  size="large"
+                  min={0}
+                  step={10}
+                  className="w-full"
+                  placeholder="VD: 100"
+                />
+              </Form.Item>
+            </Col>
+
+            <Col span={8}>
+              <Form.Item
+                name="requiredMemberTier"
+                label="Hạng thành viên yêu cầu"
+                rules={[{ required: true }]}
+              >
+                <Select size="large">
+                  <Select.Option value="BASIC">BASIC</Select.Option>
+                  <Select.Option value="SILVER">SILVER</Select.Option>
+                  <Select.Option value="GOLD">GOLD</Select.Option>
+                  <Select.Option value="PLATINUM">PLATINUM</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+
+            <Col span={8}>
+              <Form.Item
+                name="isBirthdayPromo"
+                label="Quà sinh nhật"
+                valuePropName="checked"
+              >
+                <Switch checkedChildren="Có" unCheckedChildren="Không" />
               </Form.Item>
             </Col>
           </Row>

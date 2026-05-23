@@ -1,6 +1,7 @@
 package com.devteria.cinemaback_end.promotion.dto;
 
 import com.devteria.cinemaback_end.promotion.entity.enums.PromotionTarget;
+import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -9,7 +10,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
-
+import jakarta.validation.constraints.Max;
 @Data
 @Builder
 @NoArgsConstructor
@@ -26,7 +27,8 @@ public class PromotionRequest {
     String discountCode;
 
     @NotNull(message = "DISCOUNT_PERCENT_NOT_NULL")
-    @Min(value = 1, message = "DISCOUNT_PERCENT_INVALID")
+    @Min(value = 0, message = "DISCOUNT_PERCENT_INVALID")
+    @Max(value = 100, message = "DISCOUNT_PERCENT_INVALID")
     Double discountPercent;
 
     // BỔ SUNG: Ràng buộc yêu cầu Admin phải chọn loại áp dụng
@@ -50,5 +52,8 @@ public class PromotionRequest {
     @Min(value = 0, message = "USAGE_LIMIT_INVALID")
     Integer usageLimit;
 
+    Integer requiredRewardPoints;
+    MemberTier requiredMemberTier;
+    Boolean isBirthdayPromo;
     Boolean active;
 }

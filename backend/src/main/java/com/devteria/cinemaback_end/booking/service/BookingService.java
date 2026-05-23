@@ -3,6 +3,8 @@ package com.devteria.cinemaback_end.booking.service;
 import com.devteria.cinemaback_end.booking.dto.BookingRequest;
 import com.devteria.cinemaback_end.booking.dto.BookingResponse;
 import com.devteria.cinemaback_end.booking.entity.Booking;
+import com.devteria.cinemaback_end.promotion.entity.UserVoucher;
+import com.devteria.cinemaback_end.promotion.repository.UserVoucherRepository;
 import com.devteria.cinemaback_end.user.entity.enums.MemberTier;
 import com.devteria.cinemaback_end.booking.entity.Payment;
 import com.devteria.cinemaback_end.booking.entity.Ticket;
@@ -62,6 +64,7 @@ public class BookingService {
     BookingRedisService bookingRedisService;
     SeatHoldService seatHoldService;
     OutboxEventService outboxEventService;
+    UserVoucherRepository userVoucherRepository;
 
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
@@ -184,8 +187,16 @@ public class BookingService {
         // 🔥 BỔ SUNG MỚI: Chỉ khi thanh toán thành công mới chốt cộng lượt sử dụng Khuyến Mãi
         if (booking.getPromotion() != null) {
             Promotion promo = booking.getPromotion();
+
             promo.setUsedCount(promo.getUsedCount() + 1);
-            promotionRepository.save(promo); // Lưu thẳng xuống DB
+            promotionRepository.save(promo);
+
+            UserVoucher userVoucher = userVoucherRepository
+                    .findByUserAndPromotion(booking.getCustomer(), promo)
+                    .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_OWNED));
+
+            userVoucher.setUsed(true);
+            userVoucherRepository.save(userVoucher);
         }
 
         User customer = booking.getCustomer();
@@ -399,6 +410,18 @@ public class BookingService {
 
         Promotion promo = promotionRepository.findByDiscountCode(request.getPromoCode())
                 .orElseThrow(() -> new AppException(ErrorCode.PROMO_NOT_EXISTED));
+
+        User customer = booking.getCustomer();
+
+        UserVoucher userVoucher = userVoucherRepository
+                .findByUserAndPromotion(customer, promo)
+                .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_OWNED));
+
+        if (userVoucher.isUsed()) {
+            throw new AppException(ErrorCode.VOUCHER_ALREADY_USED);
+        }
+        userVoucher.setUsed(true);
+
         validatePromotion(promo, subTotal);
 
         double promoPercent = promo.getDiscountPercent().doubleValue();
