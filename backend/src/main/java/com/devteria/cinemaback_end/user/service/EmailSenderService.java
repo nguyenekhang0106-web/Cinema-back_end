@@ -234,6 +234,28 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
         // 2. Danh sách ghế (VD: E11, E12)
         String seatList = String.join(", ", sortedTickets.stream().map(this::seatLabel).toList());
 
+        String memberDiscountRow =
+                booking.getMemberDiscountAmount() != null
+                        && booking.getMemberDiscountAmount() > 0
+
+                        ? """
+            <tr>
+                <td style="padding: 10px 0; color: #666666;">
+                    Ưu đãi hạng thành viên
+                </td>
+                <td style="padding: 10px 0;
+                           text-align:right;
+                           color:#2563eb;
+                           font-weight:bold;">
+                    -%s
+                </td>
+            </tr>
+          """.formatted(
+                        formatMoney(booking.getMemberDiscountAmount())
+                )
+
+                        : "";
+
         // 🔥 3. CHỈ LẤY 1 MÃ QR DUY NHẤT LÀM ĐẠI DIỆN CHO CẢ ĐƠN HÀNG
         Ticket firstTicket = sortedTickets.get(0);
         String qrImage = StringUtils.hasText(firstTicket.getQrCodeUrl())
@@ -312,9 +334,19 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
                                         <td style="padding: 10px 0; text-align: right; color: #222222; font-weight: bold;">%s</td>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 10px 0; color: #666666;">Giảm giá (Discount)</td>
-                                        <td style="padding: 10px 0; text-align: right; color: #2ba24c; font-weight: bold;">-%s</td>
-                                    </tr>
+                                            <td style="padding: 10px 0; color: #666666;">
+                                                Giảm giá Voucher
+                                            </td>
+                                            <td style="padding: 10px 0;
+                                                       text-align: right;
+                                                       color: #2ba24c;
+                                                       font-weight: bold;">
+                                                -%s
+                                            </td>
+                                        </tr>
+                
+                                        %s
+                
                                     <tr>
                                         <td style="padding: 20px 0 5px 0; border-top: 2px dashed #dddddd; color: #222222; font-weight: 900; font-size: 18px;">TỔNG CỘNG</td>
                                         <td style="padding: 20px 0 5px 0; border-top: 2px dashed #dddddd; text-align: right; color: #a61d24; font-weight: 900; font-size: 22px;">%s</td>
@@ -356,6 +388,9 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
                 formatMoney(booking.getTicketTotal()),
                 formatMoney(booking.getConcessionTotal()),
                 formatMoney(booking.getDiscountAmount()),
+
+                memberDiscountRow,
+
                 formatMoney(booking.getTotalAmount()),
                 singleQrHtml, // Truyền khối html chứa 1 mã QR duy nhất vào đây
                 BRAND_NAME

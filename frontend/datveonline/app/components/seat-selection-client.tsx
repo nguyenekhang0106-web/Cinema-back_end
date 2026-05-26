@@ -47,6 +47,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   const router = useRouter();
   const { token } = useAuthSession();
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [memberTier, setMemberTier] = useState("BASIC");
 
   const [loading, setLoading] = useState(true);
   const [showtime, setShowtime] = useState<any>(null);
@@ -407,6 +408,20 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           setConcessions(concessionsData.result || []);
         }
 
+        const profileRes = await fetch(
+          "http://localhost:9090/cinema/users/myInfo",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setMemberTier(profileData.result?.memberTier || "BASIC");
+        }
+
         const promosRes = await fetch(
           `http://localhost:9090/cinema/promotions/my-vouchers`,
           {
@@ -567,7 +582,16 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
 
   // Tính discount theo hàm mới
   const discount = calculateDiscount(appliedPromo, seatSubtotal, snackTotal);
-  const grandTotal = Math.max(0, seatSubtotal + snackTotal - discount);
+  const memberDiscount = calculateMemberDiscount(
+    memberTier,
+    seatSubtotal,
+    snackTotal,
+  );
+
+  const grandTotal = Math.max(
+    0,
+    seatSubtotal + snackTotal - discount - memberDiscount,
+  );
   const selectedConcessions = concessions.filter(
     (item) => (snackQuantities[item.id] ?? 0) > 0,
   );
@@ -1104,8 +1128,15 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
                     sessionStorage.removeItem(
                       `kct_temp_wizard_state_${showtimeId}`,
                     );
+                    sessionStorage.removeItem("kct_booking_state");
+
                     setCurrentStep(0);
                     setSelectedSeats([]);
+                    setSnackQuantities({});
+                    setAppliedPromo(null);
+                    setPromoCode("");
+                    setSelectedMemberPromo(null);
+                    setPromoMessage(null);
                     setPaymentDone(false);
                     setFinalBookingCode("");
                     setTimeLeft(null);
@@ -1137,6 +1168,8 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           snackQuantities={snackQuantities}
           snackTotal={snackTotal}
           appliedPromo={appliedPromo}
+          memberTier={memberTier}
+          memberDiscount={memberDiscount}
           discount={discount}
           grandTotal={grandTotal}
         />
@@ -1623,6 +1656,8 @@ function OrderSummary({
   appliedPromo,
   discount,
   grandTotal,
+  memberTier,
+  memberDiscount,
 }: any) {
   return (
     <Card bordered={false} className="cinema-paper sticky top-4 rounded-[24px]">
@@ -1711,6 +1746,13 @@ function OrderSummary({
           <SummaryRow
             label={copy.discount}
             value={`-${formatCurrency(discount, locale)}`}
+          />
+        )}
+        {/* Giảm giá hạng thành viên */}
+        {memberDiscount > 0 && (
+          <SummaryRow
+            label={`Ưu đãi hạng ${memberTier}`}
+            value={`-${formatCurrency(memberDiscount, locale)}`}
           />
         )}
         {appliedPromo && <Tag color="green">{appliedPromo.discountCode}</Tag>}
@@ -1821,6 +1863,25 @@ function formatCurrency(value: number, locale: "vi" | "en") {
     new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US").format(value) +
     "đ"
   );
+}
+
+function calculateMemberDiscount(
+  memberTier: string,
+  seatSubtotal: number,
+  snackTotal: number,
+) {
+  const total = seatSubtotal + snackTotal;
+
+  const percent =
+    memberTier === "PLATINUM"
+      ? 0.15
+      : memberTier === "GOLD"
+        ? 0.1
+        : memberTier === "SILVER"
+          ? 0.05
+          : 0;
+
+  return Math.round(total * percent);
 }
 
 function getBookingCopy(locale: "vi" | "en") {

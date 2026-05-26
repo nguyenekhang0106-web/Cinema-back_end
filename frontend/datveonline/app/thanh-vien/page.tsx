@@ -363,11 +363,46 @@ export default function MemberPage() {
                                         )}
                                       </Typography.Text>
 
-                                      {isNotStarted && (
-                                        <Tag color="gold" className="w-fit">
-                                          Chưa có hiệu lực
-                                        </Tag>
-                                      )}
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {promo.requiredMemberTier &&
+                                          promo.requiredMemberTier !==
+                                            "BASIC" && (
+                                            <Tag
+                                              color="purple"
+                                              className="w-fit m-0"
+                                            >
+                                              Hạng: {promo.requiredMemberTier}
+                                            </Tag>
+                                          )}
+
+                                        {promo.requiredRewardPoints > 0 && (
+                                          <Tag
+                                            color="cyan"
+                                            className="w-fit m-0"
+                                          >
+                                            Cần {promo.requiredRewardPoints}{" "}
+                                            điểm
+                                          </Tag>
+                                        )}
+
+                                        {promo.isBirthdayPromo && (
+                                          <Tag
+                                            color="magenta"
+                                            className="w-fit m-0"
+                                          >
+                                            Sinh nhật
+                                          </Tag>
+                                        )}
+
+                                        {isNotStarted && (
+                                          <Tag
+                                            color="gold"
+                                            className="w-fit m-0"
+                                          >
+                                            Chưa có hiệu lực
+                                          </Tag>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
 

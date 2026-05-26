@@ -356,6 +356,16 @@ public class BookingService {
                     .orElseThrow(() -> new AppException(ErrorCode.SEAT_NOT_EXISTED));
 
             double seatPrice = showtime.getBasePrice().doubleValue();
+
+            if (seat.getType() != null) {
+                switch (seat.getType()) {
+                    case VIP -> seatPrice += 10000;
+                    case SWEETBOX -> seatPrice += 20000;
+                    default -> {
+                    }
+                }
+            }
+
             ticketTotal += seatPrice;
 
             Ticket ticket = Ticket.builder()
