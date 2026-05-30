@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GiftOutlined, ProfileOutlined, StarOutlined } from "@ant-design/icons";
+import {
+  GiftOutlined,
+  ProfileOutlined,
+  StarOutlined,
+  TagOutlined,
+  CrownOutlined,
+  TrophyOutlined,
+} from "@ant-design/icons";
 import {
   Card,
   Col,
@@ -43,13 +50,13 @@ export default function MemberPage() {
   const [myVouchers, setMyVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 THÊM HÀM NÀY: Hàm format chuẩn hóa dữ liệu dùng chung
+  // Hàm format chuẩn hóa dữ liệu dùng chung
   const formatVouchers = (vouchers: any[]) => {
     const now = dayjs();
     return vouchers
       .filter((v: any) => dayjs(v.validUntil).isAfter(now))
       .map((v: any) => ({
-        id: v.id, // 🔥 BẮT BUỘC: Giữ lại id để so sánh trạng thái và làm rowKey cho Table
+        id: v.id,
         key: v.id,
         code: v.discountCode,
         title: v.title,
@@ -58,6 +65,10 @@ export default function MemberPage() {
         isUsed: v.isUsed,
         validUntil: v.validUntil,
         target: v.target,
+        validFrom: v.validFrom,
+        requiredRewardPoints: v.requiredRewardPoints,
+        requiredMemberTier: v.requiredMemberTier,
+        isBirthdayPromo: v.isBirthdayPromo,
       }));
   };
 
@@ -94,7 +105,6 @@ export default function MemberPage() {
             setTicketCount(ticketData.result.length);
           }
           if (voucherData && voucherData.result) {
-            // 🔥 SỬA Ở ĐÂY: Sử dụng hàm formatVouchers đã tách ra
             setMyVouchers(formatVouchers(voucherData.result));
           }
         })
@@ -128,7 +138,6 @@ export default function MemberPage() {
       // Load lại ví voucher để cập nhật trạng thái
       const res = await getMyVouchersApi(token);
       if (res.result) {
-        // 🔥 SỬA Ở ĐÂY: Đảm bảo dữ liệu mới cũng được format chuẩn xác như lúc F5
         setMyVouchers(formatVouchers(res.result));
       }
     } catch (err: any) {
@@ -136,7 +145,7 @@ export default function MemberPage() {
     }
   };
 
-  // Hàm chuyển đổi Target thành text tiếng Việt/Anh
+  // Hàm chuyển đổi Target thành text
   const getTargetLabel = (target: string) => {
     if (target === "TICKET")
       return locale === "vi" ? "Áp dụng: Giá vé" : "For: Tickets";
@@ -149,7 +158,7 @@ export default function MemberPage() {
   const myVoucherColumns = [
     {
       title: "Mã giảm giá",
-      dataIndex: "code", // 🔥 SỬA Ở ĐÂY: Đổi từ "discountCode" thành "code"
+      dataIndex: "code",
       key: "code",
       render: (text: string) => (
         <Typography.Text strong className="text-[#a61d24]">
@@ -184,6 +193,30 @@ export default function MemberPage() {
     },
   ];
 
+  const now = dayjs();
+
+  const availableVouchers = myVouchers.filter(
+    (v) =>
+      !v.isUsed &&
+      dayjs(v.validFrom).isBefore(now) &&
+      dayjs(v.validUntil).isAfter(now),
+  );
+
+  const tierPromotions = allPromotions.filter(
+    (promo) =>
+      promo.requiredMemberTier &&
+      promo.requiredMemberTier !== "BASIC" &&
+      dayjs(promo.validFrom).isBefore(now) &&
+      dayjs(promo.validUntil).isAfter(now),
+  );
+
+  const pointPromotions = allPromotions.filter(
+    (promo) =>
+      promo.requiredRewardPoints > 0 &&
+      dayjs(promo.validFrom).isBefore(now) &&
+      dayjs(promo.validUntil).isAfter(now),
+  );
+
   return (
     <div className="cinema-page">
       {/* CSS Tab Đỏ */}
@@ -208,12 +241,14 @@ export default function MemberPage() {
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
           {/* Hàng 1: Cấp bậc & Lịch sử vé */}
-          <Row gutter={[24, 24]} className="mb-8">
+          <Row gutter={[24, 24]} className="mb-6">
             <Col xs={24} md={12}>
               <Card
                 bordered={false}
                 className="cinema-paper rounded-[24px] h-full hover:shadow-md transition-shadow cursor-pointer border-l-4 border-orange-400"
-                onClick={() => router.push("/user")}
+                onClick={() =>
+                  router.push(locale === "vi" ? "/user" : "/en/user")
+                }
               >
                 <div className="flex justify-between items-center">
                   <Space direction="vertical" size={4}>
@@ -246,7 +281,13 @@ export default function MemberPage() {
               <Card
                 bordered={false}
                 className="cinema-paper rounded-[24px] h-full hover:shadow-md transition-shadow cursor-pointer border-l-4 border-blue-400"
-                onClick={() => router.push("/user")}
+                onClick={() =>
+                  router.push(
+                    locale === "vi"
+                      ? "/user?tab=history"
+                      : "/en/user?tab=history",
+                  )
+                }
               >
                 <div className="flex justify-between items-center">
                   <Space direction="vertical" size={4}>
@@ -272,6 +313,182 @@ export default function MemberPage() {
                     style={{ color: "#1677ff", fontSize: 48, opacity: 0.8 }}
                   />
                 </div>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* 🔥 Hàng 2: 3 Thẻ thông tin Ưu đãi (Mới bổ sung) */}
+          <Row gutter={[24, 24]} className="mb-8">
+            <Col xs={24} md={8}>
+              <Card
+                bordered={false}
+                className="cinema-paper rounded-[24px] h-full border-t-4 border-[#a61d24]"
+              >
+                <Space direction="vertical" size={10} className="w-full">
+                  <div className="flex gap-3 items-center">
+                    <TagOutlined style={{ fontSize: 24, color: "#a61d24" }} />
+                    <Typography.Title level={4} style={{ margin: 0 }}>
+                      Voucher khả dụng
+                    </Typography.Title>
+                  </div>
+
+                  {availableVouchers.slice(0, 4).map((voucher) => (
+                    <div
+                      key={voucher.id}
+                      className="rounded-xl border border-red-100 bg-red-50/40 p-3"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <div>
+                          <Typography.Text strong className="text-[#a61d24]">
+                            {voucher.code}
+                          </Typography.Text>
+                          <div className="text-xs text-gray-600">
+                            {voucher.title}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            HSD:{" "}
+                            {dayjs(voucher.validUntil).format(
+                              "DD/MM/YYYY HH:mm",
+                            )}
+                          </div>
+                          <Tag color="green" className="mt-1">
+                            Sẵn sàng
+                          </Tag>
+                        </div>
+
+                        <Button
+                          size="small"
+                          disabled
+                          className="rounded-full font-semibold px-3"
+                        >
+                          Đã nhận
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </Space>
+              </Card>
+            </Col>
+
+            <Col xs={24} md={8}>
+              <Card
+                bordered={false}
+                className="cinema-paper rounded-[24px] h-full border-t-4 border-yellow-500"
+              >
+                <Space direction="vertical" size={10} className="w-full">
+                  <div className="flex gap-3 items-center">
+                    <CrownOutlined style={{ fontSize: 24, color: "#eab308" }} />
+                    <Typography.Title level={4} style={{ margin: 0 }}>
+                      Ưu đãi theo hạng
+                    </Typography.Title>
+                  </div>
+
+                  {tierPromotions.slice(0, 4).map((promo) => {
+                    const isCollected = myVouchers.some(
+                      (v) => v.id === promo.id,
+                    );
+
+                    return (
+                      <div
+                        key={promo.id}
+                        className="rounded-xl border border-yellow-100 bg-yellow-50/40 p-3"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <div>
+                            <Typography.Text strong>
+                              {promo.title}
+                            </Typography.Text>
+                            <div className="text-xs text-gray-600">
+                              {promo.discountCode}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              HSD:{" "}
+                              {dayjs(promo.validUntil).format(
+                                "DD/MM/YYYY HH:mm",
+                              )}
+                            </div>
+                            <Tag color="purple" className="mt-1">
+                              Hạng: {promo.requiredMemberTier}
+                            </Tag>
+                          </div>
+
+                          <Button
+                            type={isCollected ? "default" : "primary"}
+                            size="small"
+                            danger={!isCollected}
+                            disabled={isCollected}
+                            className="rounded-full font-semibold px-3"
+                            onClick={() => handleCollect(promo.id)}
+                          >
+                            {isCollected ? "Đã nhận" : "Nhận mã"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Space>
+              </Card>
+            </Col>
+
+            <Col xs={24} md={8}>
+              <Card
+                bordered={false}
+                className="cinema-paper rounded-[24px] h-full border-t-4 border-blue-500"
+              >
+                <Space direction="vertical" size={10} className="w-full">
+                  <div className="flex gap-3 items-center">
+                    <TrophyOutlined
+                      style={{ fontSize: 24, color: "#3b82f6" }}
+                    />
+                    <Typography.Title level={4} style={{ margin: 0 }}>
+                      Ưu đãi theo điểm
+                    </Typography.Title>
+                  </div>
+
+                  {pointPromotions.slice(0, 4).map((promo) => {
+                    const isCollected = myVouchers.some(
+                      (v) => v.id === promo.id,
+                    );
+
+                    return (
+                      <div
+                        key={promo.id}
+                        className="rounded-xl border border-blue-100 bg-blue-50/40 p-3"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <div>
+                            <Typography.Text strong>
+                              {promo.title}
+                            </Typography.Text>
+                            <div className="text-xs text-gray-600">
+                              {promo.discountCode}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              HSD:{" "}
+                              {dayjs(promo.validUntil).format(
+                                "DD/MM/YYYY HH:mm",
+                              )}
+                            </div>
+                            <Tag color="cyan" className="mt-1">
+                              Cần {promo.requiredRewardPoints} điểm
+                            </Tag>
+                          </div>
+
+                          <Button
+                            type={isCollected ? "default" : "primary"}
+                            size="small"
+                            danger={!isCollected}
+                            disabled={isCollected}
+                            className="rounded-full font-semibold px-3"
+                            onClick={() => handleCollect(promo.id)}
+                          >
+                            {isCollected ? "Đã nhận" : "Nhận mã"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Space>
               </Card>
             </Col>
           </Row>

@@ -537,3 +537,51 @@ export async function collectVoucherApi(token: string, promotionId: string) {
   }
   return res.json();
 }
+
+export async function getUsersApi(token: string) {
+  return request<any[]>("/users", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+}
+
+export async function createUserApi(token: string, payload: any) {
+  return request<any>("/users", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateUserApi(token: string, id: string, payload: any) {
+  return request<any>(`/users/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteUserApi(token: string, id: string) {
+  return request<any>(`/users/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function toggleUserStatusApi(token: string, id: string) {
+  return request<any>(`/users/${id}/toggle-status`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}

@@ -3,14 +3,14 @@
 // ==========================================
 // 1. REACT & NEXT.JS
 // ==========================================
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 // ==========================================
 // 2. THIRD-PARTY LIBRARIES
 // ==========================================
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 
 // ==========================================
 // 3. ANT DESIGN COMPONENTS
@@ -65,6 +65,11 @@ import {
   uploadMovieImagesApi,
   getMyTicketsApi,
   getMyVouchersApi,
+  getUsersApi,
+  createUserApi,
+  updateUserApi,
+  deleteUserApi,
+  toggleUserStatusApi,
 } from "../lib/cinema-api";
 
 // ==========================================
@@ -105,6 +110,11 @@ type UserRecord = {
   key: string;
   fullName: string;
   email: string;
+  phone?: string;
+  citizenIdNumber?: string;
+  gender?: string;
+  dateOfBirth?: string | Dayjs | null;
+  area?: string;
   role: UserRole;
   status: UserStatus;
   vouchers: number;
@@ -387,11 +397,46 @@ export function AdminDashboardPage() {
   const [showtimes, setShowtimes] = useState(initialShowtimes);
   const [users, setUsers] = useState(initialUsers);
 
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const { token, user } = useAuthSession();
+  const fetchUsers = async () => {
+    if (!token) return;
+
+    setLoadingUsers(true);
+    try {
+      const res = await getUsersApi(token);
+      const formattedUsers: UserRecord[] = (res || []).map((u: any) => ({
+        key: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        role: "user" as UserRole,
+        status: u.emailVerified
+          ? ("active" as UserStatus)
+          : ("blocked" as UserStatus),
+        vouchers: 0,
+        memberTier: u.memberTier || "BASIC",
+        totalSpending: u.totalSpending || 0,
+        citizenIdNumber: u.citizenIdNumber,
+        gender: u.gender,
+        dateOfBirth: u.dateOfBirth,
+        area: u.area,
+      }));
+
+      setUsers(formattedUsers);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [token]);
+
   const [movieForm] = Form.useForm<MovieRecord>();
   const [showtimeForm] = Form.useForm<ShowtimeRecord>();
   const [userForm] = Form.useForm<UserRecord>();
 
-  const { token, user } = useAuthSession();
   const isAdmin = String(user?.role).toUpperCase().includes("ADMIN");
 
   const [posterFile, setPosterFile] = useState<File | null>(null);
@@ -678,19 +723,34 @@ export function AdminDashboardPage() {
   }
 
   function openUserEditor(mode: EditorMode, record?: UserRecord) {
-    setUserModal({ open: true, mode, editingKey: record?.key });
-    userForm.setFieldsValue(
-      record ?? {
+    setUserModal({
+      open: true,
+      mode,
+      editingKey: record?.key,
+    });
+
+    if (record) {
+      userForm.setFieldsValue({
+        ...record,
+        dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
+      });
+    } else {
+      userForm.setFieldsValue({
         key: "",
         fullName: "",
         email: "",
+        phone: "",
+        citizenIdNumber: "",
+        gender: undefined,
+        area: undefined,
         role: "user",
         status: "active",
         vouchers: 0,
-        memberTier: "BASIC", // Đặt mặc định
-        totalSpending: 0, // Đặt mặc định
-      },
-    );
+        memberTier: "BASIC",
+        totalSpending: 0,
+        dateOfBirth: null,
+      });
+    }
   }
 
   async function saveMovie(values: any) {
@@ -757,8 +817,27 @@ export function AdminDashboardPage() {
   function saveShowtime(values: ShowtimeRecord) {
     setShowtimeModal({ open: false, mode: "create" });
   }
-  function saveUser(values: UserRecord) {
+  async function saveUser(values: any) {
+    if (!token) return;
+
+    const payload = {
+      ...values,
+      dateOfBirth: values.dateOfBirth
+        ? values.dateOfBirth.format("YYYY-MM-DD")
+        : null,
+    };
+
+    if (userModal.mode === "edit" && userModal.editingKey) {
+      await updateUserApi(token, userModal.editingKey, payload);
+      message.success(copy.userUpdated);
+    } else {
+      await createUserApi(token, payload);
+      message.success(copy.userCreated);
+    }
+
     setUserModal({ open: false, mode: "create" });
+    userForm.resetFields();
+    fetchUsers();
   }
   function toggleMovieFeatured(key: string) {
     setMovies((c) =>
@@ -766,7 +845,17 @@ export function AdminDashboardPage() {
     );
   }
   function cycleShowtimeStatus(key: string) {}
-  function toggleUserStatus(key: string) {}
+  async function toggleUserStatus(key: string) {
+    if (!token) return;
+
+    try {
+      await toggleUserStatusApi(token, key);
+      message.success("Cập nhật trạng thái người dùng thành công!");
+      fetchUsers();
+    } catch (error: any) {
+      message.error(error.message || "Không thể cập nhật trạng thái!");
+    }
+  }
   function removeMovie(key: string) {
     setMovies((c) => c.filter((i) => i.key !== key));
     message.success(copy.movieDeleted);
@@ -1020,19 +1109,110 @@ export function AdminDashboardPage() {
             onOk={() => showtimeForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
-          >
-            {/* Modal Showtime form content... */}
-          </Modal>
+          ></Modal>
 
           <Modal
             open={userModal.open}
             title={userModal.mode === "edit" ? copy.editUser : copy.addUser}
-            onCancel={() => setUserModal({ open: false, mode: "create" })}
+            onCancel={() => {
+              setUserModal({ open: false, mode: "create" });
+              userForm.resetFields();
+            }}
             onOk={() => userForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
+            width={720}
+            destroyOnClose
           >
-            {/* Modal User form content... */}
+            <Form form={userForm} layout="vertical" onFinish={saveUser}>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="fullName"
+                    label="Họ tên"
+                    rules={[{ required: true, message: "Nhập họ tên!" }]}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="email"
+                    label="Email"
+                    rules={[
+                      { required: true, message: "Nhập email!" },
+                      { type: "email", message: "Email không hợp lệ!" },
+                    ]}
+                  >
+                    <Input disabled={userModal.mode === "edit"} />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="phone"
+                    label="Số điện thoại"
+                    rules={[{ required: true, message: "Nhập số điện thoại!" }]}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="citizenIdNumber"
+                    label="CCCD"
+                    rules={[{ required: true, message: "Nhập CCCD!" }]}
+                  >
+                    <Input maxLength={12} />
+                  </Form.Item>
+                </Col>
+
+                {userModal.mode === "create" && (
+                  <Col span={12}>
+                    <Form.Item
+                      name="password"
+                      label="Mật khẩu"
+                      rules={[{ required: true, message: "Nhập mật khẩu!" }]}
+                    >
+                      <Input.Password />
+                    </Form.Item>
+                  </Col>
+                )}
+
+                <Col span={12}>
+                  <Form.Item name="gender" label="Giới tính">
+                    <Select
+                      options={[
+                        { label: "Nam", value: "Nam" },
+                        { label: "Nữ", value: "Nữ" },
+                        { label: "Khác", value: "khác" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="dateOfBirth" label="Ngày sinh">
+                    <DatePicker className="w-full" format="YYYY-MM-DD" />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="area" label="Khu vực">
+                    <Select
+                      options={Object.entries(AREA_MAP).map(
+                        ([value, label]) => ({
+                          label,
+                          value,
+                        }),
+                      )}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
           </Modal>
 
           <AdminConcessionManager
@@ -1057,6 +1237,14 @@ export function UserDashboardPage() {
 
   const router = useRouter();
   const { token, user, logout } = useAuthSession();
+  const [activeTab, setActiveTab] = useState("1");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setActiveTab(params.get("tab") === "history" ? "3" : "1");
+    }
+  }, []);
 
   const [profile, setProfile] = useState(initialProfile);
   const [upcomingTickets, setUpcomingTickets] = useState(
@@ -1848,7 +2036,8 @@ export function UserDashboardPage() {
                 {/* 🔥 GẮN CLASS .cinema-red-tabs ĐỂ KÍCH HOẠT MÀU ĐỎ KCT */}
                 <Tabs
                   className="cinema-red-tabs"
-                  defaultActiveKey="1"
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
                   items={tabItems}
                   type="card"
                   size="large"

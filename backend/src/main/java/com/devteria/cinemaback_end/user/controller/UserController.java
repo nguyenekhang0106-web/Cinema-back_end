@@ -129,4 +129,34 @@ public class UserController {
                 .message("Đồng bộ dữ liệu chi tiêu và điểm thưởng thành công!")
                 .build();
     }
+
+    @PostMapping
+    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserRequest request) {
+        return ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .message("Thêm người dùng thành công")
+                .result(userService.createUser(request))
+                .build();
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<UserResponse> updateUserByAdmin(
+            @PathVariable String id,
+            @RequestBody @Valid UserUpdateRequest request
+    ) {
+        return ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .message("Cập nhật người dùng thành công")
+                .result(userService.updateUserByAdmin(id, request))
+                .build();
+    }
+
+    @PutMapping("/{id}/toggle-status")
+    public ApiResponse<UserResponse> toggleUserStatus(@PathVariable String id) {
+        return ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .message("Cập nhật trạng thái người dùng thành công")
+                .result(userService.toggleUserStatus(id))
+                .build();
+    }
 }

@@ -1,6 +1,7 @@
 package com.devteria.cinemaback_end.user.service;
 
 import com.devteria.cinemaback_end.booking.repository.BookingRepository;
+import com.devteria.cinemaback_end.common.ApiResponse;
 import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.user.dto.UserRequest;
@@ -26,6 +27,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.apache.commons.text.StringEscapeUtils;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import java.util.HashSet;
 import java.util.List;
@@ -238,5 +241,37 @@ public class UserService {
         log.info("Bắt đầu thực hiện chiến dịch Năm Mới: Reset Chi tiêu và Hạng thành viên...");
         userRepository.resetYearlySpendingAndTier(MemberTier.BASIC);
         log.info("Hoàn tất chiến dịch Reset Năm Mới!");
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse updateUserByAdmin(String id, UserUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (request.getPhone() != null
+                && !request.getPhone().equals(user.getPhone())
+                && userRepository.existsByPhone(request.getPhone())) {
+            throw new AppException(ErrorCode.PHONE_EXISTED);
+        }
+
+        if (request.getCitizenIdNumber() != null
+                && !request.getCitizenIdNumber().equals(user.getCitizenIdNumber())
+                && userRepository.existsByCitizenIdNumber(request.getCitizenIdNumber())) {
+            throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
+        }
+
+        userMapper.updateUserFromRequest(user, request);
+
+        return buildUserResponse(userRepository.save(user));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse toggleUserStatus(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        user.setEmailVerified(!user.isEmailVerified());
+
+        return buildUserResponse(userRepository.save(user));
     }
 }

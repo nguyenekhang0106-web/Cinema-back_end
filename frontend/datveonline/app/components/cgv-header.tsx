@@ -1,6 +1,7 @@
 "use client";
 
-import { App } from "antd";
+import { App, Dropdown } from "antd"; // 🔥 Bổ sung import Dropdown
+import type { MenuProps } from "antd"; // 🔥 Bổ sung type MenuProps
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "./auth-session-provider";
@@ -15,14 +16,47 @@ export function CgvHeader() {
   const router = useRouter();
   const { isAuthenticated, loading, role, signOut } = useAuthSession();
 
-  const topLinks = [
+  // 🔥 Định nghĩa Menu Dropdown cho mục "Ưu đãi thành viên"
+  const memberMenuItems: MenuProps["items"] = [
     {
-      href: "/uu-dai-thanh-vien",
-      label: locale === "vi" ? "Ưu đãi thành viên" : "Member offers",
+      key: "voucher",
+      label: (
+        <Link
+          href={localizeHref("/thanh-vien", locale)}
+          className="font-semibold text-[#4a3426] hover:text-[#a61d24] py-1 block"
+        >
+          {locale === "vi" ? "Voucher khả dụng" : "Available Vouchers"}
+        </Link>
+      ),
     },
     {
-      href: "/ve-cua-toi-don-hang",
-      label: locale === "vi" ? "Vé của tôi / Đơn hàng" : "My tickets / Orders",
+      key: "tier",
+      label: (
+        <Link
+          href={localizeHref("/thanh-vien", locale)}
+          className="font-semibold text-[#4a3426] hover:text-[#a61d24] py-1 block"
+        >
+          {locale === "vi" ? "Ưu đãi theo hạng thành viên" : "Tier Offers"}
+        </Link>
+      ),
+    },
+    {
+      key: "points",
+      label: (
+        <Link
+          href={localizeHref("/thanh-vien", locale)}
+          className="font-semibold text-[#4a3426] hover:text-[#a61d24] py-1 block"
+        >
+          {locale === "vi" ? "Ưu đãi theo điểm thưởng" : "Points Offers"}
+        </Link>
+      ),
+    },
+  ];
+
+  const topLinks = [
+    {
+      href: "/thanh-vien", // 🔥 Đã đổi link từ /uu-dai-thanh-vien sang /thanh-vien
+      label: locale === "vi" ? "Ưu đãi thành viên" : "Member offers",
     },
   ];
 
@@ -68,14 +102,23 @@ export function CgvHeader() {
         <div className="cinema-shell flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
             {topLinks.map((item) => (
-              <Link
+              // 🔥 Bọc Link bằng Dropdown để hiển thị Menu con khi Hover
+              <Dropdown
                 key={item.href}
-                href={localizeHref(item.href, locale)}
-                onClick={(event) => handleProtectedNavigation(event, item.href)}
-                className="rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+                menu={{ items: memberMenuItems }}
+                placement="bottomLeft"
+                arrow={{ pointAtCenter: true }}
               >
-                {item.label}
-              </Link>
+                <Link
+                  href={localizeHref(item.href, locale)}
+                  onClick={(event) =>
+                    handleProtectedNavigation(event, item.href)
+                  }
+                  className="rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              </Dropdown>
             ))}
             <span className="rounded-full border border-white/15 bg-black/10 px-3 py-1.5 text-white">
               <Link
@@ -185,15 +228,25 @@ export function CgvHeader() {
 
             <nav className="flex flex-wrap gap-6 text-sm md:text-base font-semibold">
               {dictionary.header.nav.map((item) => {
-                // 🔥 XỬ LÝ ĐỔI TÊN ĐỘNG DỰA TRÊN ROLE QUẢN TRỊ VIÊN
                 let displayLabel = item.label;
+
                 if (item.href === "/rap-gia-ve") {
                   if (role === "admin") {
                     displayLabel =
                       locale === "vi" ? "Rạp & Phòng chiếu" : "Cinemas & Halls";
                   } else {
-                    displayLabel = locale === "vi" ? "Rạp & Lịch chiếu" : "Cinemas & Showtimes";
+                    displayLabel =
+                      locale === "vi"
+                        ? "Rạp & Lịch chiếu"
+                        : "Cinemas & Showtimes";
                   }
+                }
+
+                if (item.href === "/thanh-vien") {
+                  displayLabel =
+                    locale === "vi"
+                      ? "Thành viên & Ưu đãi"
+                      : "Membership & Offers";
                 }
 
                 return (
