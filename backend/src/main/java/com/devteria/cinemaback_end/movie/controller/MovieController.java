@@ -2,8 +2,10 @@ package com.devteria.cinemaback_end.movie.controller;
 
 import com.devteria.cinemaback_end.common.ApiResponse;
 import com.devteria.cinemaback_end.movie.dto.MovieImageUploadRequest;
+import com.devteria.cinemaback_end.movie.dto.MovieReactionStatsResponse;
 import com.devteria.cinemaback_end.movie.dto.MovieRequest;
 import com.devteria.cinemaback_end.movie.dto.MovieResponse;
+import com.devteria.cinemaback_end.movie.service.MovieReactionService;
 import com.devteria.cinemaback_end.movie.service.MovieService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -20,6 +22,7 @@ import java.util.List;
 public class MovieController {
 
     MovieService movieService;
+    MovieReactionService movieReactionService;
 
     /**
      * BƯỚC 1: Tạo phim mới (Chỉ nhận JSON)
@@ -88,6 +91,25 @@ public class MovieController {
         return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("Xóa phim thành công")
+                .build();
+    }
+
+    @PostMapping("/{id}/react")
+    public ApiResponse<MovieReactionStatsResponse> reactToMovie(
+            @PathVariable String id,
+            @RequestParam boolean isLike) {
+        return ApiResponse.<MovieReactionStatsResponse>builder()
+                .code(1000)
+                .message("Đã ghi nhận tương tác phim")
+                .result(movieReactionService.reactToMovie(id, isLike))
+                .build();
+    }
+
+    @GetMapping("/{id}/reaction-stats")
+    public ApiResponse<MovieReactionStatsResponse> getMovieReactionStats(@PathVariable String id) {
+        return ApiResponse.<MovieReactionStatsResponse>builder()
+                .code(1000)
+                .result(movieReactionService.getMovieReactionStats(id))
                 .build();
     }
 }

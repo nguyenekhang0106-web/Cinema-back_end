@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.HashSet;
 
 @Entity
 @Table(
@@ -41,6 +43,25 @@ public class Review {
     public void prePersist() {
         this.postDate = LocalDateTime.now();
     }
+
+    @Builder.Default
+    Integer likeCount = 0;
+
+    @Builder.Default
+    Integer dislikeCount = 0;
+
+    // 🔥 BỔ SUNG: Lưu danh sách ID của User đã Like/Dislike để chống spam
+    @ElementCollection
+    @CollectionTable(name = "review_likes", joinColumns = @JoinColumn(name = "review_id"))
+    @Column(name = "user_id")
+    @Builder.Default
+    Set<String> likedByUsers = new HashSet<>();
+
+    @ElementCollection
+    @CollectionTable(name = "review_dislikes", joinColumns = @JoinColumn(name = "review_id"))
+    @Column(name = "user_id")
+    @Builder.Default
+    Set<String> dislikedByUsers = new HashSet<>();
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

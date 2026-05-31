@@ -4,6 +4,7 @@ import com.devteria.cinemaback_end.exception.AppException;
 import com.devteria.cinemaback_end.exception.ErrorCode;
 import com.devteria.cinemaback_end.movie.dto.ReviewRequest;
 import com.devteria.cinemaback_end.movie.dto.ReviewResponse;
+import com.devteria.cinemaback_end.movie.dto.ReviewStatsResponse;
 import com.devteria.cinemaback_end.movie.entity.Movie;
 import com.devteria.cinemaback_end.movie.entity.Review;
 import com.devteria.cinemaback_end.movie.mapper.ReviewMapper;
@@ -11,6 +12,7 @@ import com.devteria.cinemaback_end.movie.repository.MovieRepository;
 import com.devteria.cinemaback_end.movie.repository.ReviewRepository;
 import com.devteria.cinemaback_end.user.entity.User;
 import com.devteria.cinemaback_end.user.repository.UserRepository;
+import com.devteria.cinemaback_end.util.S3Service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -31,6 +33,7 @@ public class ReviewService {
     ReviewMapper reviewMapper;
     UserRepository userRepository;
     MovieRepository movieRepository;
+    S3Service s3Service;
 
     // --- 1. CREATE ---
     @Transactional
@@ -49,9 +52,9 @@ public class ReviewService {
         review.setCustomer(customer);
         review.setMovie(movie);
 
-        if (review.getComment() != null && !review.getComment().isEmpty()) {
-            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
-        }
+//        if (review.getComment() != null && !review.getComment().isEmpty()) {
+//            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
+//        }
 
         return reviewMapper.toReviewResponse(reviewRepository.save(review));
     }
@@ -62,7 +65,7 @@ public class ReviewService {
             throw new AppException(ErrorCode.MOVIE_NOT_EXISTED);
         }
         return reviewRepository.findByMovieId(movieId).stream()
-                .map(reviewMapper::toReviewResponse)
+                .map(this::buildReviewResponse)
                 .toList();
     }
 
@@ -98,10 +101,10 @@ public class ReviewService {
 
         reviewMapper.updateReview(review, request);
 
-        if (review.getComment() != null && !review.getComment().isEmpty()) {
-            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
-        }
-        return reviewMapper.toReviewResponse(reviewRepository.save(review));
+//        if (review.getComment() != null && !review.getComment().isEmpty()) {
+//            review.setComment(StringEscapeUtils.escapeHtml4(review.getComment()));
+//        }
+        return buildReviewResponse(reviewRepository.save(review));
     }
 
     // --- 6. DELETE: Xóa review (Chủ sở hữu hoặc ADMIN được xóa) ---
@@ -131,5 +134,104 @@ public class ReviewService {
         String currentEmail = context.getAuthentication().getName();
         return userRepository.findByEmail(currentEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('USER')")
+    public ReviewResponse reactToReview(String reviewId, boolean isLike) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new AppException(ErrorCode.REVIEW_NOT_EXISTED));
+
+        String currentUserId = getCurrentUser().getId();
+
+        // Đảm bảo Set không bị null
+        if (review.getLikedByUsers() == null) review.setLikedByUsers(new java.util.HashSet<>());
+        if (review.getDislikedByUsers() == null) review.setDislikedByUsers(new java.util.HashSet<>());
+
+        if (isLike) {
+            if (review.getLikedByUsers().contains(currentUserId)) {
+                // Bấm lần 2 -> Bỏ Like
+                review.getLikedByUsers().remove(currentUserId);
+                review.setLikeCount(Math.max(0, review.getLikeCount() - 1));
+            } else {
+                // Bấm Like
+                review.getLikedByUsers().add(currentUserId);
+                review.setLikeCount(review.getLikeCount() + 1);
+                // Nếu đang Dislike thì xóa Dislike
+                if (review.getDislikedByUsers().contains(currentUserId)) {
+                    review.getDislikedByUsers().remove(currentUserId);
+                    review.setDislikeCount(Math.max(0, review.getDislikeCount() - 1));
+                }
+            }
+        } else {
+            // Xử lý logic tương tự cho Dislike
+            if (review.getDislikedByUsers().contains(currentUserId)) {
+                review.getDislikedByUsers().remove(currentUserId);
+                review.setDislikeCount(Math.max(0, review.getDislikeCount() - 1));
+            } else {
+                review.getDislikedByUsers().add(currentUserId);
+                review.setDislikeCount(review.getDislikeCount() + 1);
+                if (review.getLikedByUsers().contains(currentUserId)) {
+                    review.getLikedByUsers().remove(currentUserId);
+                    review.setLikeCount(Math.max(0, review.getLikeCount() - 1));
+                }
+            }
+        }
+
+        review = reviewRepository.save(review);
+
+        // Map ra Response (gán cờ isLikedByMe/isDislikedByMe cho client)
+        ReviewResponse response = reviewMapper.toReviewResponse(review);
+        response.setIsLikedByMe(review.getLikedByUsers().contains(currentUserId));
+        response.setIsDislikedByMe(review.getDislikedByUsers().contains(currentUserId));
+
+        return response;
+    }
+
+    public ReviewStatsResponse getMovieStats(String movieId){
+
+        List<Review> reviews =
+                reviewRepository.findByMovieId(movieId);
+
+        double avg =
+                reviews.stream()
+                        .mapToInt(Review::getRatingScore)
+                        .average()
+                        .orElse(0);
+
+        int likes =
+                reviews.stream()
+                        .mapToInt(r ->
+                                r.getLikeCount() == null
+                                        ? 0
+                                        : r.getLikeCount())
+                        .sum();
+
+        int dislikes =
+                reviews.stream()
+                        .mapToInt(r ->
+                                r.getDislikeCount() == null
+                                        ? 0
+                                        : r.getDislikeCount())
+                        .sum();
+
+        return ReviewStatsResponse.builder()
+                .averageRating(avg)
+                .totalReviews(reviews.size())
+                .totalLikes(likes)
+                .totalDislikes(dislikes)
+                .build();
+    }
+
+    private ReviewResponse buildReviewResponse(Review review) {
+        ReviewResponse response = reviewMapper.toReviewResponse(review);
+
+        String avatarKey = review.getCustomer().getAvatarUrl();
+
+        if (avatarKey != null && !avatarKey.isBlank()) {
+            response.setCustomerAvatar(s3Service.buildS3Url(avatarKey));
+        }
+
+        return response;
     }
 }

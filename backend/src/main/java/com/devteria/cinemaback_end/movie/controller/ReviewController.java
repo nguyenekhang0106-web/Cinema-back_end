@@ -3,6 +3,7 @@ package com.devteria.cinemaback_end.movie.controller;
 import com.devteria.cinemaback_end.common.ApiResponse;
 import com.devteria.cinemaback_end.movie.dto.ReviewRequest;
 import com.devteria.cinemaback_end.movie.dto.ReviewResponse;
+import com.devteria.cinemaback_end.movie.dto.ReviewStatsResponse;
 import com.devteria.cinemaback_end.movie.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -76,6 +77,33 @@ public class ReviewController {
         return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("Đã xóa đánh giá")
+                .build();
+    }
+
+    // 🔥 BỔ SUNG API LIKE/DISLIKE
+    // isLike = true -> Bấm nút Like, isLike = false -> Bấm nút Dislike
+    @PostMapping("/{id}/react")
+    public ApiResponse<ReviewResponse> reactToReview(
+            @PathVariable String id,
+            @RequestParam boolean isLike) {
+        return ApiResponse.<ReviewResponse>builder()
+                .code(1000)
+                .message("Đã ghi nhận tương tác")
+                .result(reviewService.reactToReview(id, isLike))
+                .build();
+    }
+
+    @GetMapping("/movie/{movieId}/stats")
+    public ApiResponse<ReviewStatsResponse>
+    getMovieStats(
+            @PathVariable String movieId){
+
+        return ApiResponse
+                .<ReviewStatsResponse>builder()
+                .code(1000)
+                .result(
+                        reviewService.getMovieStats(movieId)
+                )
                 .build();
     }
 }
