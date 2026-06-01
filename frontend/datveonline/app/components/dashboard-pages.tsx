@@ -82,18 +82,32 @@ import { useDictionary, useLocale } from "./locale-provider";
 import { AdminConcessionManager } from "../admin/components/admin-concession-manager";
 import { AdminPromotionManager } from "../admin/components/admin-promotion-manager";
 
-type MovieStatus = "showing" | "coming" | "hidden";
+type MovieStatus = "COMING_SOON" | "NOW_SHOWING" | "STOPPED";
 type ShowtimeStatus = "open" | "paused" | "soldout";
 type UserRole = "admin" | "user";
 type UserStatus = "active" | "blocked";
 type EditorMode = "create" | "edit";
 
 type MovieRecord = {
-  key: string;
-  title: string;
-  genre: string;
-  status: MovieStatus;
-  featured: boolean;
+  key?: string;
+  title?: string;
+
+  durationMin?: number;
+
+  genre?: string;
+  language?: string;
+  ageRestriction?: string;
+
+  releaseDate?: any;
+
+  trailerUrl?: string;
+  description?: string;
+
+  directors?: string[];
+  actors?: string[];
+
+  status?: MovieStatus;
+  featured?: boolean;
 };
 
 type ShowtimeRecord = {
@@ -162,14 +176,14 @@ const initialMovies: MovieRecord[] = [
     key: "mv-01",
     title: "Địa Đạo: Mặt Trời Trong Bóng Tối",
     genre: "Drama",
-    status: "showing",
+    status: "NOW_SHOWING",
     featured: true,
   },
   {
     key: "mv-02",
     title: "Lật Mặt 8",
     genre: "Action",
-    status: "coming",
+    status: "COMING_SOON",
     featured: false,
   },
 ];
@@ -696,13 +710,36 @@ export function AdminDashboardPage() {
 
   function openMovieEditor(mode: EditorMode, record?: any) {
     const currentId = record?.key || record?.id;
+
     setMovieModal({ open: true, mode, editingKey: currentId });
-    movieForm.setFieldsValue({
-      ...record,
-      releaseDate: record?.releaseDate ? dayjs(record.releaseDate) : null,
-      status: record?.status || "COMING_SOON",
-      featured: record?.featured || false,
-    });
+
+    if (record) {
+      movieForm.setFieldsValue({
+        ...record,
+        releaseDate: record.releaseDate ? dayjs(record.releaseDate) : null,
+        status: record.status || "COMING_SOON",
+        featured: record.featured ?? false,
+        directors: record.directors || [],
+        actors: record.actors || [],
+      });
+    } else {
+      movieForm.resetFields();
+      movieForm.setFieldsValue({
+        title: "",
+        durationMin: 90,
+        genre: "ACTION",
+        language: "VIETNAMESE",
+        ageRestriction: "C13",
+        releaseDate: null,
+        trailerUrl: "",
+        directors: [],
+        actors: [],
+        description: "",
+        status: "COMING_SOON",
+        featured: false,
+      });
+    }
+
     setPosterFile(null);
     setBannerFile(null);
   }
@@ -755,8 +792,8 @@ export function AdminDashboardPage() {
 
   async function saveMovie(values: any) {
     const isEditMode = movieModal.mode === "edit" && movieModal.editingKey;
-    if (!isEditMode && (!posterFile || !bannerFile)) {
-      message.error("Vui lòng tải lên đầy đủ Poster và Banner!");
+    if (!isEditMode && !posterFile) {
+      message.error("Vui lòng tải lên Poster!");
       return;
     }
     setSubmittingMovie(true);
@@ -1087,7 +1124,12 @@ export function AdminDashboardPage() {
                 ? copy.editMovie
                 : "Thêm phim chiếu rạp mới"
             }
-            onCancel={() => setMovieModal({ open: false, mode: "create" })}
+            onCancel={() => {
+              setMovieModal({ open: false, mode: "create" });
+              movieForm.resetFields();
+              setPosterFile(null);
+              setBannerFile(null);
+            }}
             onOk={() => movieForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
@@ -1095,7 +1137,184 @@ export function AdminDashboardPage() {
             width={800}
             destroyOnClose
           >
-            {/* Modal Movie form content... */}
+            <Form form={movieForm} layout="vertical" onFinish={saveMovie}>
+              <Row gutter={16}>
+                <Col span={16}>
+                  <Form.Item
+                    name="title"
+                    label="Tên phim"
+                    rules={[{ required: true }]}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="durationMin"
+                    label="Thời lượng (Phút)"
+                    rules={[{ required: true }]}
+                  >
+                    <InputNumber min={30} className="w-full" />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="genre"
+                    label="Thể loại"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        "ACTION",
+                        "COMEDY",
+                        "DRAMA",
+                        "HORROR",
+                        "ROMANCE",
+                        "SCI_FI",
+                        "ANIMATION",
+                        "DOCUMENTARY",
+                        "THRILLER",
+                        "FANTASY",
+                      ].map((v) => ({ label: v, value: v }))}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="language"
+                    label="Ngôn ngữ"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        "VIETNAMESE",
+                        "ENGLISH",
+                        "KOREAN",
+                        "JAPANESE",
+                        "CHINESE",
+                        "THAI",
+                        "FRENCH",
+                        "OTHER",
+                      ].map((v) => ({ label: v, value: v }))}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="ageRestriction"
+                    label="Giới hạn tuổi"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={["P", "C13", "C16", "C18"].map((v) => ({
+                        label: v,
+                        value: v,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="releaseDate"
+                    label="Ngày khởi chiếu"
+                    rules={[{ required: true }]}
+                  >
+                    <DatePicker className="w-full" format="DD/MM/YYYY" />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="trailerUrl" label="Link Trailer">
+                    <Input />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="directors" label="Đạo diễn">
+                    <Select mode="tags" placeholder="Nhập đạo diễn rồi Enter" />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="actors" label="Diễn viên">
+                    <Select
+                      mode="tags"
+                      placeholder="Nhập diễn viên rồi Enter"
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={24}>
+                  <Form.Item name="description" label="Mô tả">
+                    <Input.TextArea rows={4} />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item label="Đổi Poster (Ảnh dọc)">
+                    <Upload
+                      beforeUpload={(file) => {
+                        setPosterFile(file);
+                        return false;
+                      }}
+                      maxCount={1}
+                    >
+                      <Button icon={<UploadOutlined />}>Chọn ảnh mới</Button>
+                    </Upload>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item label="Đổi Banner (Ảnh ngang)">
+                    <Upload
+                      beforeUpload={(file) => {
+                        setBannerFile(file);
+                        return false;
+                      }}
+                      maxCount={1}
+                    >
+                      <Button icon={<UploadOutlined />}>Chọn ảnh mới</Button>
+                    </Upload>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="status"
+                    label="Trạng thái"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        { label: "Sắp chiếu", value: "COMING_SOON" },
+                        { label: "Đang chiếu", value: "NOW_SHOWING" },
+                        { label: "Ngừng chiếu", value: "STOPPED" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="featured"
+                    label="Nổi bật"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        { label: "Có", value: true },
+                        { label: "Không", value: false },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
           </Modal>
 
           <Modal

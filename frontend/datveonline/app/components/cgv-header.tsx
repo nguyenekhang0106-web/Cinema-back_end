@@ -249,6 +249,11 @@ export function CgvHeader() {
                       : "Membership & Offers";
                 }
 
+                if (item.href === "/cultureplex") {
+                  displayLabel =
+                    locale === "vi" ? "Đánh giá & Tin tức" : "Reviews & News";
+                }
+
                 return (
                   <Link
                     key={item.href}

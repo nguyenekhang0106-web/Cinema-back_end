@@ -74,13 +74,18 @@ export function CultureplexUI() {
         const articleData = await articleRes.json();
 
         if (movieData.code === 1000) {
-          setMovies(movieData.result);
+          const visibleMovies = movieData.result.filter(
+            (movie: any) =>
+              movie.status === "NOW_SHOWING" || movie.status === "COMING_SOON",
+          );
+
+          setMovies(visibleMovies);
 
           const statsResult: Record<string, any> = {};
           const reactionResult: Record<string, any> = {};
 
           await Promise.all(
-            movieData.result.map(async (movie: any) => {
+            visibleMovies.map(async (movie: any) => {
               try {
                 const statRes = await fetch(
                   `http://localhost:9090/cinema/reviews/movie/${movie.id}/stats`,
