@@ -21,6 +21,7 @@ public interface ArticleMapper {
     // BỔ SUNG: Lấy thông tin phim (MapStruct tự động xử lý an toàn nếu movie bị null)
     @Mapping(source = "movie.id", target = "movieId")
     @Mapping(source = "movie.title", target = "movieTitle")
+    @Mapping(source = "featured", target = "featured")
     ArticleResponse toArticleResponse(Article article);
 
     @Mapping(target = "id", ignore = true)
@@ -28,4 +29,6 @@ public interface ArticleMapper {
     @Mapping(target = "manager", ignore = true)
     @Mapping(target = "movie", ignore = true) // BỔ SUNG: Bỏ qua không map movie tự động
     void updateArticle(@MappingTarget Article article, ArticleRequest request);
+
+
 }

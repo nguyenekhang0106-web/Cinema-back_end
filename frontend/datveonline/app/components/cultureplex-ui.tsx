@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { localizeHref } from "../lib/i18n";
 import {
   Row,
   Col,
@@ -15,6 +17,11 @@ import {
   Skeleton,
   App,
   Input,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Spin,
 } from "antd";
 import {
   LikeOutlined,
@@ -24,6 +31,7 @@ import {
   MessageOutlined,
   ClockCircleOutlined,
   FireOutlined,
+  EnvironmentOutlined,
 } from "@ant-design/icons";
 
 // Bắt buộc import cả 2 locale của dayjs để nó có thể tự switch qua lại
@@ -38,10 +46,8 @@ import { useAuthSession } from "./auth-session-provider";
 import { SiteShell } from "./site-shell";
 import { useLocale } from "./locale-provider"; // 🔥 Dùng hook để lấy ngôn ngữ hiện tại
 
-const { Title, Text, Paragraph } = Typography;
-
 export function CultureplexUI() {
-  const { token } = useAuthSession();
+  const { token, role } = useAuthSession();
   const { message } = App.useApp();
   const locale = useLocale(); // "vi" hoặc "en"
 
@@ -50,6 +56,7 @@ export function CultureplexUI() {
 
   const [movies, setMovies] = useState<any[]>([]);
   const [articles, setArticles] = useState<any[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
@@ -60,6 +67,150 @@ export function CultureplexUI() {
     Record<string, { ratingScore: number; comment: string }>
   >({});
   const [loadingReviews, setLoadingReviews] = useState(false);
+
+  const { Title, Text, Paragraph } = Typography;
+  const [articleForm] = Form.useForm();
+  const [articleModal, setArticleModal] = useState<{
+    open: boolean;
+    mode: "create" | "edit";
+    editingId?: string;
+  }>({ open: false, mode: "create" });
+  const [submittingArticle, setSubmittingArticle] = useState(false);
+
+  const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
+  const [currentTrailerUrl, setCurrentTrailerUrl] = useState("");
+
+  const [isBookingModalVisible, setIsBookingModalVisible] = useState(false);
+  const [selectedMovieForBooking, setSelectedMovieForBooking] = useState<
+    any | null
+  >(null);
+  const [selectedDate, setSelectedDate] = useState(
+    dayjs().format("YYYY-MM-DD"),
+  );
+
+  const [isLoadingBookingData, setIsLoadingBookingData] = useState(false);
+  const [cinemas, setCinemas] = useState<any[]>([]);
+  const [halls, setHalls] = useState<any[]>([]);
+  const [showtimes, setShowtimes] = useState<any[]>([]);
+
+  const getYouTubeEmbedUrl = (url?: string) => {
+    if (!url) return "";
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    if (match && match[2].length === 11) {
+      return `https://www.youtube.com/embed/${match[2]}?autoplay=1`;
+    }
+    return url;
+  };
+
+  const generateDates = () => {
+    const days = [
+      "Chủ Nhật",
+      "Thứ Hai",
+      "Thứ Ba",
+      "Thứ Tư",
+      "Thứ Năm",
+      "Thứ Sáu",
+      "Thứ Bảy",
+    ];
+
+    return Array.from({ length: 7 }).map((_, index) => {
+      const d = dayjs().add(index, "day");
+      return {
+        iso: d.format("YYYY-MM-DD"),
+        dateLabel: d.format("DD/MM"),
+        dayLabel: index === 0 ? "Hôm nay" : days[d.day()],
+      };
+    });
+  };
+
+  const formatDisplayMap: Record<string, string> = {
+    TWO_D: "2D",
+    THREE_D: "3D",
+    IMAX: "IMAX",
+    FOUR_DX: "4DX",
+  };
+
+  const fetchBookingData = async () => {
+    setIsLoadingBookingData(true);
+
+    try {
+      const [cinemasRes, hallsRes, showtimesRes] = await Promise.all([
+        fetch("http://localhost:9090/cinema/cinemas"),
+        fetch("http://localhost:9090/cinema/halls"),
+        fetch("http://localhost:9090/cinema/showtimes"),
+      ]);
+
+      const cinemasData = await cinemasRes.json();
+      const hallsData = await hallsRes.json();
+      const showtimesData = await showtimesRes.json();
+
+      setCinemas(cinemasData.result || []);
+      setHalls(hallsData.result || []);
+      setShowtimes(showtimesData.result || []);
+    } catch (error) {
+      message.error("Không thể tải lịch chiếu!");
+    } finally {
+      setIsLoadingBookingData(false);
+    }
+  };
+
+  const handleOpenBookingModal = (movie: any) => {
+    setSelectedMovieForBooking(movie);
+    setSelectedDate(dayjs().format("YYYY-MM-DD"));
+    setIsBookingModalVisible(true);
+
+    if (cinemas.length === 0) {
+      fetchBookingData();
+    }
+  };
+
+  const getGroupedShowtimes = () => {
+    if (!selectedMovieForBooking) return [];
+
+    const now = dayjs();
+    const thresholdTime = now.subtract(20, "minute");
+
+    const activeShowtimes = showtimes.filter((st) => {
+      const showtimeTime = dayjs(st.startTime);
+
+      return (
+        st.movieId === selectedMovieForBooking.id &&
+        st.startTime.startsWith(selectedDate) &&
+        st.status === "SCHEDULED" &&
+        showtimeTime.isAfter(thresholdTime)
+      );
+    });
+
+    const groupedByCinema: Record<string, { cinema: any; showtimes: any[] }> =
+      {};
+
+    activeShowtimes.forEach((st) => {
+      const hall = halls.find((h) => h.id === st.hallId);
+      if (!hall) return;
+
+      const cinemaId = hall.cinemaId || hall.cinema?.id;
+      const cinema = cinemas.find((c) => c.id === cinemaId);
+      if (!cinema) return;
+
+      if (!groupedByCinema[cinema.id]) {
+        groupedByCinema[cinema.id] = { cinema, showtimes: [] };
+      }
+
+      groupedByCinema[cinema.id].showtimes.push({
+        ...st,
+        hallName: hall.name,
+      });
+    });
+
+    return Object.values(groupedByCinema).map((group) => ({
+      ...group,
+      showtimes: group.showtimes.sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      ),
+    }));
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,7 +269,22 @@ export function CultureplexUI() {
           setMovieStats(statsResult);
           setMovieReactions(reactionResult);
         }
-        if (articleData.code === 1000) setArticles(articleData.result);
+        if (articleData.code === 1000) {
+          const articleList = articleData.result || [];
+          setArticles(articleList);
+
+          const params = new URLSearchParams(window.location.search);
+          const articleId = params.get("article");
+
+          if (articleId) {
+            const foundArticle = articleList.find(
+              (item: any) => item.id === articleId,
+            );
+            if (foundArticle) {
+              setSelectedArticle(foundArticle);
+            }
+          }
+        }
       } catch (error) {
         console.error("Error fetching Cultureplex data:", error);
       } finally {
@@ -312,402 +478,970 @@ export function CultureplexUI() {
     }
   };
 
+  const openArticleEditor = (mode: "create" | "edit", article?: any) => {
+    setArticleModal({ open: true, mode, editingId: article?.id });
+
+    articleForm.setFieldsValue({
+      title: article?.title || "",
+      thumbnailUrl: article?.thumbnailUrl || "",
+      summary: article?.summary || "",
+      content: article?.content || "",
+      type: article?.type || "NEWS",
+      status: article?.status || "PUBLISHED",
+      featured:
+        article?.featured === true ||
+        article?.featured === 1 ||
+        article?.featured === "1",
+      authorName: article?.authorName || "",
+      movieId: article?.movieId || "",
+    });
+  };
+
+  const saveArticle = async () => {
+    if (!token) return;
+
+    const values = await articleForm.validateFields();
+    setSubmittingArticle(true);
+
+    try {
+      const url =
+        articleModal.mode === "edit"
+          ? `http://localhost:9090/cinema/articles/${articleModal.editingId}`
+          : "http://localhost:9090/cinema/articles";
+
+      const res = await fetch(url, {
+        method: articleModal.mode === "edit" ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await res.json();
+
+      if (data.code && data.code !== 1000) {
+        throw new Error(data.message || "Lưu bài viết thất bại");
+      }
+
+      message.success("Lưu bài viết thành công");
+
+      setArticleModal({ open: false, mode: "create" });
+      articleForm.resetFields();
+
+      const reload = await fetch(
+        "http://localhost:9090/cinema/articles?type=NEWS",
+      );
+      const reloadData = await reload.json();
+      setArticles(reloadData.result || []);
+    } catch (error: any) {
+      message.error(error.message || "Lưu bài viết thất bại");
+    } finally {
+      setSubmittingArticle(false);
+    }
+  };
+
+  const deleteArticle = async (id: string) => {
+    if (!token) return;
+
+    await fetch(`http://localhost:9090/cinema/articles/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    message.success("Đã xóa bài viết");
+    setArticles((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const featuredMovies = movies.filter((movie) => movie.featured === true);
+
   return (
     <div className="cinema-page bg-[#f5efe5] min-h-screen">
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6 max-w-[1400px] mx-auto">
-          <Row gutter={[32, 24]}>
-            {/* CỘT TRÁI: PHIM & REVIEW */}
-            <Col xs={24} lg={16}>
-              <Title
-                level={3}
-                className="!text-[#a61d24] mb-6 border-b-2 border-[#a61d24] pb-2 inline-block"
-              >
-                <FireOutlined className="mr-2" />{" "}
-                {locale === "vi" ? "Đánh Giá Phim (Review)" : "Movie Reviews"}
-              </Title>
+          {selectedArticle ? (
+            <div>
+              <div className="-mt-4 mb-8">
+                <Button
+                  className="rounded-full font-semibold"
+                  onClick={() => setSelectedArticle(null)}
+                >
+                  ← Quay lại Đánh giá & Tin tức
+                </Button>
+              </div>
 
-              {loading ? (
-                <Skeleton active avatar paragraph={{ rows: 4 }} />
-              ) : (
-                <List
-                  itemLayout="vertical"
-                  size="large"
-                  dataSource={movies}
-                  renderItem={(movie) => (
-                    <Card className="mb-6 rounded-[20px] shadow-sm border border-[#e4d1b4] overflow-hidden">
-                      <div className="flex flex-col md:flex-row gap-6">
-                        <div className="w-full md:w-[220px] shrink-0">
-                          <img
-                            src={
-                              movie.posterUrl ||
-                              "https://via.placeholder.com/220x330"
-                            }
-                            alt={movie.title}
-                            className="w-full h-[330px] object-cover rounded-xl shadow-md"
-                          />
-                        </div>
+              <Row gutter={[32, 24]}>
+                <Col xs={24} lg={14}>
+                  <Title level={2} className="!text-[#111] uppercase">
+                    {selectedArticle.title}
+                  </Title>
 
-                        <div className="flex-1 flex flex-col justify-between">
-                          <div>
-                            <div className="flex justify-between items-start mb-2">
-                              <Title level={4} className="!m-0 !text-[#4a3426]">
+                  <img
+                    src={
+                      selectedArticle.thumbnailUrl ||
+                      "https://via.placeholder.com/900x450?text=News"
+                    }
+                    alt={selectedArticle.title}
+                    className="w-full max-h-[520px] object-cover rounded-xl shadow mb-8"
+                  />
+
+                  <div className="text-base leading-8 whitespace-pre-line text-[#222]">
+                    {selectedArticle.content}
+                  </div>
+
+                  <div className="mt-12">
+                    <Title level={3} className="!text-[#111] uppercase !mb-6">
+                      Tin khác
+                    </Title>
+
+                    <Row gutter={[28, 28]}>
+                      {articles
+                        .filter((item) => {
+                          const isFeatured =
+                            item.featured === true ||
+                            item.featured === 1 ||
+                            item.featured === "1";
+
+                          const isPublished =
+                            !item.status || item.status === "PUBLISHED";
+
+                          return (
+                            item.id !== selectedArticle.id &&
+                            isFeatured &&
+                            isPublished
+                          );
+                        })
+                        .slice(0, 4)
+                        .map((item) => (
+                          <Col xs={24} sm={12} key={item.id}>
+                            <Card
+                              hoverable
+                              onClick={() => {
+                                setSelectedArticle(item);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer h-full"
+                              bodyStyle={{ padding: 0 }}
+                            >
+                              <div className="flex flex-col">
+                                <div className="relative h-[230px] overflow-hidden bg-gray-100">
+                                  <img
+                                    src={
+                                      item.thumbnailUrl ||
+                                      "https://via.placeholder.com/400x200?text=News"
+                                    }
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+
+                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-xs">
+                                    {dayjs(item.publishDate).format(
+                                      "DD/MM/YYYY",
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="p-4 bg-white">
+                                  <Text
+                                    strong
+                                    className="text-base line-clamp-2 mb-2 block"
+                                  >
+                                    {item.title}
+                                  </Text>
+
+                                  <Paragraph
+                                    type="secondary"
+                                    className="text-sm line-clamp-2 !m-0"
+                                  >
+                                    {item.summary}
+                                  </Paragraph>
+                                </div>
+                              </div>
+                            </Card>
+                          </Col>
+                        ))}
+                    </Row>
+                  </div>
+                </Col>
+
+                <Col xs={24} lg={8}>
+                  <div className="sticky top-24">
+                    <Title level={3} className="!text-[#111] uppercase !mb-6">
+                      Phim nổi bật
+                    </Title>
+
+                    <Row gutter={[18, 24]}>
+                      {featuredMovies.slice(0, 4).map((movie) => (
+                        <Col xs={12} key={movie.id}>
+                          <div className="group bg-white shadow-md overflow-hidden">
+                            <Link
+                              href={localizeHref(
+                                `/phim/${movie.slug || movie.id}`,
+                                locale,
+                              )}
+                              className="relative block h-[310px] overflow-hidden"
+                            >
+                              <img
+                                src={
+                                  movie.posterUrl ||
+                                  "https://via.placeholder.com/240x360"
+                                }
+                                alt={movie.title}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+
+                              <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-4 px-5">
+                                <Button
+                                  block
+                                  size="large"
+                                  className="rounded-full font-bold"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+
+                                    if (movie.trailerUrl) {
+                                      setCurrentTrailerUrl(movie.trailerUrl);
+                                      setIsTrailerModalOpen(true);
+                                    } else {
+                                      Modal.warning({
+                                        title: "Thông báo",
+                                        content:
+                                          "Trailer phim đang được cập nhật!",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  Trailer
+                                </Button>
+
+                                <Button
+                                  block
+                                  size="large"
+                                  type="primary"
+                                  danger
+                                  className="rounded-full font-bold !bg-[#a61d24] !border-[#a61d24]"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleOpenBookingModal(movie);
+                                  }}
+                                >
+                                  Đặt vé
+                                </Button>
+                              </div>
+                            </Link>
+
+                            <div className="p-3">
+                              <div className="font-bold text-sm uppercase line-clamp-2 min-h-[40px]">
                                 {movie.title}
-                              </Title>
-                              <Tag
-                                color={
-                                  movie.status === "NOW_SHOWING"
-                                    ? "green"
-                                    : "gold"
+                              </div>
+
+                              <div className="mt-2 text-xs leading-5">
+                                <div>
+                                  <b>Thể loại:</b> {movie.genre}
+                                </div>
+                                <div>
+                                  <b>Thời lượng:</b> {movie.durationMin} phút
+                                </div>
+                              </div>
+
+                              <div className="mt-4 flex flex-col gap-3">
+                                <Link
+                                  href={localizeHref(
+                                    `/phim/${movie.slug || movie.id}`,
+                                    locale,
+                                  )}
+                                >
+                                  <Button
+                                    block
+                                    className="rounded-full font-semibold"
+                                  >
+                                    Chi tiết phim
+                                  </Button>
+                                </Link>
+
+                                <Button
+                                  block
+                                  type="primary"
+                                  danger
+                                  className="rounded-full font-semibold !bg-[#a61d24] !border-[#a61d24]"
+                                  onClick={() => handleOpenBookingModal(movie)}
+                                >
+                                  Đặt vé
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+                      ))}
+                    </Row>
+                  </div>
+                </Col>
+              </Row>
+            </div>
+          ) : (
+            <Row gutter={[32, 24]}>
+              {/* CỘT TRÁI: PHIM & REVIEW */}
+              <Col xs={24} lg={16}>
+                <Title
+                  level={3}
+                  className="!text-[#a61d24] mb-6 border-b-2 border-[#a61d24] pb-2 inline-block"
+                >
+                  <FireOutlined className="mr-2" />{" "}
+                  {locale === "vi" ? "Đánh Giá Phim (Review)" : "Movie Reviews"}
+                </Title>
+
+                {loading ? (
+                  <Skeleton active avatar paragraph={{ rows: 4 }} />
+                ) : (
+                  <List
+                    itemLayout="vertical"
+                    size="large"
+                    dataSource={movies}
+                    renderItem={(movie) => (
+                      <Card className="mb-6 rounded-[20px] shadow-sm border border-[#e4d1b4] overflow-hidden">
+                        <div className="flex flex-col md:flex-row gap-6">
+                          <div className="w-full md:w-[220px] shrink-0">
+                            <img
+                              src={
+                                movie.posterUrl ||
+                                "https://via.placeholder.com/220x330"
+                              }
+                              alt={movie.title}
+                              className="w-full h-[330px] object-cover rounded-xl shadow-md"
+                            />
+                          </div>
+
+                          <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start mb-2">
+                                <Title
+                                  level={4}
+                                  className="!m-0 !text-[#4a3426]"
+                                >
+                                  {movie.title}
+                                </Title>
+                                <Tag
+                                  color={
+                                    movie.status === "NOW_SHOWING"
+                                      ? "green"
+                                      : "gold"
+                                  }
+                                >
+                                  {movie.status === "NOW_SHOWING"
+                                    ? locale === "vi"
+                                      ? "Đang chiếu"
+                                      : "Now Showing"
+                                    : locale === "vi"
+                                      ? "Sắp chiếu"
+                                      : "Coming Soon"}
+                                </Tag>
+                              </div>
+
+                              <Space wrap className="mb-3">
+                                <Tag color="red">
+                                  {movie.ageRestriction || "C13"}
+                                </Tag>
+                                <Tag>{movie.genre}</Tag>
+                                <Text type="secondary">
+                                  <ClockCircleOutlined /> {movie.durationMin}{" "}
+                                  {locale === "vi" ? "phút" : "mins"}
+                                </Text>
+                              </Space>
+
+                              <Paragraph className="text-gray-600 line-clamp-3">
+                                {movie.description ||
+                                  (locale === "vi"
+                                    ? "Chưa có mô tả cho phim này..."
+                                    : "No description available...")}
+                              </Paragraph>
+
+                              <div className="flex items-center gap-3 bg-[#fffaf4] p-3 rounded-lg border border-[#f0e6d2]">
+                                <Text className="font-bold text-lg text-[#a61d24]">
+                                  {movieStats[movie.id]?.averageRating?.toFixed(
+                                    1,
+                                  ) || "0.0"}
+                                </Text>
+                                <Rate
+                                  allowHalf
+                                  disabled
+                                  value={
+                                    movieStats[movie.id]?.averageRating || 0
+                                  }
+                                />
+                                <Text type="secondary" className="text-xs">
+                                  ({movieStats[movie.id]?.totalReviews || 0}{" "}
+                                  {locale === "vi" ? "đánh giá" : "reviews"})
+                                </Text>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100">
+                              <Button
+                                type="text"
+                                icon={
+                                  movieReactions[movie.id]?.likedByMe ? (
+                                    <LikeFilled />
+                                  ) : (
+                                    <LikeOutlined />
+                                  )
+                                }
+                                className={
+                                  movieReactions[movie.id]?.likedByMe
+                                    ? "text-black font-bold"
+                                    : "text-gray-600"
+                                }
+                                onClick={() =>
+                                  handleMovieReaction(movie.id, true)
                                 }
                               >
-                                {movie.status === "NOW_SHOWING"
+                                {movieReactions[movie.id]?.likeCount || 0}
+                              </Button>
+
+                              <Button
+                                type="text"
+                                icon={
+                                  movieReactions[movie.id]?.dislikedByMe ? (
+                                    <DislikeFilled />
+                                  ) : (
+                                    <DislikeOutlined />
+                                  )
+                                }
+                                className={
+                                  movieReactions[movie.id]?.dislikedByMe
+                                    ? "text-black font-bold"
+                                    : "text-gray-600"
+                                }
+                                onClick={() =>
+                                  handleMovieReaction(movie.id, false)
+                                }
+                              >
+                                {movieReactions[movie.id]?.dislikeCount || 0}
+                              </Button>
+
+                              <Button
+                                type={
+                                  expandedMovieId === movie.id
+                                    ? "primary"
+                                    : "default"
+                                }
+                                danger={expandedMovieId === movie.id}
+                                icon={<MessageOutlined />}
+                                className="ml-auto font-semibold rounded-full px-6"
+                                onClick={() => handleToggleComments(movie.id)}
+                              >
+                                {expandedMovieId === movie.id
                                   ? locale === "vi"
-                                    ? "Đang chiếu"
-                                    : "Now Showing"
+                                    ? "Đóng bình luận"
+                                    : "Hide Comments"
                                   : locale === "vi"
-                                    ? "Sắp chiếu"
-                                    : "Coming Soon"}
-                              </Tag>
+                                    ? "Xem bình luận"
+                                    : "View Comments"}
+                              </Button>
                             </div>
-
-                            <Space wrap className="mb-3">
-                              <Tag color="red">
-                                {movie.ageRestriction || "C13"}
-                              </Tag>
-                              <Tag>{movie.genre}</Tag>
-                              <Text type="secondary">
-                                <ClockCircleOutlined /> {movie.durationMin}{" "}
-                                {locale === "vi" ? "phút" : "mins"}
-                              </Text>
-                            </Space>
-
-                            <Paragraph className="text-gray-600 line-clamp-3">
-                              {movie.description ||
-                                (locale === "vi"
-                                  ? "Chưa có mô tả cho phim này..."
-                                  : "No description available...")}
-                            </Paragraph>
-
-                            <div className="flex items-center gap-3 bg-[#fffaf4] p-3 rounded-lg border border-[#f0e6d2]">
-                              <Text className="font-bold text-lg text-[#a61d24]">
-                                {movieStats[movie.id]?.averageRating?.toFixed(
-                                  1,
-                                ) || "0.0"}
-                              </Text>
-                              <Rate
-                                allowHalf
-                                disabled
-                                value={movieStats[movie.id]?.averageRating || 0}
-                              />
-                              <Text type="secondary" className="text-xs">
-                                ({movieStats[movie.id]?.totalReviews || 0}{" "}
-                                {locale === "vi" ? "đánh giá" : "reviews"})
-                              </Text>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100">
-                            <Button
-                              type="text"
-                              icon={
-                                movieReactions[movie.id]?.likedByMe ? (
-                                  <LikeFilled />
-                                ) : (
-                                  <LikeOutlined />
-                                )
-                              }
-                              className={
-                                movieReactions[movie.id]?.likedByMe
-                                  ? "text-black font-bold"
-                                  : "text-gray-600"
-                              }
-                              onClick={() =>
-                                handleMovieReaction(movie.id, true)
-                              }
-                            >
-                              {movieReactions[movie.id]?.likeCount || 0}
-                            </Button>
-
-                            <Button
-                              type="text"
-                              icon={
-                                movieReactions[movie.id]?.dislikedByMe ? (
-                                  <DislikeFilled />
-                                ) : (
-                                  <DislikeOutlined />
-                                )
-                              }
-                              className={
-                                movieReactions[movie.id]?.dislikedByMe
-                                  ? "text-black font-bold"
-                                  : "text-gray-600"
-                              }
-                              onClick={() =>
-                                handleMovieReaction(movie.id, false)
-                              }
-                            >
-                              {movieReactions[movie.id]?.dislikeCount || 0}
-                            </Button>
-
-                            <Button
-                              type={
-                                expandedMovieId === movie.id
-                                  ? "primary"
-                                  : "default"
-                              }
-                              danger={expandedMovieId === movie.id}
-                              icon={<MessageOutlined />}
-                              className="ml-auto font-semibold rounded-full px-6"
-                              onClick={() => handleToggleComments(movie.id)}
-                            >
-                              {expandedMovieId === movie.id
-                                ? locale === "vi"
-                                  ? "Đóng bình luận"
-                                  : "Hide Comments"
-                                : locale === "vi"
-                                  ? "Xem bình luận"
-                                  : "View Comments"}
-                            </Button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* KHU VỰC BÌNH LUẬN MỞ RỘNG */}
-                      {expandedMovieId === movie.id && (
-                        <div className="mt-6 pt-4 border-t-2 border-gray-100 bg-gray-50/50 -mx-6 px-6 pb-2">
-                          <Title level={5} className="!text-[#4a3426] mb-4">
-                            {locale === "vi"
-                              ? "Bình luận của khán giả"
-                              : "Audience Comments"}
-                          </Title>
+                        {/* KHU VỰC BÌNH LUẬN MỞ RỘNG */}
+                        {expandedMovieId === movie.id && (
+                          <div className="mt-6 pt-4 border-t-2 border-gray-100 bg-gray-50/50 -mx-6 px-6 pb-2">
+                            <Title level={5} className="!text-[#4a3426] mb-4">
+                              {locale === "vi"
+                                ? "Bình luận của khán giả"
+                                : "Audience Comments"}
+                            </Title>
 
-                          <div className="mb-5 rounded-xl border border-[#ead6bb] bg-white p-4">
-                            <div className="flex items-center gap-4 mb-3">
-                              <Text strong>
-                                {locale === "vi"
-                                  ? "Viết đánh giá của bạn"
-                                  : "Write your review"}
-                              </Text>
+                            <div className="mb-5 rounded-xl border border-[#ead6bb] bg-white p-4">
+                              <div className="flex items-center gap-4 mb-3">
+                                <Text strong>
+                                  {locale === "vi"
+                                    ? "Viết đánh giá của bạn"
+                                    : "Write your review"}
+                                </Text>
 
-                              <Rate
-                                value={reviewDrafts[movie.id]?.ratingScore || 0}
-                                onChange={(value) =>
+                                <Rate
+                                  value={
+                                    reviewDrafts[movie.id]?.ratingScore || 0
+                                  }
+                                  onChange={(value) =>
+                                    setReviewDrafts((prev) => ({
+                                      ...prev,
+                                      [movie.id]: {
+                                        ...prev[movie.id],
+                                        ratingScore: value,
+                                        comment: prev[movie.id]?.comment || "",
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+
+                              <Input.TextArea
+                                className="mt-3"
+                                rows={3}
+                                placeholder={
+                                  locale === "vi"
+                                    ? "Nhập bình luận của bạn..."
+                                    : "Write your comment..."
+                                }
+                                value={reviewDrafts[movie.id]?.comment || ""}
+                                onChange={(e) =>
                                   setReviewDrafts((prev) => ({
                                     ...prev,
                                     [movie.id]: {
-                                      ...prev[movie.id],
-                                      ratingScore: value,
-                                      comment: prev[movie.id]?.comment || "",
+                                      ratingScore:
+                                        prev[movie.id]?.ratingScore || 0,
+                                      comment: e.target.value,
                                     },
                                   }))
                                 }
                               />
+
+                              <div className="mt-5">
+                                <Button
+                                  type="primary"
+                                  danger
+                                  className="rounded-full font-semibold px-6"
+                                  onClick={() => handleSubmitReview(movie.id)}
+                                >
+                                  {locale === "vi"
+                                    ? "Gửi đánh giá"
+                                    : "Submit review"}
+                                </Button>
+                              </div>
                             </div>
 
-                            <Input.TextArea
-                              className="mt-3"
-                              rows={3}
-                              placeholder={
-                                locale === "vi"
-                                  ? "Nhập bình luận của bạn..."
-                                  : "Write your comment..."
-                              }
-                              value={reviewDrafts[movie.id]?.comment || ""}
-                              onChange={(e) =>
-                                setReviewDrafts((prev) => ({
-                                  ...prev,
-                                  [movie.id]: {
-                                    ratingScore:
-                                      prev[movie.id]?.ratingScore || 0,
-                                    comment: e.target.value,
-                                  },
-                                }))
-                              }
-                            />
+                            {loadingReviews ? (
+                              <Skeleton active avatar paragraph={{ rows: 2 }} />
+                            ) : (
+                              <List
+                                dataSource={movieReviews[movie.id] || []}
+                                locale={{
+                                  emptyText:
+                                    locale === "vi"
+                                      ? "Chưa có đánh giá nào."
+                                      : "No reviews yet.",
+                                }}
+                                renderItem={(review: any) => (
+                                  <List.Item className="border-b border-gray-200 last:border-0 py-4">
+                                    <List.Item.Meta
+                                      avatar={
+                                        <Avatar src={review.customerAvatar}>
+                                          {!review.customerAvatar
+                                            ? review.customerName
+                                                ?.charAt(0)
+                                                ?.toUpperCase()
+                                            : null}
+                                        </Avatar>
+                                      }
+                                      title={
+                                        <div className="flex flex-wrap items-center gap-4">
+                                          <Text strong>
+                                            {review.customerName ||
+                                              (locale === "vi"
+                                                ? "Ẩn danh"
+                                                : "Anonymous")}
+                                          </Text>
 
-                            <div className="mt-5">
-                              <Button
-                                type="primary"
-                                danger
-                                className="rounded-full font-semibold px-6"
-                                onClick={() => handleSubmitReview(movie.id)}
-                              >
-                                {locale === "vi"
-                                  ? "Gửi đánh giá"
-                                  : "Submit review"}
-                              </Button>
-                            </div>
-                          </div>
+                                          <Rate
+                                            disabled
+                                            value={review.ratingScore}
+                                            className="text-sm"
+                                          />
 
-                          {loadingReviews ? (
-                            <Skeleton active avatar paragraph={{ rows: 2 }} />
-                          ) : (
-                            <List
-                              dataSource={movieReviews[movie.id] || []}
-                              locale={{
-                                emptyText:
-                                  locale === "vi"
-                                    ? "Chưa có đánh giá nào."
-                                    : "No reviews yet.",
-                              }}
-                              renderItem={(review: any) => (
-                                <List.Item className="border-b border-gray-200 last:border-0 py-4">
-                                  <List.Item.Meta
-                                    avatar={
-                                      <Avatar src={review.customerAvatar}>
-                                        {!review.customerAvatar
-                                          ? review.customerName
-                                              ?.charAt(0)
-                                              ?.toUpperCase()
-                                          : null}
-                                      </Avatar>
-                                    }
-                                    title={
-                                      <div className="flex flex-wrap items-center gap-4">
-                                        <Text strong>
-                                          {review.customerName ||
-                                            (locale === "vi"
-                                              ? "Ẩn danh"
-                                              : "Anonymous")}
-                                        </Text>
-
-                                        <Rate
-                                          disabled
-                                          value={review.ratingScore}
-                                          className="text-sm"
-                                        />
-
-                                        <Text
-                                          type="secondary"
-                                          className="text-xs"
-                                        >
-                                          {dayjs(review.postDate).fromNow()}
-                                        </Text>
-                                      </div>
-                                    }
-                                    description={
-                                      <div className="mt-1">
-                                        <Text className="text-gray-700">
-                                          {review.comment}
-                                        </Text>
-                                        <div className="flex gap-2 mt-2">
-                                          <Button
-                                            type="text"
-                                            size="small"
-                                            icon={<LikeOutlined />}
-                                            className={`text-xs ${
-                                              review.isLikedByMe
-                                                ? "text-blue-600 font-bold"
-                                                : "text-gray-500"
-                                            }`}
-                                            onClick={() =>
-                                              handleReaction(
-                                                review.id,
-                                                movie.id,
-                                                true,
-                                              )
-                                            }
+                                          <Text
+                                            type="secondary"
+                                            className="text-xs"
                                           >
-                                            {review.likeCount || 0}
-                                          </Button>
-
-                                          <Button
-                                            type="text"
-                                            size="small"
-                                            icon={<DislikeOutlined />}
-                                            className={`text-xs ${
-                                              review.isDislikedByMe
-                                                ? "text-red-600 font-bold"
-                                                : "text-gray-500"
-                                            }`}
-                                            onClick={() =>
-                                              handleReaction(
-                                                review.id,
-                                                movie.id,
-                                                false,
-                                              )
-                                            }
-                                          >
-                                            {review.dislikeCount || 0}
-                                          </Button>
+                                            {dayjs(review.postDate).fromNow()}
+                                          </Text>
                                         </div>
-                                      </div>
-                                    }
-                                  />
-                                </List.Item>
-                              )}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </Card>
-                  )}
-                />
-              )}
-            </Col>
+                                      }
+                                      description={
+                                        <div className="mt-1">
+                                          <Text className="text-gray-700">
+                                            {review.comment}
+                                          </Text>
+                                          <div className="flex gap-2 mt-2">
+                                            <Button
+                                              type="text"
+                                              size="small"
+                                              icon={<LikeOutlined />}
+                                              className={`text-xs ${
+                                                review.isLikedByMe
+                                                  ? "text-blue-600 font-bold"
+                                                  : "text-gray-500"
+                                              }`}
+                                              onClick={() =>
+                                                handleReaction(
+                                                  review.id,
+                                                  movie.id,
+                                                  true,
+                                                )
+                                              }
+                                            >
+                                              {review.likeCount || 0}
+                                            </Button>
 
-            {/* CỘT PHẢI: TIN TỨC */}
-            <Col xs={24} lg={8}>
-              <div className="sticky top-24">
-                <Title
-                  level={4}
-                  className="!text-[#4a3426] mb-4 border-b-2 border-[#e4d1b4] pb-2 inline-block"
-                >
-                  {locale === "vi" ? "Tin Tức Điện Ảnh" : "Cinema News"}
-                </Title>
-
-                {loading ? (
-                  <Skeleton active paragraph={{ rows: 6 }} />
-                ) : (
-                  <List
-                    itemLayout="vertical"
-                    dataSource={articles}
-                    renderItem={(article) => (
-                      <Card
-                        hoverable
-                        className="mb-4 rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer"
-                        bodyStyle={{ padding: 0 }}
-                      >
-                        <div className="flex flex-col">
-                          <div className="relative h-[160px] overflow-hidden bg-gray-100">
-                            <img
-                              src={
-                                article.thumbnailUrl ||
-                                "https://via.placeholder.com/400x200?text=News"
-                              }
-                              alt={article.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                            <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-xs">
-                              {dayjs(article.publishDate).format("DD/MM/YYYY")}
-                            </div>
+                                            <Button
+                                              type="text"
+                                              size="small"
+                                              icon={<DislikeOutlined />}
+                                              className={`text-xs ${
+                                                review.isDislikedByMe
+                                                  ? "text-red-600 font-bold"
+                                                  : "text-gray-500"
+                                              }`}
+                                              onClick={() =>
+                                                handleReaction(
+                                                  review.id,
+                                                  movie.id,
+                                                  false,
+                                                )
+                                              }
+                                            >
+                                              {review.dislikeCount || 0}
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      }
+                                    />
+                                  </List.Item>
+                                )}
+                              />
+                            )}
                           </div>
-
-                          <div className="p-4 bg-white">
-                            <Text
-                              strong
-                              className="text-base line-clamp-2 mb-2 group-hover:text-[#a61d24] transition-colors"
-                            >
-                              {article.title}
-                            </Text>
-                            <Paragraph
-                              type="secondary"
-                              className="text-xs line-clamp-2 !m-0"
-                            >
-                              {article.summary}
-                            </Paragraph>
-                          </div>
-                        </div>
+                        )}
                       </Card>
                     )}
                   />
                 )}
-              </div>
-            </Col>
-          </Row>
+              </Col>
+
+              {/* CỘT PHẢI: TIN TỨC */}
+              <Col xs={24} lg={8}>
+                <div className="sticky top-24">
+                  <div className="flex items-center justify-between mb-6">
+                    <Title
+                      level={4}
+                      className="!text-[#4a3426] !mb-0 border-b-2 border-[#e4d1b4] pb-2 inline-block"
+                    >
+                      {locale === "vi" ? "Tin Tức Điện Ảnh" : "Cinema News"}
+                    </Title>
+
+                    {role === "admin" && (
+                      <Button
+                        type="primary"
+                        danger
+                        className="rounded-full"
+                        onClick={() => openArticleEditor("create")}
+                      >
+                        Thêm tin tức
+                      </Button>
+                    )}
+                  </div>
+
+                  {loading ? (
+                    <Skeleton active paragraph={{ rows: 6 }} />
+                  ) : (
+                    <List
+                      itemLayout="vertical"
+                      dataSource={articles}
+                      renderItem={(article) => (
+                        <Card
+                          hoverable
+                          onClick={() => setSelectedArticle(article)}
+                          className="!mb-6 rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer"
+                          bodyStyle={{ padding: 0 }}
+                        >
+                          <div className="flex flex-col">
+                            <div className="relative h-[160px] overflow-hidden bg-gray-100">
+                              <img
+                                src={
+                                  article.thumbnailUrl ||
+                                  "https://via.placeholder.com/400x200?text=News"
+                                }
+                                alt={article.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-xs">
+                                {dayjs(article.publishDate).format(
+                                  "DD/MM/YYYY",
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="p-4 bg-white">
+                              <Text
+                                strong
+                                className="text-base line-clamp-2 mb-2"
+                              >
+                                {article.title}
+                              </Text>
+
+                              <Paragraph
+                                type="secondary"
+                                className="text-xs line-clamp-2 !m-0"
+                              >
+                                {article.summary}
+                              </Paragraph>
+
+                              {role === "admin" && (
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openArticleEditor("edit", article);
+                                    }}
+                                  >
+                                    Sửa
+                                  </Button>
+
+                                  <Popconfirm
+                                    title="Xóa bài viết này?"
+                                    okText="Xóa"
+                                    cancelText="Hủy"
+                                    okButtonProps={{ danger: true }}
+                                    onConfirm={() => deleteArticle(article.id)}
+                                  >
+                                    <Button
+                                      size="small"
+                                      danger
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Xóa
+                                    </Button>
+                                  </Popconfirm>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      )}
+                    />
+                  )}
+                </div>
+              </Col>
+            </Row>
+          )}
         </main>
       </SiteShell>
+      <Modal
+        open={articleModal.open}
+        title={articleModal.mode === "edit" ? "Sửa tin tức" : "Thêm tin tức"}
+        onCancel={() => setArticleModal({ open: false, mode: "create" })}
+        onOk={saveArticle}
+        confirmLoading={submittingArticle}
+        okText="Lưu"
+        cancelText="Hủy"
+        width={720}
+      >
+        <Form form={articleForm} layout="vertical">
+          <Form.Item name="title" label="Tiêu đề" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="thumbnailUrl" label="Ảnh thumbnail URL">
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name="summary"
+            label="Tóm tắt"
+            rules={[{ required: true }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+
+          <Form.Item
+            name="content"
+            label="Nội dung"
+            rules={[{ required: true }]}
+          >
+            <Input.TextArea rows={5} />
+          </Form.Item>
+
+          <Form.Item name="type" label="Loại bài" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { label: "Tin tức", value: "NEWS" },
+                { label: "Khuyến mãi", value: "PROMOTION" },
+                { label: "Thông báo", value: "NOTICE" },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="status"
+            label="Trạng thái"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { label: "Xuất bản", value: "PUBLISHED" },
+                { label: "Bản nháp", value: "DRAFT" },
+                { label: "Ẩn", value: "HIDDEN" },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item name="featured" label="Hiển thị nổi bật">
+            <Select
+              options={[
+                { label: "Có", value: true },
+                { label: "Không", value: false },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item name="authorName" label="Tác giả / nguồn">
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="movieId" label="ID phim liên quan">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="Xem Trailer"
+        open={isTrailerModalOpen}
+        onCancel={() => setIsTrailerModalOpen(false)}
+        footer={null}
+        width={850}
+        centered
+        destroyOnClose
+      >
+        <div className="relative w-full pt-[56.25%] rounded-lg overflow-hidden bg-black">
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            src={getYouTubeEmbedUrl(currentTrailerUrl)}
+            title="Trailer"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={isBookingModalVisible}
+        onCancel={() => setIsBookingModalVisible(false)}
+        footer={null}
+        width={900}
+        destroyOnClose
+        centered
+      >
+        {selectedMovieForBooking && (
+          <div className="flex flex-col md:flex-row gap-6 mb-6">
+            <img
+              src={selectedMovieForBooking.posterUrl}
+              alt={selectedMovieForBooking.title}
+              className="w-32 rounded-lg shadow-md hidden md:block object-cover aspect-[2/3]"
+            />
+
+            <div>
+              <Title
+                level={3}
+                style={{
+                  color: "#a61d24",
+                  margin: 0,
+                  textTransform: "uppercase",
+                }}
+              >
+                {selectedMovieForBooking.title}
+              </Title>
+
+              <p className="text-gray-500 mt-2 text-sm">
+                <ClockCircleOutlined className="mr-1" />
+                {selectedMovieForBooking.durationMin} phút | Thể loại:{" "}
+                {selectedMovieForBooking.genre}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isLoadingBookingData ? (
+          <div className="flex justify-center py-10">
+            <Spin size="large" />
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="flex overflow-x-auto gap-3 justify-start mb-6 pb-2">
+              {generateDates().map((dateObj) => {
+                const isActive = selectedDate === dateObj.iso;
+
+                return (
+                  <button
+                    key={dateObj.iso}
+                    onClick={() => setSelectedDate(dateObj.iso)}
+                    className={`shrink-0 min-w-[100px] px-3 py-2 border rounded-lg flex flex-col items-center justify-center transition-all ${
+                      isActive
+                        ? "bg-[#a61d24] text-white border-[#a61d24] shadow-md -translate-y-1"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className="font-semibold text-sm">
+                      {dateObj.dayLabel}
+                    </span>
+                    <span className="text-xs mt-1">{dateObj.dateLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {getGroupedShowtimes().length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-lg border border-dashed border-gray-300">
+                <p className="text-gray-500 text-lg">
+                  Không có suất chiếu nào được lên lịch vào ngày này.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {getGroupedShowtimes().map((group) => (
+                  <div
+                    key={group.cinema.id}
+                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-center gap-2 mb-4 border-b pb-3 border-gray-100">
+                      <EnvironmentOutlined className="text-[#a61d24] text-xl" />
+                      <h4 className="font-bold text-lg text-gray-800 m-0">
+                        {group.cinema.name}
+                      </h4>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {group.showtimes.map((st: any) => (
+                        <Link
+                          href={localizeHref(`/dat-ve/${st.id}`, locale)}
+                          key={st.id}
+                        >
+                          <button className="border border-gray-300 rounded-lg px-5 py-2 hover:border-[#a61d24] hover:bg-red-50 transition-colors flex flex-col items-center group">
+                            <span className="font-bold text-lg text-gray-800 group-hover:text-[#a61d24]">
+                              {dayjs(st.startTime).format("HH:mm")}
+                            </span>
+
+                            <span className="text-xs text-gray-500">
+                              {st.hallName}
+                            </span>
+
+                            {st.format && (
+                              <span className="text-[10px] font-bold mt-1 bg-yellow-100 text-yellow-800 px-2 rounded-full">
+                                {formatDisplayMap[st.format] || st.format}
+                              </span>
+                            )}
+                          </button>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

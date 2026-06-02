@@ -28,7 +28,7 @@ public class Article {
     // BỔ SUNG: Ảnh bìa và Tóm tắt bài viết
     String thumbnailUrl;
 
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     String summary;
 
     @Column(columnDefinition = "TEXT", nullable = false)
@@ -55,6 +55,10 @@ public class Article {
     }
 
     String authorName; // Nguồn bài viết hoặc tên bút danh (cho phép trống)
+
+    @Builder.Default
+    @Column(columnDefinition = "boolean default false")
+    Boolean featured = false;
 
     // BỔ SUNG: Liên kết đến Phim (Cho phép null vì có những bài báo chung chung)
     @ToString.Exclude

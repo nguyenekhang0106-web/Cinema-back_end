@@ -1430,6 +1430,41 @@ function CinemaAndPromoSection() {
 
 function NewsStrip() {
   const dictionary = useDictionary();
+  const locale = useLocale();
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedArticles = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:9090/cinema/articles?type=NEWS",
+        );
+        const data = await res.json();
+
+        if (data.code === 1000) {
+          const featuredNews = (data.result || []).filter((item: any) => {
+            const isFeatured =
+              item.featured === true ||
+              item.featured === 1 ||
+              item.featured === "1";
+
+            const isPublished = !item.status || item.status === "PUBLISHED";
+
+            return isFeatured && isPublished;
+          });
+
+          setArticles(featuredNews.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Lỗi tải tin tức nổi bật:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedArticles();
+  }, []);
 
   return (
     <section className="mb-20">
@@ -1439,41 +1474,84 @@ function NewsStrip() {
             <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
               {dictionary.home.newsTitle}
             </Typography.Title>
+
             <Typography.Paragraph style={{ marginTop: 10, color: "#6d5a46" }}>
               {dictionary.home.newsDescription}
             </Typography.Paragraph>
           </Col>
+
           <Col xs={24} md={16}>
-            <Row gutter={[16, 16]}>
-              {dictionary.home.newsItems.map((item, index) => (
-                <Col xs={24} md={8} key={item.key}>
-                  <Card
-                    bordered
-                    style={{
-                      height: "100%",
-                      borderColor: "#ead8c1",
-                      background: "#fffaf4",
-                    }}
-                  >
-                    <Space direction="vertical" size={10}>
-                      {index === 0 ? (
-                        <FireOutlined style={{ color: "#a61d24" }} />
-                      ) : index === 1 ? (
-                        <ClockCircleOutlined style={{ color: "#a61d24" }} />
-                      ) : (
-                        <StarFilled style={{ color: "#c89a2b" }} />
+            {loading ? (
+              <Spin />
+            ) : (
+              <Row gutter={[16, 16]}>
+                {articles.map((item) => (
+                  <Col xs={24} md={8} key={item.id}>
+                    <Link
+                      href={localizeHref(
+                        `/cultureplex?article=${item.id}`,
+                        locale,
                       )}
-                      <Typography.Title level={5} style={{ margin: 0 }}>
-                        {item.title}
-                      </Typography.Title>
-                      <Typography.Text style={{ color: "#6d5a46" }}>
-                        {item.desc}
-                      </Typography.Text>
-                    </Space>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
+                    >
+                      <Card
+                        hoverable
+                        bordered
+                        className="h-full overflow-hidden"
+                        bodyStyle={{ padding: 0 }}
+                        style={{
+                          borderColor: "#ead8c1",
+                          background: "#fffaf4",
+                        }}
+                      >
+                        <div className="h-[140px] overflow-hidden bg-gray-100">
+                          <img
+                            src={
+                              item.thumbnailUrl ||
+                              "https://via.placeholder.com/400x200?text=News"
+                            }
+                            alt={item.title}
+                            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                          />
+                        </div>
+
+                        <div className="p-4">
+                          <Typography.Title
+                            level={5}
+                            className="line-clamp-2"
+                            style={{
+                              margin: 0,
+                              color: "#4a3426",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {item.title}
+                          </Typography.Title>
+
+                          <Typography.Paragraph
+                            className="line-clamp-2"
+                            style={{
+                              margin: "8px 0 0",
+                              color: "#6d5a46",
+                              fontSize: "13px",
+                            }}
+                          >
+                            {item.summary}
+                          </Typography.Paragraph>
+                        </div>
+                      </Card>
+                    </Link>
+                  </Col>
+                ))}
+
+                {articles.length === 0 && (
+                  <Col span={24}>
+                    <Typography.Text type="secondary">
+                      Chưa có tin tức nổi bật.
+                    </Typography.Text>
+                  </Col>
+                )}
+              </Row>
+            )}
           </Col>
         </Row>
       </Card>

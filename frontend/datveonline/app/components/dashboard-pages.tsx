@@ -35,6 +35,7 @@ import {
   Tag,
   Typography,
   Upload,
+  Popconfirm,
   type TabsProps,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -134,6 +135,24 @@ type UserRecord = {
   vouchers: number;
   memberTier: string;
   totalSpending: number;
+};
+
+type ArticleStatus = "DRAFT" | "PUBLISHED" | "HIDDEN";
+type ArticleType = "NEWS" | "PROMOTION" | "NOTICE";
+
+type ArticleRecord = {
+  key: string;
+  id: string;
+  title: string;
+  thumbnailUrl?: string;
+  summary: string;
+  content: string;
+  type: ArticleType;
+  status: ArticleStatus;
+  featured: boolean;
+  authorName?: string;
+  movieId?: string;
+  publishDate?: string;
 };
 
 type TicketRecord = {
@@ -408,6 +427,17 @@ export function AdminDashboardPage() {
   const [movies, setMovies] = useState<any[]>([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
 
+  const [articles, setArticles] = useState<ArticleRecord[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [articleStatusTab, setArticleStatusTab] =
+    useState<ArticleStatus>("PUBLISHED");
+
+  const [articleModal, setArticleModal] = useState<{
+    open: boolean;
+    mode: EditorMode;
+    editingKey?: string;
+  }>({ open: false, mode: "create" });
+
   const [showtimes, setShowtimes] = useState(initialShowtimes);
   const [users, setUsers] = useState(initialUsers);
 
@@ -443,6 +473,33 @@ export function AdminDashboardPage() {
     }
   };
 
+  const fetchArticles = async () => {
+    setLoadingArticles(true);
+    try {
+      const res = await fetch("http://localhost:9090/cinema/articles");
+      const data = await res.json();
+
+      const list = (data.result || []).map((item: any) => ({
+        ...item,
+        key: item.id,
+        featured:
+          item.featured === true ||
+          item.featured === 1 ||
+          item.featured === "1",
+      }));
+
+      setArticles(list);
+    } catch {
+      message.error("Không thể tải danh sách tin tức!");
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+
   useEffect(() => {
     fetchUsers();
   }, [token]);
@@ -450,6 +507,7 @@ export function AdminDashboardPage() {
   const [movieForm] = Form.useForm<MovieRecord>();
   const [showtimeForm] = Form.useForm<ShowtimeRecord>();
   const [userForm] = Form.useForm<UserRecord>();
+  const [articleForm] = Form.useForm<ArticleRecord>();
 
   const isAdmin = String(user?.role).toUpperCase().includes("ADMIN");
 
@@ -790,6 +848,126 @@ export function AdminDashboardPage() {
     }
   }
 
+  function openArticleEditor(mode: EditorMode, record?: ArticleRecord) {
+    setArticleModal({
+      open: true,
+      mode,
+      editingKey: record?.id,
+    });
+
+    if (record) {
+      articleForm.setFieldsValue({
+        ...record,
+        featured: Boolean(record.featured),
+      });
+    } else {
+      articleForm.resetFields();
+      articleForm.setFieldsValue({
+        title: "",
+        thumbnailUrl: "",
+        summary: "",
+        content: "",
+        type: "NEWS",
+        status: articleStatusTab,
+        featured: false,
+        authorName: "",
+        movieId: "",
+      });
+    }
+  }
+
+  async function removeArticle(id: string) {
+    if (!token) return;
+
+    const res = await fetch(`http://localhost:9090/cinema/articles/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+
+    if (data.code && data.code !== 1000) {
+      message.error(data.message || "Xóa tin tức thất bại!");
+      return;
+    }
+
+    message.success("Xóa tin tức thành công!");
+    fetchArticles();
+  }
+
+  const articleColumns: ColumnsType<ArticleRecord> = [
+    {
+      title: "Ảnh",
+      dataIndex: "thumbnailUrl",
+      key: "thumbnailUrl",
+      render: (url: string) =>
+        url ? (
+          <img src={url} className="w-20 h-12 object-cover rounded" />
+        ) : (
+          <div className="w-20 h-12 bg-gray-200 rounded" />
+        ),
+    },
+    {
+      title: "Tiêu đề",
+      dataIndex: "title",
+      key: "title",
+    },
+    {
+      title: "Loại bài",
+      dataIndex: "type",
+      key: "type",
+      render: (value: ArticleType) => <Tag color="blue">{value}</Tag>,
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (value: ArticleStatus) => {
+        const map = {
+          DRAFT: { color: "gold", label: "Bản nháp" },
+          PUBLISHED: { color: "green", label: "Đã xuất bản" },
+          HIDDEN: { color: "red", label: "Bị ẩn" },
+        };
+
+        return <Tag color={map[value].color}>{map[value].label}</Tag>;
+      },
+    },
+    {
+      title: "Nổi bật",
+      dataIndex: "featured",
+      key: "featured",
+      render: (value: boolean) => (
+        <Tag color={value ? "red" : "default"}>{value ? "Có" : "Không"}</Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      render: (_, record) => (
+        <Space>
+          <Button
+            size="small"
+            onClick={() => openArticleEditor("edit", record)}
+          >
+            Sửa
+          </Button>
+
+          <Popconfirm
+            title="Xóa tin tức này?"
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => removeArticle(record.id)}
+          >
+            <Button danger size="small">
+              Xóa
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   async function saveMovie(values: any) {
     const isEditMode = movieModal.mode === "edit" && movieModal.editingKey;
     if (!isEditMode && !posterFile) {
@@ -906,6 +1084,43 @@ export function AdminDashboardPage() {
     message.success(copy.userDeleted);
   }
 
+  async function saveArticle(values: any) {
+    if (!token) return;
+
+    const isEdit = articleModal.mode === "edit" && articleModal.editingKey;
+
+    const url = isEdit
+      ? `http://localhost:9090/cinema/articles/${articleModal.editingKey}`
+      : "http://localhost:9090/cinema/articles";
+
+    const res = await fetch(url, {
+      method: isEdit ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ...values,
+        type: values.type || "NEWS",
+        featured: Boolean(values.featured),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.code && data.code !== 1000) {
+      message.error(data.message || "Lưu tin tức thất bại!");
+      return;
+    }
+
+    message.success(
+      isEdit ? "Cập nhật tin tức thành công!" : "Thêm tin tức thành công!",
+    );
+    setArticleModal({ open: false, mode: "create" });
+    articleForm.resetFields();
+    fetchArticles();
+  }
+
   const moduleCards = [
     {
       title: copy.moduleMoviesTitle,
@@ -958,6 +1173,16 @@ export function AdminDashboardPage() {
         router.push(locale === "vi" ? "/admin/thong-ke" : "/en/admin/thong-ke"),
       actionLabel: locale === "vi" ? "Xem Biểu Đồ" : "View Analytics",
     },
+    {
+      title: locale === "vi" ? "Quản lý Tin tức" : "News Management",
+      value: articles.length,
+      desc:
+        locale === "vi"
+          ? "Thêm, sửa, xóa tin tức và quản lý trạng thái bài viết."
+          : "Create, edit, delete articles and manage publishing status.",
+      action: () => openArticleEditor("create"),
+      actionLabel: locale === "vi" ? "Thêm tin tức" : "Add News",
+    },
   ];
 
   return (
@@ -971,7 +1196,6 @@ export function AdminDashboardPage() {
             image="https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200"
             stats={stats}
           />
-
           <Row gutter={[24, 24]} className="mt-8">
             {moduleCards.map((card) => (
               <Col xs={24} sm={12} lg={8} key={card.title}>
@@ -1008,7 +1232,6 @@ export function AdminDashboardPage() {
               </Col>
             ))}
           </Row>
-
           <Row gutter={[24, 24]} className="mt-8">
             <Col span={24}>
               <Card bordered={false} className="cinema-paper rounded-[24px]">
@@ -1115,8 +1338,60 @@ export function AdminDashboardPage() {
                 </Space>
               </Card>
             </Col>
-          </Row>
 
+            <Col span={24}>
+              <Card bordered={false} className="cinema-paper rounded-[24px]">
+                <Space direction="vertical" size={18} className="w-full">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
+                        Quản lý tin tức
+                      </Typography.Title>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
+                        Quản lý bài viết theo trạng thái: bản nháp, đã xuất bản
+                        và bị ẩn.
+                      </Typography.Paragraph>
+                    </div>
+
+                    <Button
+                      type="primary"
+                      onClick={() => openArticleEditor("create")}
+                    >
+                      Thêm tin tức
+                    </Button>
+                  </div>
+
+                  <Tabs
+                    activeKey={articleStatusTab}
+                    onChange={(key) =>
+                      setArticleStatusTab(key as ArticleStatus)
+                    }
+                    items={[
+                      { key: "DRAFT", label: "Bản nháp" },
+                      { key: "PUBLISHED", label: "Đã xuất bản" },
+                      { key: "HIDDEN", label: "Bị ẩn" },
+                    ]}
+                  />
+
+                  <Table
+                    rowKey="key"
+                    columns={articleColumns}
+                    dataSource={articles.filter(
+                      (item) => item.status === articleStatusTab,
+                    )}
+                    loading={loadingArticles}
+                    pagination={{ pageSize: 5 }}
+                    scroll={{ x: "max-content" }}
+                  />
+                </Space>
+              </Card>
+            </Col>
+          </Row>
           <Modal
             open={movieModal.open}
             title={
@@ -1316,6 +1591,106 @@ export function AdminDashboardPage() {
               </Row>
             </Form>
           </Modal>
+          <Modal
+            open={articleModal.open}
+            title={
+              articleModal.mode === "edit" ? "Sửa tin tức" : "Thêm tin tức"
+            }
+            onCancel={() => {
+              setArticleModal({ open: false, mode: "create" });
+              articleForm.resetFields();
+            }}
+            onOk={() => articleForm.submit()}
+            okText="Lưu"
+            cancelText="Hủy"
+            width={760}
+            destroyOnClose
+          >
+            <Form form={articleForm} layout="vertical" onFinish={saveArticle}>
+              <Form.Item
+                name="title"
+                label="Tiêu đề"
+                rules={[{ required: true }]}
+              >
+                <Input />
+              </Form.Item>
+
+              <Form.Item name="thumbnailUrl" label="Ảnh thumbnail URL">
+                <Input />
+              </Form.Item>
+
+              <Form.Item
+                name="summary"
+                label="Tóm tắt"
+                rules={[{ required: true }]}
+              >
+                <Input.TextArea rows={2} />
+              </Form.Item>
+
+              <Form.Item
+                name="content"
+                label="Nội dung"
+                rules={[{ required: true }]}
+              >
+                <Input.TextArea rows={6} />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="type"
+                    label="Loại bài"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        { label: "Tin tức", value: "NEWS" },
+                        { label: "Khuyến mãi", value: "PROMOTION" },
+                        { label: "Thông báo", value: "NOTICE" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="status"
+                    label="Trạng thái"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        { label: "Bản nháp", value: "DRAFT" },
+                        { label: "Đã xuất bản", value: "PUBLISHED" },
+                        { label: "Bị ẩn", value: "HIDDEN" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="featured" label="Hiển thị nổi bật">
+                    <Select
+                      options={[
+                        { label: "Có", value: true },
+                        { label: "Không", value: false },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item name="authorName" label="Tác giả / nguồn">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item name="movieId" label="ID phim liên quan">
+                <Input />
+              </Form.Item>
+            </Form>
+          </Modal>
 
           <Modal
             open={showtimeModal.open}
@@ -1329,7 +1704,6 @@ export function AdminDashboardPage() {
             okText={copy.save}
             cancelText={copy.cancel}
           ></Modal>
-
           <Modal
             open={userModal.open}
             title={userModal.mode === "edit" ? copy.editUser : copy.addUser}
@@ -1433,7 +1807,6 @@ export function AdminDashboardPage() {
               </Row>
             </Form>
           </Modal>
-
           <AdminConcessionManager
             open={concessionModalOpen}
             onClose={() => setConcessionModalOpen(false)}

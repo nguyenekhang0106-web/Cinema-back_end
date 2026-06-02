@@ -48,6 +48,7 @@ public class ArticleService {
         // Từ đây trở đi MapStruct sẽ dùng dữ liệu an toàn để lưu
         Article article = articleMapper.toArticle(request);
         article.setManager(manager);
+        article.setFeatured(Boolean.TRUE.equals(request.getFeatured()));
 
         if (request.getMovieId() != null && !request.getMovieId().trim().isEmpty()) {
             Movie movie = movieRepository.findById(request.getMovieId())
@@ -94,6 +95,7 @@ public class ArticleService {
 
         // MapStruct sẽ map dữ liệu (bao gồm cả content đã làm sạch) vào Entity cũ
         articleMapper.updateArticle(article, request);
+        article.setFeatured(Boolean.TRUE.equals(request.getFeatured()));
 
         if (request.getMovieId() != null && !request.getMovieId().trim().isEmpty()) {
             Movie movie = movieRepository.findById(request.getMovieId())

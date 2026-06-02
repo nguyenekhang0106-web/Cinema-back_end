@@ -26,7 +26,7 @@ public class ArticleResponse {
     // Trả về thông tin của Admin đã đăng bài
     String managerId;
     String managerName; // Tên Admin (Cấu hình qua MapStruct: source = "manager.fullName")
-
+    Boolean featured;
     // BỔ SUNG: Trả về thông tin phim (nếu có)
     String movieId;
     String movieTitle; // MapStruct sẽ tự động lấy từ movie.title

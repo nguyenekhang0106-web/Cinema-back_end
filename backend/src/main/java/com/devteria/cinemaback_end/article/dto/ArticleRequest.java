@@ -33,6 +33,7 @@ public class ArticleRequest {
     ArticleStatus status;
 
     String authorName;
+    Boolean featured;
 
     // BỔ SUNG: Cho phép truyền ID phim nếu bài viết này thuộc về 1 phim
     String movieId;
