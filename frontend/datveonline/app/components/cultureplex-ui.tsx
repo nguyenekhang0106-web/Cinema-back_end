@@ -22,6 +22,7 @@ import {
   Select,
   Popconfirm,
   Spin,
+  Tabs,
 } from "antd";
 import {
   LikeOutlined,
@@ -58,6 +59,9 @@ export function CultureplexUI() {
   const [articles, setArticles] = useState<any[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 🔥 STATE MỚI: Quản lý Tab loại bài viết đang chọn (Mặc định là Tin tức)
+  const [activeArticleTab, setActiveArticleTab] = useState<string>("NEWS");
 
   const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
   const [movieReviews, setMovieReviews] = useState<Record<string, any[]>>({});
@@ -219,9 +223,8 @@ export function CultureplexUI() {
         const movieRes = await fetch("http://localhost:9090/cinema/movies");
         const movieData = await movieRes.json();
 
-        const articleRes = await fetch(
-          "http://localhost:9090/cinema/articles?type=NEWS",
-        );
+        // Đã xóa phần ?type=NEWS để lấy tất cả bài xuất bản
+        const articleRes = await fetch("http://localhost:9090/cinema/articles");
         const articleData = await articleRes.json();
 
         if (movieData.code === 1000) {
@@ -371,6 +374,8 @@ export function CultureplexUI() {
         }),
       });
 
+      if (res.status === 401) return;
+
       const data = await res.json();
 
       if (data.code !== 1000) {
@@ -427,6 +432,8 @@ export function CultureplexUI() {
         },
       );
 
+      if (res.status === 401) return;
+
       const data = await res.json();
 
       if (data.code !== 1000) {
@@ -467,6 +474,8 @@ export function CultureplexUI() {
         },
       },
     );
+
+    if (res.status === 401) return;
 
     const data = await res.json();
 
@@ -529,9 +538,8 @@ export function CultureplexUI() {
       setArticleModal({ open: false, mode: "create" });
       articleForm.resetFields();
 
-      const reload = await fetch(
-        "http://localhost:9090/cinema/articles?type=NEWS",
-      );
+      // Gọi lại API để làm mới toàn bộ bài viết
+      const reload = await fetch("http://localhost:9090/cinema/articles");
       const reloadData = await reload.json();
       setArticles(reloadData.result || []);
     } catch (error: any) {
@@ -555,6 +563,11 @@ export function CultureplexUI() {
 
   const featuredMovies = movies.filter((movie) => movie.featured === true);
 
+  // 🔥 LỌC BÀI VIẾT THEO TAB ĐANG CHỌN
+  const filteredArticles = articles.filter(
+    (article) => article.type === activeArticleTab,
+  );
+
   return (
     <div className="cinema-page bg-[#f5efe5] min-h-screen">
       <SiteShell>
@@ -566,7 +579,7 @@ export function CultureplexUI() {
                   className="rounded-full font-semibold"
                   onClick={() => setSelectedArticle(null)}
                 >
-                  ← Quay lại Đánh giá & Tin tức
+                  ← {locale === "vi" ? "Quay lại" : "Back"}
                 </Button>
               </div>
 
@@ -585,102 +598,137 @@ export function CultureplexUI() {
                     className="w-full max-h-[520px] object-cover rounded-xl shadow mb-8"
                   />
 
-                  <div className="text-base leading-8 whitespace-pre-line text-[#222]">
-                    {selectedArticle.content}
-                  </div>
+                  <div
+                    className="text-base leading-8 whitespace-pre-line text-[#222]"
+                    dangerouslySetInnerHTML={{
+                      __html: selectedArticle.content,
+                    }}
+                  />
 
                   <div className="mt-12">
                     <Title level={3} className="!text-[#111] uppercase !mb-6">
-                      Tin khác
+                      {locale === "vi" ? "Tin khác" : "Other News"}
                     </Title>
 
-                    <Row gutter={[28, 28]}>
-                      {articles
-                        .filter((item) => {
-                          const isFeatured =
-                            item.featured === true ||
-                            item.featured === 1 ||
-                            item.featured === "1";
+                    <List
+                      // 🔥 Ép chia chính xác 2 cột trên mọi màn hình (trừ mobile nhỏ)
+                      grid={{
+                        gutter: 24,
+                        xs: 1,
+                        sm: 2,
+                        md: 2,
+                        lg: 2,
+                        xl: 2,
+                        xxl: 2,
+                      }}
+                      dataSource={articles.filter((item) => {
+                        const isFeatured =
+                          item.featured === true ||
+                          item.featured === 1 ||
+                          item.featured === "1";
 
-                          const isPublished =
-                            !item.status || item.status === "PUBLISHED";
+                        const isPublished =
+                          !item.status || item.status === "PUBLISHED";
 
-                          return (
-                            item.id !== selectedArticle.id &&
-                            isFeatured &&
-                            isPublished
-                          );
-                        })
-                        .slice(0, 4)
-                        .map((item) => (
-                          <Col xs={24} sm={12} key={item.id}>
-                            <Card
-                              hoverable
-                              onClick={() => {
-                                setSelectedArticle(item);
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                              }}
-                              className="rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer h-full"
-                              bodyStyle={{ padding: 0 }}
-                            >
-                              <div className="flex flex-col">
-                                <div className="relative h-[230px] overflow-hidden bg-gray-100">
-                                  <img
-                                    src={
-                                      item.thumbnailUrl ||
-                                      "https://via.placeholder.com/400x200?text=News"
-                                    }
-                                    alt={item.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                  />
+                        return (
+                          item.id !== selectedArticle.id &&
+                          isFeatured &&
+                          isPublished
+                        );
+                      })}
+                      pagination={{
+                        pageSize: 4,
+                        align: "center",
+                        showSizeChanger: false,
+                      }}
+                      renderItem={(item) => (
+                        // 🔥 Bắt buộc thêm style 100% cho List.Item để các thẻ giãn đều nhau
+                        <List.Item style={{ height: "100%", width: "100%" }}>
+                          <Card
+                            hoverable
+                            onClick={() => {
+                              setSelectedArticle(item);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            // 🔥 Đảm bảo Card chiếm toàn bộ không gian của List.Item
+                            className="rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer w-full h-full flex flex-col"
+                            bodyStyle={{
+                              padding: 0,
+                              flex: 1,
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <div className="flex flex-col h-full w-full">
+                              {/* Thu nhỏ chiều cao ảnh một chút (200px) để cân đối hơn */}
+                              <div className="relative h-[200px] overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={
+                                    item.thumbnailUrl ||
+                                    "https://via.placeholder.com/400x200?text=News"
+                                  }
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
 
-                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-xs">
-                                    {dayjs(item.publishDate).format(
-                                      "DD/MM/YYYY",
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="p-4 bg-white">
-                                  <Text
-                                    strong
-                                    className="text-base line-clamp-2 mb-2 block"
-                                  >
-                                    {item.title}
-                                  </Text>
-
-                                  <Paragraph
-                                    type="secondary"
-                                    className="text-sm line-clamp-2 !m-0"
-                                  >
-                                    {item.summary}
-                                  </Paragraph>
+                                <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-xs">
+                                  {dayjs(item.publishDate).format("DD/MM/YYYY")}
                                 </div>
                               </div>
-                            </Card>
-                          </Col>
-                        ))}
-                    </Row>
+
+                              <div className="p-4 bg-white flex-1 flex flex-col">
+                                <Text
+                                  strong
+                                  className="text-base line-clamp-2 mb-2 block group-hover:text-[#a61d24] transition-colors"
+                                >
+                                  {item.title}
+                                </Text>
+
+                                {/* Dồn phần tóm tắt xuống cuối để các thẻ có chữ ngắn/dài vẫn bằng nhau */}
+                                <Paragraph
+                                  type="secondary"
+                                  className="text-sm line-clamp-2 !m-0 mt-auto"
+                                >
+                                  {item.summary}
+                                </Paragraph>
+                              </div>
+                            </div>
+                          </Card>
+                        </List.Item>
+                      )}
+                    />
                   </div>
                 </Col>
 
                 <Col xs={24} lg={8}>
                   <div className="sticky top-24">
                     <Title level={3} className="!text-[#111] uppercase !mb-6">
-                      Phim nổi bật
+                      {locale === "vi" ? "Phim nổi bật" : "Featured Movies"}
                     </Title>
 
-                    <Row gutter={[18, 24]}>
-                      {featuredMovies.slice(0, 4).map((movie) => (
-                        <Col xs={12} key={movie.id}>
-                          <div className="group bg-white shadow-md overflow-hidden">
-                            <Link
-                              href={localizeHref(
-                                `/phim/${movie.slug || movie.id}`,
-                                locale,
-                              )}
-                              className="relative block h-[310px] overflow-hidden"
-                            >
+                    <List
+                      // Vẫn chia thành 2 cột như Metiz
+                      grid={{
+                        gutter: 16,
+                        xs: 2,
+                        sm: 2,
+                        md: 4,
+                        lg: 2,
+                        xl: 2,
+                        xxl: 2,
+                      }}
+                      dataSource={featuredMovies}
+                      pagination={{
+                        pageSize: 4,
+                        align: "center",
+                        showSizeChanger: false,
+                        size: "small",
+                      }}
+                      renderItem={(movie) => (
+                        <List.Item style={{ width: "100%", height: "100%" }}>
+                          <div className="group bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full w-full hover:shadow-md transition-shadow">
+                            {/* KHU VỰC POSTER (Chứa các hiệu ứng Hover) */}
+                            <div className="relative aspect-[2/3] overflow-hidden bg-gray-100">
                               <img
                                 src={
                                   movie.posterUrl ||
@@ -690,91 +738,124 @@ export function CultureplexUI() {
                                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                               />
 
-                              <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-4 px-5">
-                                <Button
-                                  block
-                                  size="large"
-                                  className="rounded-full font-bold"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-
-                                    if (movie.trailerUrl) {
-                                      setCurrentTrailerUrl(movie.trailerUrl);
-                                      setIsTrailerModalOpen(true);
-                                    } else {
-                                      Modal.warning({
-                                        title: "Thông báo",
-                                        content:
-                                          "Trailer phim đang được cập nhật!",
-                                      });
-                                    }
-                                  }}
+                              {/* Nhãn giới hạn độ tuổi ở góc trái Poster */}
+                              <div className="absolute top-2 left-2 z-40">
+                                <Tag
+                                  color={
+                                    movie.ageRestriction === "P"
+                                      ? "green"
+                                      : "orange"
+                                  }
+                                  className="!m-0 font-bold border-none px-1.5 min-w-[24px] text-center shadow-sm"
                                 >
-                                  Trailer
-                                </Button>
-
-                                <Button
-                                  block
-                                  size="large"
-                                  type="primary"
-                                  danger
-                                  className="rounded-full font-bold !bg-[#a61d24] !border-[#a61d24]"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleOpenBookingModal(movie);
-                                  }}
-                                >
-                                  Đặt vé
-                                </Button>
-                              </div>
-                            </Link>
-
-                            <div className="p-3">
-                              <div className="font-bold text-sm uppercase line-clamp-2 min-h-[40px]">
-                                {movie.title}
+                                  {movie.ageRestriction || "P"}
+                                </Tag>
                               </div>
 
-                              <div className="mt-2 text-xs leading-5">
-                                <div>
-                                  <b>Thể loại:</b> {movie.genre}
+                              {/* Lớp phủ Gradient gốc (hiện khi KHÔNG hover) */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 z-20 transition-opacity duration-300 group-hover:opacity-0 pointer-events-none flex flex-col justify-end">
+                                <div className="text-white font-bold text-sm uppercase line-clamp-2 leading-tight">
+                                  {movie.title}
                                 </div>
-                                <div>
-                                  <b>Thời lượng:</b> {movie.durationMin} phút
+                                <div className="text-white/80 text-[10px] mt-1">
+                                  {movie.genre}
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex flex-col gap-3">
+                              {/* 🔥 LỚP PHỦ HOVER (Chứa nút bấm, hiện ra khi ĐƯA CHUỘT VÀO) */}
+                              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 p-4 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                                {/* NÚT TRAILER */}
+                                <div className="w-full pointer-events-auto">
+                                  <Button
+                                    block
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (movie.trailerUrl) {
+                                        setCurrentTrailerUrl(movie.trailerUrl);
+                                        setIsTrailerModalOpen(true);
+                                      } else {
+                                        Modal.warning({
+                                          title: "Thông báo",
+                                          content:
+                                            "Trailer phim đang được cập nhật!",
+                                        });
+                                      }
+                                    }}
+                                    className="border-white text-white hover:border-[#f0dfb1] hover:text-[#f0dfb1] rounded-full bg-transparent"
+                                  >
+                                    Trailer
+                                  </Button>
+                                </div>
+
+                                {/* NÚT ĐẶT VÉ TRÊN ẢNH */}
+                                <div className="w-full pointer-events-auto">
+                                  <Button
+                                    block
+                                    size="small"
+                                    type="primary"
+                                    danger
+                                    className="rounded-full font-bold !bg-[#a61d24] !border-[#a61d24]"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleOpenBookingModal(movie);
+                                    }}
+                                  >
+                                    {locale === "vi" ? "Đặt vé" : "Book"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* KHU VỰC TEXT BÊN DƯỚI */}
+                            <div className="p-3 flex-1 flex flex-col justify-between">
+                              <div>
+                                <div className="text-[11px] text-gray-500 mb-1">
+                                  {dayjs(movie.releaseDate).format(
+                                    "YYYY-MM-DD",
+                                  )}{" "}
+                                  | {movie.durationMin}{" "}
+                                  {locale === "vi" ? "phút" : "mins"}
+                                </div>
+
+                                <div className="mt-1 mb-3 flex flex-wrap gap-1">
+                                  <span className="text-[10px] text-yellow-600 font-bold border border-yellow-500 rounded px-1">
+                                    2D
+                                  </span>
+                                  {movie.format &&
+                                    movie.format.includes("IMAX") && (
+                                      <span className="text-[10px] text-yellow-600 font-bold border border-yellow-500 rounded px-1">
+                                        IMAX
+                                      </span>
+                                    )}
+                                </div>
+                              </div>
+
+                              <div className="mt-auto">
                                 <Link
                                   href={localizeHref(
                                     `/phim/${movie.slug || movie.id}`,
                                     locale,
                                   )}
+                                  className="w-full block"
                                 >
                                   <Button
                                     block
-                                    className="rounded-full font-semibold"
+                                    className="rounded-full text-xs font-semibold h-[32px] border-gray-300 text-gray-700 hover:text-black hover:border-black"
                                   >
-                                    Chi tiết phim
+                                    {locale === "vi"
+                                      ? "Chi tiết phim"
+                                      : "Details"}
                                   </Button>
                                 </Link>
-
-                                <Button
-                                  block
-                                  type="primary"
-                                  danger
-                                  className="rounded-full font-semibold !bg-[#a61d24] !border-[#a61d24]"
-                                  onClick={() => handleOpenBookingModal(movie)}
-                                >
-                                  Đặt vé
-                                </Button>
                               </div>
                             </div>
                           </div>
-                        </Col>
-                      ))}
-                    </Row>
+                        </List.Item>
+                      )}
+                    />
                   </div>
                 </Col>
               </Row>
@@ -1118,15 +1199,15 @@ export function CultureplexUI() {
                 )}
               </Col>
 
-              {/* CỘT PHẢI: TIN TỨC */}
+              {/* CỘT PHẢI: TIN TỨC ĐƯỢC CHIA TABS */}
               <Col xs={24} lg={8}>
                 <div className="sticky top-24">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-4">
                     <Title
                       level={4}
                       className="!text-[#4a3426] !mb-0 border-b-2 border-[#e4d1b4] pb-2 inline-block"
                     >
-                      {locale === "vi" ? "Tin Tức Điện Ảnh" : "Cinema News"}
+                      {locale === "vi" ? "Bản Tin KCT" : "KCT Bulletin"}
                     </Title>
 
                     {role === "admin" && (
@@ -1136,22 +1217,54 @@ export function CultureplexUI() {
                         className="rounded-full"
                         onClick={() => openArticleEditor("create")}
                       >
-                        Thêm tin tức
+                        {locale === "vi" ? "Thêm tin tức" : "Add News"}
                       </Button>
                     )}
                   </div>
 
+                  {/* 🔥 TABS CHO 3 MỤC NHỎ */}
+                  <Tabs
+                    activeKey={activeArticleTab}
+                    onChange={setActiveArticleTab}
+                    className="mb-4"
+                    items={[
+                      {
+                        key: "NEWS",
+                        label: locale === "vi" ? "Tin tức điện ảnh" : "News",
+                      },
+                      {
+                        key: "PROMOTION",
+                        label: locale === "vi" ? "Khuyến mãi" : "Promotions",
+                      },
+                      {
+                        key: "NOTICE",
+                        label: locale === "vi" ? "Thông báo" : "Notices",
+                      },
+                    ]}
+                  />
+
                   {loading ? (
                     <Skeleton active paragraph={{ rows: 6 }} />
+                  ) : filteredArticles.length === 0 ? (
+                    <div className="text-center text-gray-500 py-10">
+                      {locale === "vi"
+                        ? "Hiện chưa có bài viết nào."
+                        : "No articles available."}
+                    </div>
                   ) : (
                     <List
                       itemLayout="vertical"
-                      dataSource={articles}
+                      dataSource={filteredArticles}
+                      pagination={{
+                        pageSize: 4,
+                        size: "small",
+                        align: "center",
+                      }}
                       renderItem={(article) => (
                         <Card
                           hoverable
                           onClick={() => setSelectedArticle(article)}
-                          className="!mb-6 rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer"
+                          className="!mb-4 rounded-xl border-none shadow-sm overflow-hidden group cursor-pointer"
                           bodyStyle={{ padding: 0 }}
                         >
                           <div className="flex flex-col">
@@ -1174,7 +1287,7 @@ export function CultureplexUI() {
                             <div className="p-4 bg-white">
                               <Text
                                 strong
-                                className="text-base line-clamp-2 mb-2"
+                                className="text-base line-clamp-2 mb-2 group-hover:text-[#a61d24] transition-colors"
                               >
                                 {article.title}
                               </Text>
@@ -1229,7 +1342,7 @@ export function CultureplexUI() {
       </SiteShell>
       <Modal
         open={articleModal.open}
-        title={articleModal.mode === "edit" ? "Sửa tin tức" : "Thêm tin tức"}
+        title={articleModal.mode === "edit" ? "Sửa bài viết" : "Thêm bài viết"}
         onCancel={() => setArticleModal({ open: false, mode: "create" })}
         onOk={saveArticle}
         confirmLoading={submittingArticle}

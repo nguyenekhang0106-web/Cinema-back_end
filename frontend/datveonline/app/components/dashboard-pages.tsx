@@ -71,6 +71,7 @@ import {
   updateUserApi,
   deleteUserApi,
   toggleUserStatusApi,
+  authFetch,
 } from "../lib/cinema-api";
 
 // ==========================================
@@ -474,10 +475,21 @@ export function AdminDashboardPage() {
   };
 
   const fetchArticles = async () => {
+    if (!token) return;
+
     setLoadingArticles(true);
+
     try {
-      const res = await fetch("http://localhost:9090/cinema/articles");
+      const res = await authFetch(
+        "http://localhost:9090/cinema/articles/admin/all",
+      );
+
       const data = await res.json();
+
+      if (data.code && data.code !== 1000) {
+        message.error(data.message || "Không thể tải danh sách tin tức!");
+        return;
+      }
 
       const list = (data.result || []).map((item: any) => ({
         ...item,
@@ -489,19 +501,16 @@ export function AdminDashboardPage() {
       }));
 
       setArticles(list);
-    } catch {
-      message.error("Không thể tải danh sách tin tức!");
+    } catch (error: any) {
+      message.error(error.message || "Không thể tải danh sách tin tức!");
     } finally {
       setLoadingArticles(false);
     }
   };
 
+  // 3. Cập nhật lại useEffect để theo dõi sự thay đổi của token
   useEffect(() => {
     fetchArticles();
-  }, []);
-
-  useEffect(() => {
-    fetchUsers();
   }, [token]);
 
   const [movieForm] = Form.useForm<MovieRecord>();
@@ -877,11 +886,8 @@ export function AdminDashboardPage() {
   }
 
   async function removeArticle(id: string) {
-    if (!token) return;
-
-    const res = await fetch(`http://localhost:9090/cinema/articles/${id}`, {
+    const res = await authFetch(`http://localhost:9090/cinema/articles/${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
     });
 
     const data = await res.json();
@@ -1093,11 +1099,10 @@ export function AdminDashboardPage() {
       ? `http://localhost:9090/cinema/articles/${articleModal.editingKey}`
       : "http://localhost:9090/cinema/articles";
 
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method: isEdit ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         ...values,

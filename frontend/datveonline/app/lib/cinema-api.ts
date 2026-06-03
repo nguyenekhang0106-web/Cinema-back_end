@@ -585,3 +585,81 @@ export async function toggleUserStatusApi(token: string, id: string) {
     },
   });
 }
+
+const API_BASE = "http://localhost:9090/cinema";
+
+export function getStoredToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+export function setStoredToken(token: string) {
+  localStorage.setItem("token", token);
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
+export function clearAuthAndRedirect() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.dispatchEvent(new Event("auth-changed"));
+  window.location.href = "/";
+}
+
+export async function refreshAccessToken() {
+  const oldToken = getStoredToken();
+
+  if (!oldToken) {
+    clearAuthAndRedirect();
+    return null;
+  }
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token: oldToken,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || data.code !== 1000 || !data.result?.token) {
+    clearAuthAndRedirect();
+    return null;
+  }
+
+  const newToken = data.result.token;
+  setStoredToken(newToken);
+
+  return newToken;
+}
+
+export async function authFetch(input: string, init: RequestInit = {}) {
+  let token = getStoredToken();
+
+  const makeRequest = (currentToken: string | null) =>
+    fetch(input, {
+      ...init,
+      headers: {
+        ...(init.headers || {}),
+        ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+      },
+    });
+
+  let res = await makeRequest(token);
+
+  if (res.status === 401 || res.status === 403) {
+    const newToken = await refreshAccessToken();
+
+    if (!newToken) {
+      clearAuthAndRedirect();
+      throw new Error("Phiên đăng nhập đã hết hạn");
+    }
+
+    res = await makeRequest(newToken);
+  }
+
+  return res;
+}

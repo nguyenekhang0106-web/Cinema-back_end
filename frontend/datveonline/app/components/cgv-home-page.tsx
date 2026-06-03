@@ -54,6 +54,7 @@ import { SiteShell } from "./site-shell";
 import { TemplatePage } from "./template-page";
 import { useAuthSession } from "./auth-session-provider";
 import { BannerItem, getActiveBanners } from "../lib/cinema-api";
+import { useRouter } from "next/navigation";
 
 // ============================================================================
 // 🔥 COMPONENT: TRÌNH QUẢN LÝ BANNER TRANG CHỦ DÀNH RIÊNG CHO ADMIN 🔥
@@ -1182,66 +1183,6 @@ function CinemaAndPromoSection() {
       </section>
 
       {/* ====================================================== */}
-      {/* 2. KHỐI ƯU ĐÃI ĐƯỢC ĐẨY XUỐNG DƯỚI RẠP CHIẾU          */}
-      {/* ====================================================== */}
-      <section className="mb-20">
-        <Card bordered={false} className="cinema-paper rounded-[28px]">
-          <div className="mb-6 flex items-center gap-3">
-            <GiftOutlined style={{ fontSize: 28, color: "#a61d24" }} />
-            <Typography.Title
-              level={2}
-              className="cinema-section-title"
-              style={{ margin: 0, color: "#4a3426" }}
-            >
-              {dictionary.home.promoTitle}
-            </Typography.Title>
-          </div>
-
-          <Row gutter={[16, 16]}>
-            {promotions.map((promo) => (
-              <Col xs={24} md={12} lg={8} key={promo.id}>
-                <Card
-                  bordered
-                  size="small"
-                  className="h-full hover:shadow-md transition-shadow cursor-pointer"
-                  style={{
-                    borderColor: "#ead8c1",
-                    background:
-                      "linear-gradient(135deg, rgba(200,154,43,0.12), rgba(166,29,36,0.04))",
-                  }}
-                >
-                  <Space align="start">
-                    <div className="mt-1 p-2 bg-white rounded-full shadow-sm">
-                      <GiftOutlined
-                        style={{ fontSize: 20, color: "#a61d24" }}
-                      />
-                    </div>
-                    <div>
-                      <Typography.Title
-                        level={5}
-                        style={{ margin: 0, color: "#4a3426", lineHeight: 1.4 }}
-                      >
-                        {promo.title}
-                      </Typography.Title>
-                      <Typography.Paragraph
-                        style={{
-                          margin: "6px 0 0",
-                          color: "#6d5a46",
-                          fontSize: "13px",
-                        }}
-                      >
-                        {promo.description}
-                      </Typography.Paragraph>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Card>
-      </section>
-
-      {/* ====================================================== */}
       {/* 3. CÁC MODAL HIỂN THỊ (ADMIN FORM & POPUP XEM PHIM)    */}
       {/* ====================================================== */}
       <Modal
@@ -1429,17 +1370,15 @@ function CinemaAndPromoSection() {
 }
 
 function NewsStrip() {
-  const dictionary = useDictionary();
   const locale = useLocale();
+  const router = useRouter();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFeaturedArticles = async () => {
       try {
-        const res = await fetch(
-          "http://localhost:9090/cinema/articles?type=NEWS",
-        );
+        const res = await fetch("http://localhost:9090/cinema/articles");
         const data = await res.json();
 
         if (data.code === 1000) {
@@ -1454,7 +1393,7 @@ function NewsStrip() {
             return isFeatured && isPublished;
           });
 
-          setArticles(featuredNews.slice(0, 3));
+          setArticles(featuredNews);
         }
       } catch (error) {
         console.error("Lỗi tải tin tức nổi bật:", error);
@@ -1467,94 +1406,90 @@ function NewsStrip() {
   }, []);
 
   return (
-    <section className="mb-20">
-      <Card bordered={false} className="cinema-paper rounded-[28px]">
-        <Row gutter={[20, 20]} align="middle">
-          <Col xs={24} md={8}>
-            <Typography.Title level={3} style={{ margin: 0, color: "#4a3426" }}>
-              {dictionary.home.newsTitle}
-            </Typography.Title>
+    <section className="mb-20 mt-12">
+      <div className="mb-6 flex items-center border-b-2 border-gray-200">
+        <div className="flex items-center gap-2 border-b-[3px] border-[#a61d24] pb-2 -mb-[2px]">
+          <FireOutlined className="text-2xl text-[#a61d24]" />
+          <Typography.Title
+            level={3}
+            className="!m-0 !text-[#4a3426] uppercase"
+          >
+            {locale === "vi" ? "Tin Mới & Sự Kiện" : "News & Events"}
+          </Typography.Title>
+        </div>
+      </div>
 
-            <Typography.Paragraph style={{ marginTop: 10, color: "#6d5a46" }}>
-              {dictionary.home.newsDescription}
-            </Typography.Paragraph>
-          </Col>
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Spin size="large" />
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="text-center text-gray-500 py-10 border border-dashed border-gray-300 rounded-lg">
+          {locale === "vi" ? "Hiện chưa có bài viết nào." : "No articles yet."}
+        </div>
+      ) : (
+        <List
+          grid={{ gutter: 24, xs: 1, sm: 2, md: 3, lg: 3, xl: 3, xxl: 3 }}
+          dataSource={articles}
+          pagination={{
+            pageSize: 3,
+            align: "center",
+            showSizeChanger: false,
+          }}
+          renderItem={(item) => (
+            <List.Item>
+              <Card
+                hoverable
+                onClick={() => {
+                  router.push(
+                    localizeHref(`/cultureplex?article=${item.id}`, locale),
+                  );
+                }}
+                className="rounded-xl border border-gray-100 shadow-sm overflow-hidden group cursor-pointer w-full"
+                bodyStyle={{
+                  padding: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div className="flex flex-col w-full">
+                  <div className="relative h-[200px] overflow-hidden bg-gray-100 shrink-0">
+                    <img
+                      src={
+                        item.thumbnailUrl ||
+                        "https://via.placeholder.com/400x200?text=News"
+                      }
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute bottom-2 right-2 bg-[#a61d24] text-white px-2 py-0.5 rounded text-xs font-bold shadow-md">
+                      {dayjs(item.publishDate).format("DD/MM/YYYY")}
+                    </div>
+                  </div>
 
-          <Col xs={24} md={16}>
-            {loading ? (
-              <Spin />
-            ) : (
-              <Row gutter={[16, 16]}>
-                {articles.map((item) => (
-                  <Col xs={24} md={8} key={item.id}>
-                    <Link
-                      href={localizeHref(
-                        `/cultureplex?article=${item.id}`,
-                        locale,
-                      )}
+                  <div className="p-4 bg-white flex flex-col">
+                    <Typography.Text
+                      strong
+                      className="text-base line-clamp-2 mb-2 block group-hover:text-[#a61d24] transition-colors"
+                      style={{ minHeight: "48px" }} // 🔥 Ép tiêu đề luôn chiếm đủ không gian của 2 dòng
                     >
-                      <Card
-                        hoverable
-                        bordered
-                        className="h-full overflow-hidden"
-                        bodyStyle={{ padding: 0 }}
-                        style={{
-                          borderColor: "#ead8c1",
-                          background: "#fffaf4",
-                        }}
-                      >
-                        <div className="h-[140px] overflow-hidden bg-gray-100">
-                          <img
-                            src={
-                              item.thumbnailUrl ||
-                              "https://via.placeholder.com/400x200?text=News"
-                            }
-                            alt={item.title}
-                            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
-                          />
-                        </div>
-
-                        <div className="p-4">
-                          <Typography.Title
-                            level={5}
-                            className="line-clamp-2"
-                            style={{
-                              margin: 0,
-                              color: "#4a3426",
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            {item.title}
-                          </Typography.Title>
-
-                          <Typography.Paragraph
-                            className="line-clamp-2"
-                            style={{
-                              margin: "8px 0 0",
-                              color: "#6d5a46",
-                              fontSize: "13px",
-                            }}
-                          >
-                            {item.summary}
-                          </Typography.Paragraph>
-                        </div>
-                      </Card>
-                    </Link>
-                  </Col>
-                ))}
-
-                {articles.length === 0 && (
-                  <Col span={24}>
-                    <Typography.Text type="secondary">
-                      Chưa có tin tức nổi bật.
+                      {item.title}
                     </Typography.Text>
-                  </Col>
-                )}
-              </Row>
-            )}
-          </Col>
-        </Row>
-      </Card>
+
+                    <Typography.Paragraph
+                      type="secondary"
+                      className="text-sm line-clamp-3 !m-0"
+                      style={{ minHeight: "66px" }} // 🔥 Ép phần tóm tắt luôn chiếm đủ không gian của 3 dòng
+                    >
+                      {item.summary}
+                    </Typography.Paragraph>
+                  </div>
+                </div>
+              </Card>
+            </List.Item>
+          )}
+        />
+      )}
     </section>
   );
 }

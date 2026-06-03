@@ -30,6 +30,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.StringJoiner;
 import java.util.UUID;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -242,5 +244,13 @@ public class AuthenticationService {
                 .token(token)
                 .authenticated(true)
                 .build();
+    }
+
+    // 🔥 TỰ ĐỘNG DỌN RÁC: Chạy ngầm mỗi giờ (3,600,000 mili-giây)
+    @Scheduled(fixedRate = 3600000)
+    @Transactional
+    public void cleanupExpiredTokens() {
+        invalidatedRepository.deleteAllByExpiryTimeBefore(new Date());
+        log.info("CronJob: Đã dọn dẹp các token hết hạn khỏi Database thành công!");
     }
 }
