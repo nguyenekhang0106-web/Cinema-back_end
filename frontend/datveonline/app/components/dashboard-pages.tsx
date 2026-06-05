@@ -116,10 +116,19 @@ type ShowtimeRecord = {
   key: string;
   movieTitle: string;
   cinema: string;
+  cinemaId?: string | null;
   room: string;
   format: string;
   time: string;
+  rawDate?: string;
   status: ShowtimeStatus;
+
+  // 🔥 BỔ SUNG CÁC TRƯỜNG DỮ LIỆU GỐC ĐỂ PHỤC VỤ CHỈNH SỬA
+  movieId?: string;
+  hallId?: string;
+  basePrice?: number;
+  rawStartTime?: string;
+  rawFormat?: string;
 };
 
 type UserRecord = {
@@ -439,7 +448,100 @@ export function AdminDashboardPage() {
     editingKey?: string;
   }>({ open: false, mode: "create" });
 
-  const [showtimes, setShowtimes] = useState(initialShowtimes);
+  // 🔥 STATE CHO BỘ LỌC LỊCH CHIẾU
+  const [filterDate, setFilterDate] = useState<Dayjs | null>(dayjs());
+  const [filterCinema, setFilterCinema] = useState<string>("ALL");
+  const [allCinemas, setAllCinemas] = useState<any[]>([]);
+  const [allHalls, setAllHalls] = useState<any[]>([]);
+  const [rawShowtimes, setRawShowtimes] = useState<any[]>([]);
+  const [loadingShowtimesData, setLoadingShowtimesData] = useState(false);
+
+  // 🔥 HÀM TẢI DỮ LIỆU TỪNG RẠP, PHÒNG VÀ SUẤT CHIẾU
+  const fetchDashboardShowtimesData = async () => {
+    setLoadingShowtimesData(true);
+    try {
+      const cinemasRes = await fetch("http://localhost:9090/cinema/cinemas");
+      const cinemasData = await cinemasRes.json();
+      const cinemasList = cinemasData.result || [];
+      setAllCinemas(cinemasList);
+
+      const hallsPromises = cinemasList.map((c: any) =>
+        fetch(`http://localhost:9090/cinema/halls/cinema/${c.id}`).then((r) =>
+          r.json(),
+        ),
+      );
+      const hallsResults = await Promise.all(hallsPromises);
+      const flattenedHalls = hallsResults.flatMap((hr) => hr.result || []);
+      setAllHalls(flattenedHalls);
+
+      const stRes = await fetch("http://localhost:9090/cinema/showtimes");
+      const stData = await stRes.json();
+      setRawShowtimes(stData.result || []);
+    } catch (error) {
+      console.error("Lỗi tải suất chiếu dashboard:", error);
+    } finally {
+      setLoadingShowtimesData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardShowtimesData();
+  }, []);
+
+  // 🔥 XỬ LÝ LỌC & GHÉP DATA CHO BẢNG
+  const processedShowtimes = useMemo(() => {
+    return rawShowtimes
+      .map((st) => {
+        const movie = movies.find((m: any) => m.id === st.movieId);
+        const hall = allHalls.find((h: any) => h.id === st.hallId);
+        const cinema = allCinemas.find((c: any) => c.id === hall?.cinemaId);
+
+        let mappedStatus: ShowtimeStatus = "open";
+        const now = dayjs();
+        const endTime = dayjs(st.endTime);
+
+        if (st.status === "CANCELLED")
+          mappedStatus = "paused"; // Đã hủy
+        else if (st.status === "COMPLETED" || now.isAfter(endTime))
+          mappedStatus = "soldout"; // Đã chiếu
+
+        return {
+          key: st.id,
+          movieTitle: movie ? movie.title : "Chưa cập nhật",
+          cinema: cinema ? cinema.name : "Chưa cập nhật",
+          cinemaId: cinema ? cinema.id : null,
+          room: hall ? hall.name : "Chưa cập nhật",
+          format:
+            st.format === "TWO_D"
+              ? "2D"
+              : st.format === "THREE_D"
+                ? "3D"
+                : st.format,
+          time: dayjs(st.startTime).format("HH:mm DD/MM/YYYY"),
+          rawDate: dayjs(st.startTime).format("YYYY-MM-DD"),
+          status: mappedStatus,
+          // 🔥 TRUYỀN THÊM DATA ĐỂ MODAL SỬ DỤNG KHI BẤM SỬA
+          movieId: movie ? movie.id : null,
+          hallId: hall ? hall.id : null,
+          basePrice: st.basePrice,
+          rawStartTime: st.startTime,
+          rawFormat: st.format,
+        };
+      })
+      .filter((st) => {
+        const matchDate = filterDate
+          ? st.rawDate === filterDate.format("YYYY-MM-DD")
+          : true;
+        const matchCinema =
+          filterCinema === "ALL" ? true : st.cinemaId === filterCinema;
+        return matchDate && matchCinema;
+      })
+      .sort(
+        (a, b) =>
+          dayjs(a.time, "HH:mm DD/MM/YYYY").valueOf() -
+          dayjs(b.time, "HH:mm DD/MM/YYYY").valueOf(),
+      );
+  }, [rawShowtimes, movies, allHalls, allCinemas, filterDate, filterCinema]);
   const [users, setUsers] = useState(initialUsers);
 
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -511,6 +613,7 @@ export function AdminDashboardPage() {
   // 3. Cập nhật lại useEffect để theo dõi sự thay đổi của token
   useEffect(() => {
     fetchArticles();
+    fetchUsers();
   }, [token]);
 
   const [movieForm] = Form.useForm<MovieRecord>();
@@ -564,7 +667,10 @@ export function AdminDashboardPage() {
 
   const stats = [
     { label: dictionary.pages.admin.stats[0].label, value: movies.length },
-    { label: dictionary.pages.admin.stats[1].label, value: showtimes.length },
+    {
+      label: dictionary.pages.admin.stats[1].label,
+      value: rawShowtimes.length,
+    }, // 🔥 Sửa showtimes thành rawShowtimes
     {
       label: dictionary.pages.admin.stats[2].label,
       value: users.filter((item) => item.role === "admin").length,
@@ -811,19 +917,25 @@ export function AdminDashboardPage() {
     setBannerFile(null);
   }
 
-  function openShowtimeEditor(mode: EditorMode, record?: ShowtimeRecord) {
+  function openShowtimeEditor(mode: EditorMode, record?: any) {
     setShowtimeModal({ open: true, mode, editingKey: record?.key });
-    showtimeForm.setFieldsValue(
-      record ?? {
-        key: "",
-        movieTitle: "",
-        cinema: "",
-        room: "",
-        format: "2D",
-        time: "",
-        status: "open",
-      },
-    );
+
+    if (record) {
+      showtimeForm.setFieldsValue({
+        movieId: record.movieId,
+        cinemaId: record.cinemaId,
+        hallId: record.hallId,
+        format: record.rawFormat,
+        basePrice: record.basePrice,
+        startTime: dayjs(record.rawStartTime),
+      } as any);
+    } else {
+      showtimeForm.resetFields();
+      showtimeForm.setFieldsValue({
+        format: "TWO_D",
+        basePrice: 50000,
+      });
+    }
   }
 
   function openUserEditor(mode: EditorMode, record?: UserRecord) {
@@ -1035,9 +1147,51 @@ export function AdminDashboardPage() {
     }
   }
 
-  function saveShowtime(values: ShowtimeRecord) {
-    setShowtimeModal({ open: false, mode: "create" });
+  // 🔥 HÀM THÊM & CẬP NHẬT SUẤT CHIẾU GỌI XUỐNG DB
+  async function saveShowtime(values: any) {
+    if (!token) return;
+    try {
+      const payload = {
+        movieId: values.movieId,
+        hallId: values.hallId,
+        format: values.format,
+        basePrice: values.basePrice,
+        // Backend Java yêu cầu định dạng ISO chuẩn (VD: 2026-04-21T20:30:00)
+        startTime: values.startTime.format("YYYY-MM-DDTHH:mm:00"),
+      };
+
+      const isEdit = showtimeModal.mode === "edit" && showtimeModal.editingKey;
+      const url = isEdit
+        ? `http://localhost:9090/cinema/showtimes/${showtimeModal.editingKey}`
+        : `http://localhost:9090/cinema/showtimes`;
+
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        message.success(
+          isEdit
+            ? "Cập nhật suất chiếu thành công!"
+            : "Thêm suất chiếu thành công!",
+        );
+        setShowtimeModal({ open: false, mode: "create" });
+        showtimeForm.resetFields();
+        fetchDashboardShowtimesData(); // Tự động load lại bảng
+      } else {
+        const err = await res.json();
+        message.error(err.message || "Lỗi khi lưu suất chiếu!");
+      }
+    } catch (e) {
+      message.error("Lỗi hệ thống khi lưu suất chiếu!");
+    }
   }
+
   async function saveUser(values: any) {
     if (!token) return;
 
@@ -1065,29 +1219,71 @@ export function AdminDashboardPage() {
       c.map((i) => (i.key === key ? { ...i, featured: !i.featured } : i)),
     );
   }
-  function cycleShowtimeStatus(key: string) {}
-  async function toggleUserStatus(key: string) {
+  async function cycleShowtimeStatus(key: string) {
     if (!token) return;
-
     try {
-      await toggleUserStatusApi(token, key);
-      message.success("Cập nhật trạng thái người dùng thành công!");
-      fetchUsers();
-    } catch (error: any) {
-      message.error(error.message || "Không thể cập nhật trạng thái!");
+      const res = await fetch(
+        `http://localhost:9090/cinema/showtimes/${key}/cancel`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        message.success("Đã hủy suất chiếu thành công!");
+        fetchDashboardShowtimesData();
+      } else {
+        const err = await res.json();
+        message.error(err.message || "Không thể hủy suất chiếu");
+      }
+    } catch (error) {
+      message.error("Lỗi kết nối máy chủ");
     }
   }
+
   function removeMovie(key: string) {
     setMovies((c) => c.filter((i) => i.key !== key));
     message.success(copy.movieDeleted);
   }
-  function removeShowtime(key: string) {
-    setShowtimes((c) => c.filter((i) => i.key !== key));
-    message.success(copy.showtimeDeleted);
+  async function removeShowtime(key: string) {
+    if (!token) return;
+    try {
+      const res = await fetch(`http://localhost:9090/cinema/showtimes/${key}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        message.success("Đã xóa vĩnh viễn suất chiếu!");
+        fetchDashboardShowtimesData();
+      } else {
+        const err = await res.json();
+        message.error(err.message || "Lỗi xóa suất chiếu");
+      }
+    } catch (error) {
+      message.error("Lỗi kết nối máy chủ");
+    }
   }
-  function removeUser(key: string) {
-    setUsers((c) => c.filter((i) => i.key !== key));
-    message.success(copy.userDeleted);
+  async function removeUser(key: string) {
+    if (!token) return;
+    try {
+      await deleteUserApi(token, key); // Gọi API xóa trên DB
+      message.success(copy.userDeleted);
+      fetchUsers(); // Tải lại danh sách mới nhất từ DB
+    } catch (error: any) {
+      message.error(error.message || "Không thể xóa người dùng!");
+    }
+  }
+
+  // 🔥 BỔ SUNG HÀM KHÓA / MỞ KHÓA NGƯỜI DÙNG
+  async function toggleUserStatus(key: string) {
+    if (!token) return;
+    try {
+      await toggleUserStatusApi(token, key);
+      message.success("Đã thay đổi trạng thái hoạt động của người dùng!");
+      fetchUsers(); // Tự động tải lại bảng user sau khi đổi trạng thái
+    } catch (error: any) {
+      message.error(error.message || "Không thể đổi trạng thái người dùng!");
+    }
   }
 
   async function saveArticle(values: any) {
@@ -1133,19 +1329,6 @@ export function AdminDashboardPage() {
       desc: copy.moduleMoviesDesc,
       action: () => openMovieEditor("create"),
       actionLabel: copy.addMovie,
-    },
-    {
-      title: copy.moduleShowtimesTitle,
-      value: showtimes.filter((i) => i.status === "open").length,
-      desc: copy.moduleShowtimesDesc,
-      action: () => openShowtimeEditor("create"),
-      actionLabel: copy.addShowtime,
-    },
-    {
-      title: copy.moduleUsersTitle,
-      value: users.filter((i) => i.status === "active").length,
-      action: () => openUserEditor("create"),
-      actionLabel: copy.addUser,
     },
     {
       title: locale === "vi" ? "Quản lý Bắp nước" : "Concessions",
@@ -1194,13 +1377,6 @@ export function AdminDashboardPage() {
     <div className="cinema-page">
       <SiteShell>
         <main className="cinema-shell px-4 py-8 sm:px-6">
-          <DashboardHero
-            eyebrow={dictionary.pages.admin.eyebrow}
-            title={dictionary.pages.admin.title}
-            description={dictionary.pages.admin.description}
-            image="https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200"
-            stats={stats}
-          />
           <Row gutter={[24, 24]} className="mt-8">
             {moduleCards.map((card) => (
               <Col xs={24} sm={12} lg={8} key={card.title}>
@@ -1288,21 +1464,60 @@ export function AdminDashboardPage() {
                       <Typography.Paragraph
                         style={{ color: "#6d5a46", margin: "8px 0 0" }}
                       >
-                        {dictionary.pages.admin.sections[1].desc}
+                        Tra cứu suất chiếu theo ngày tự do và lọc theo Rạp.
                       </Typography.Paragraph>
                     </div>
+                    {/* 🔥 NÚT THÊM SUẤT CHIẾU TRỰC TIẾP */}
                     <Button
                       type="primary"
                       onClick={() => openShowtimeEditor("create")}
                     >
-                      {copy.addShowtime}
+                      {locale === "vi" ? "Thêm suất chiếu" : "Add Showtime"}
                     </Button>
                   </div>
+
+                  {/* 🔥 BỘ LỌC TÌM KIẾM ĐỘNG */}
+                  <div className="flex flex-wrap gap-5 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold mb-2 text-gray-700">
+                        Tra cứu ngày:
+                      </span>
+                      <DatePicker
+                        size="large"
+                        format="DD/MM/YYYY"
+                        value={filterDate}
+                        onChange={(date) => setFilterDate(date)}
+                        placeholder="Tất cả các ngày"
+                        className="w-[200px]"
+                        allowClear // Cho phép xóa để xem toàn bộ lịch
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold mb-2 text-gray-700">
+                        Lọc theo Rạp:
+                      </span>
+                      <Select
+                        size="large"
+                        value={filterCinema}
+                        onChange={setFilterCinema}
+                        className="w-[280px]"
+                        options={[
+                          { label: "Tất cả các rạp", value: "ALL" },
+                          ...allCinemas.map((c) => ({
+                            label: c.name,
+                            value: c.id,
+                          })),
+                        ]}
+                      />
+                    </div>
+                  </div>
+
                   <Table
                     rowKey="key"
                     columns={showtimeColumns}
-                    dataSource={showtimes}
-                    pagination={false}
+                    dataSource={processedShowtimes as ShowtimeRecord[]} // 🔥 CHỈ CẦN THÊM ÉP KIỂU Ở ĐÂY
+                    pagination={{ pageSize: 10 }}
+                    loading={loadingShowtimesData || loadingMovies}
                     scroll={{ x: "max-content" }}
                   />
                 </Space>
@@ -1697,18 +1912,147 @@ export function AdminDashboardPage() {
             </Form>
           </Modal>
 
+          {/* 🔥 MODAL THÊM / SỬA SUẤT CHIẾU */}
           <Modal
             open={showtimeModal.open}
             title={
               showtimeModal.mode === "edit"
-                ? copy.editShowtime
-                : copy.addShowtime
+                ? "CẬP NHẬT SUẤT CHIẾU"
+                : "THÊM SUẤT CHIẾU MỚI"
             }
-            onCancel={() => setShowtimeModal({ open: false, mode: "create" })}
+            onCancel={() => {
+              setShowtimeModal({ open: false, mode: "create" });
+              showtimeForm.resetFields();
+            }}
             onOk={() => showtimeForm.submit()}
             okText={copy.save}
             cancelText={copy.cancel}
-          ></Modal>
+            destroyOnClose
+            width={650}
+          >
+            <Form
+              form={showtimeForm}
+              layout="vertical"
+              onFinish={saveShowtime}
+              className="mt-4"
+            >
+              <Form.Item
+                name="movieId"
+                label="Phim chiếu"
+                rules={[{ required: true, message: "Vui lòng chọn phim" }]}
+              >
+                <Select
+                  options={movies.map((m) => ({ label: m.title, value: m.id }))}
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Gõ để tìm tên phim..."
+                />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="cinemaId"
+                    label="Rạp (Chọn để lọc phòng)"
+                    rules={[{ required: true, message: "Chọn rạp trước" }]}
+                  >
+                    <Select
+                      options={allCinemas.map((c) => ({
+                        label: c.name,
+                        value: c.id,
+                      }))}
+                      onChange={() =>
+                        showtimeForm.setFieldValue("hallId", undefined)
+                      }
+                      placeholder="Chọn rạp..."
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  {/* Tính năng tự lọc danh sách Phòng theo Rạp đã chọn */}
+                  <Form.Item noStyle dependencies={["cinemaId"]}>
+                    {({ getFieldValue }) => {
+                      const selectedCinemaId = getFieldValue("cinemaId");
+                      const filteredHalls = allHalls.filter(
+                        (h) => h.cinemaId === selectedCinemaId,
+                      );
+                      return (
+                        <Form.Item
+                          name="hallId"
+                          label="Phòng chiếu"
+                          rules={[
+                            { required: true, message: "Vui lòng chọn phòng" },
+                          ]}
+                        >
+                          <Select
+                            options={filteredHalls.map((h) => ({
+                              label: h.name,
+                              value: h.id,
+                            }))}
+                            disabled={!selectedCinemaId}
+                            placeholder={
+                              selectedCinemaId
+                                ? "Chọn phòng..."
+                                : "Hãy chọn rạp trước"
+                            }
+                          />
+                        </Form.Item>
+                      );
+                    }}
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    name="format"
+                    label="Định dạng"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      options={[
+                        { label: "2D", value: "TWO_D" },
+                        { label: "3D", value: "THREE_D" },
+                        { label: "IMAX", value: "IMAX" },
+                        { label: "4DX", value: "FOUR_DX" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="basePrice"
+                    label="Giá cơ bản (VNĐ)"
+                    rules={[{ required: true, message: "Nhập giá" }]}
+                  >
+                    <InputNumber
+                      className="w-full"
+                      min={0}
+                      step={5000}
+                      formatter={(value) =>
+                        `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="startTime"
+                    label="Thời gian chiếu"
+                    rules={[{ required: true, message: "Chọn giờ chiếu" }]}
+                  >
+                    <DatePicker
+                      showTime
+                      format="DD/MM/YYYY HH:mm"
+                      className="w-full"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
+          </Modal>
           <Modal
             open={userModal.open}
             title={userModal.mode === "edit" ? copy.editUser : copy.addUser}

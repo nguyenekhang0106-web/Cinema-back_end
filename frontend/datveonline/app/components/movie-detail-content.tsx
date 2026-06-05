@@ -121,6 +121,7 @@ export function MovieDetailContent({ movie }: { movie: MovieItem }) {
         .then((data) => setRawMovie(data))
         .catch((err) => console.error("Lỗi lấy thông tin phim:", err));
     }
+    fetchBookingData();
   }, [isAdmin, movie.id]);
 
   // ==========================
@@ -394,7 +395,11 @@ export function MovieDetailContent({ movie }: { movie: MovieItem }) {
 
               {/* 🔥 ĐÃ ĐIỀU CHỈNH: GỌI MODAL THAY VÌ CHUYỂN TRANG */}
               <button
-                onClick={handleOpenBookingModal}
+                onClick={() => {
+                  document
+                    .getElementById("showtimes-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
                 className="rounded-xl bg-[#a61d24] px-8 py-2.5 font-bold text-white hover:bg-[#8a181e] transition duration-200 shadow-md cursor-pointer"
               >
                 {dictionary.movieDetail.bookNow}
@@ -432,188 +437,119 @@ export function MovieDetailContent({ movie }: { movie: MovieItem }) {
       </section>
 
       {/* PHẦN 2: LỊCH CHIẾU VÀ ĐIỂM NHẤN */}
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-        <section className="cinema-paper rounded-[28px] p-6">
-          <h2 className="cinema-section-title text-3xl text-[#4a3426]">
+      {/* PHẦN 2: LỊCH CHIẾU TỪ DATABASE (FULL WIDTH) */}
+      <div className="mt-8" id="showtimes-section">
+        <section className="cinema-paper rounded-[28px] p-6 md:p-8">
+          <h2 className="cinema-section-title text-3xl text-[#4a3426] mb-8 uppercase">
             {dictionary.movieDetail.showtimes}
           </h2>
-          <div className="mt-6 space-y-4">
-            {movie.showtimes && movie.showtimes.length > 0 ? (
-              movie.showtimes.map((showtime) => (
-                <div
-                  key={`${showtime.cinemaId}-${showtime.room}`}
-                  className="rounded-[22px] border border-[#ead8c1] bg-[#fffaf4] p-5"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="text-xl font-bold text-[#4a3426]">
-                          {showtime.cinemaName}
-                        </h3>
-                        <span className="rounded-full bg-[#a61d24] px-3 py-1 text-sm text-white">
-                          {showtime.dateLabel}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-[#6d5a46]">{showtime.room}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {showtime.times.map((time) => (
-                        <Link
-                          key={`${showtime.cinemaId}-${time}`}
-                          href={localizeHref(
-                            `/dat-ve/${movie.slug}?cinema=${showtime.cinemaId}&time=${time}`,
-                            locale,
-                          )}
-                          className="rounded-xl border border-[#e4d1b4] bg-white px-4 py-2 text-sm font-semibold text-[#4a3426]"
-                        >
-                          {time}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
+
+          {isLoadingData ? (
+            <div className="flex justify-center py-10">
+              <Spin size="large" />
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl p-4 md:p-6 border border-gray-200">
+              {/* Thanh chọn ngày (7 ngày gần nhất) */}
+              <div className="flex overflow-x-auto gap-3 justify-start mb-6 pb-2 scrollbar-hide">
+                {generateDates().map((dateObj) => {
+                  const isActive = selectedDate === dateObj.iso;
+                  return (
+                    <button
+                      key={dateObj.iso}
+                      onClick={() => setSelectedDate(dateObj.iso)}
+                      className={`shrink-0 min-w-[100px] px-3 py-2 border rounded-lg flex flex-col items-center justify-center transition-all ${
+                        isActive
+                          ? "bg-[#a61d24] text-white border-[#a61d24] shadow-md transform -translate-y-1"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span className="font-semibold text-sm">
+                        {dateObj.dayLabel}
+                      </span>
+                      <span className="text-xs mt-1">{dateObj.dateLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Danh sách rạp và suất chiếu thực tế từ Database */}
+              {groupedData.length === 0 ? (
+                <div className="text-center py-10 bg-white rounded-lg border border-dashed border-gray-300">
+                  <p className="text-gray-500 text-lg">
+                    Không có suất chiếu nào được lên lịch vào ngày này.
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-gray-500 italic border border-dashed border-gray-300 rounded-xl bg-gray-50">
-                Phim hiện chưa có lịch chiếu cụ thể. Vui lòng bấm "Đặt vé ngay"
-                để xem chi tiết hoặc quay lại sau.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <aside className="space-y-6">
-          <div className="cinema-paper rounded-[28px] p-6">
-            <h3 className="text-2xl font-bold text-[#4a3426]">
-              {dictionary.movieDetail.highlights}
-            </h3>
-            <div className="mt-4 space-y-3 text-[#6d5a46]">
-              {dictionary.movieDetail.highlightItems.map((item) => (
-                <p key={item}>{item}</p>
-              ))}
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {/* ================= MODAL LỊCH CHIẾU (GIỐNG MOVIE GRID) ================= */}
-      <Modal
-        open={isBookingModalVisible}
-        onCancel={() => setIsBookingModalVisible(false)}
-        footer={null}
-        width={900}
-        destroyOnClose
-        closeIcon={
-          <div className="bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors">
-            ✕
-          </div>
-        }
-        className="booking-modal"
-      >
-        <div className="flex flex-col md:flex-row gap-6 mb-6">
-          <img
-            src={movie.posterUrl}
-            alt="Poster"
-            className="w-32 rounded-lg shadow-md hidden md:block object-cover aspect-[2/3]"
-          />
-          <div>
-            <Typography.Title
-              level={3}
-              style={{
-                color: "#a61d24",
-                margin: 0,
-                textTransform: "uppercase",
-              }}
-            >
-              {movie.title}
-            </Typography.Title>
-            <p className="text-gray-500 mt-2 text-sm">
-              <ClockCircleOutlined className="mr-1" /> {movie.duration} | Thể
-              loại: {movie.genre}
-            </p>
-          </div>
-        </div>
-
-        {isLoadingData ? (
-          <div className="flex justify-center py-10">
-            <Spin size="large" />
-          </div>
-        ) : (
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            {/* Thanh chọn ngày */}
-            <div className="flex overflow-x-auto gap-3 justify-start mb-6 pb-2 scrollbar-hide">
-              {generateDates().map((dateObj) => {
-                const isActive = selectedDate === dateObj.iso;
-                return (
-                  <button
-                    key={dateObj.iso}
-                    onClick={() => setSelectedDate(dateObj.iso)}
-                    className={`shrink-0 min-w-[100px] px-3 py-2 border rounded-lg flex flex-col items-center justify-center transition-all ${isActive ? "bg-[#a61d24] text-white border-[#a61d24] shadow-md transform -translate-y-1" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
-                  >
-                    <span className="font-semibold text-sm">
-                      {dateObj.dayLabel}
-                    </span>
-                    <span className="text-xs mt-1">{dateObj.dateLabel}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Danh sách rạp và suất chiếu */}
-            {groupedData.length === 0 ? (
-              <div className="text-center py-10 bg-white rounded-lg border border-dashed border-gray-300">
-                <p className="text-gray-500 text-lg">
-                  Không có suất chiếu nào được lên lịch vào ngày này.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {groupedData.map((group) => (
-                  <div
-                    key={group.cinema.id}
-                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-100"
-                  >
-                    <div className="flex items-center gap-2 mb-4 border-b pb-3 border-gray-100">
-                      <EnvironmentOutlined className="text-[#a61d24] text-xl" />
-                      <div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {groupedData.map((group) => (
+                    <div
+                      key={group.cinema.id}
+                      className="bg-white p-5 rounded-xl shadow-sm border border-gray-100"
+                    >
+                      <div className="flex items-center gap-2 mb-4 border-b pb-3 border-gray-100">
+                        <EnvironmentOutlined className="text-[#a61d24] text-xl" />
                         <h4 className="font-bold text-lg text-gray-800 m-0">
                           {group.cinema.name}
                         </h4>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-3">
-                      {group.showtimes.map((st: any) => {
-                        const timeStr = dayjs(st.startTime).format("HH:mm");
-                        return (
-                          <Link
-                            href={localizeHref(`/dat-ve/${st.id}`, locale)}
-                            key={st.id}
-                          >
-                            <button className="border border-gray-300 rounded-lg px-5 py-2 hover:border-[#a61d24] hover:bg-red-50 transition-colors flex flex-col items-center group">
-                              <span className="font-bold text-lg text-gray-800 group-hover:text-[#a61d24]">
-                                {timeStr}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {st.hallName}
-                              </span>
-                              {st.format && (
-                                <span className="text-[10px] font-bold mt-1 bg-yellow-100 text-yellow-800 px-2 rounded-full">
-                                  {formatDisplayMap[st.format] || st.format}
+                      <div className="flex flex-wrap gap-3">
+                        {group.showtimes.map((st: any) => {
+                          const timeStr = dayjs(st.startTime).format("HH:mm");
+
+                          // Lọc trạng thái suất chiếu
+                          const now = dayjs();
+                          const startTime = dayjs(st.startTime);
+                          const endTime = dayjs(st.endTime);
+                          let isLockedForUser = false;
+
+                          if (
+                            st.status === "CANCELLED" ||
+                            st.status === "COMPLETED" ||
+                            now.isAfter(endTime) ||
+                            now.isAfter(startTime.add(20, "minute"))
+                          ) {
+                            isLockedForUser = true;
+                          }
+
+                          // Nếu bị khóa (đã chiếu/hủy) và là User bình thường thì không render
+                          if (!isAdmin && isLockedForUser) return null;
+
+                          return (
+                            <Link
+                              href={localizeHref(`/dat-ve/${st.id}`, locale)}
+                              key={st.id}
+                            >
+                              <button
+                                className={`border rounded-lg px-5 py-2 flex flex-col items-center group transition-colors ${isLockedForUser ? "bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed" : "border-gray-300 hover:border-[#a61d24] hover:bg-red-50 cursor-pointer"}`}
+                              >
+                                <span
+                                  className={`font-bold text-lg ${isLockedForUser ? "text-gray-400" : "text-gray-800 group-hover:text-[#a61d24]"}`}
+                                >
+                                  {timeStr}
                                 </span>
-                              )}
-                            </button>
-                          </Link>
-                        );
-                      })}
+                                <span className="text-xs text-gray-500">
+                                  {st.hallName}
+                                </span>
+                                {st.format && (
+                                  <span className="text-[10px] font-bold mt-1 bg-yellow-100 text-yellow-800 px-2 rounded-full">
+                                    {formatDisplayMap[st.format] || st.format}
+                                  </span>
+                                )}
+                              </button>
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* 🔥 MODAL SỬA PHIM TRỰC TIẾP TRÊN TRANG CHI TIẾT 🔥 */}
       <Modal

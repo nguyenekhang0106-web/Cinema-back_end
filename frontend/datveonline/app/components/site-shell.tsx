@@ -4,12 +4,9 @@ import Link from "next/link";
 import { CgvHeader } from "./cgv-header";
 import { useDictionary, useLocale } from "./locale-provider";
 import { localizeHref } from "../lib/i18n";
+import { ChatWidget } from "./chat-widget";
 
-export function SiteShell({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function SiteShell({ children }: { children: React.ReactNode }) {
   const locale = useLocale();
   const dictionary = useDictionary();
 
@@ -22,7 +19,9 @@ export function SiteShell({
           <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
             <div>
               <h3 className="text-2xl font-bold">KCT Cinema</h3>
-              <p className="mt-3 text-white/80">{dictionary.footer.description}</p>
+              <p className="mt-3 text-white/80">
+                {dictionary.footer.description}
+              </p>
             </div>
             <div>
               <h4 className="text-lg font-semibold text-[#f9d36b]">
@@ -57,8 +56,21 @@ export function SiteShell({
               </div>
             </div>
           </div>
+
+          {/* Đã gom phần Copyright vào lại bên trong Footer và xóa các thẻ dư */}
+          <div className="mt-8 border-t border-white/20 pt-8 text-center text-sm text-white/60">
+            <p>
+              &copy; {new Date().getFullYear()} KCT Cinema.{" "}
+              {/* Ép kiểu "as any" để TypeScript không báo lỗi đỏ, và thêm giá trị mặc định */}
+              {(dictionary.footer as any).rights ||
+                "Bản quyền đã được bảo lưu."}
+            </p>
+          </div>
         </div>
       </footer>
+
+      {/* 🔥 GẮN NÚT CHAT NỔI VÀO ĐÂY ĐỂ NÓ HIỆN TRÊN MỌI TRANG */}
+      <ChatWidget />
     </>
   );
 }

@@ -29,7 +29,6 @@ const AuthSessionContext = createContext<AuthSession>({
   logout: () => undefined,
 });
 
-// 🔥 1. ĐÃ NÂNG CẤP: Tính số giây CÒN LẠI của Token
 function getTokenRemainingTime(token: string | null): number {
   if (!token) return -1;
   try {
@@ -46,7 +45,6 @@ function getTokenRemainingTime(token: string | null): number {
     const payload = JSON.parse(jsonPayload);
     if (!payload.exp) return 999999;
 
-    // Tính số giây còn lại: Thời gian hết hạn (exp) - Thời gian hiện tại
     return payload.exp - Math.floor(Date.now() / 1000);
   } catch (e) {
     return -1;
@@ -81,7 +79,7 @@ export function AuthSessionProvider({
     setRole(null);
     setToken(null);
     setUser(null);
-    setLoading(false); // 🔥 Đã thêm: Ép buộc tắt loading ngay cả khi bị đá văng để hiện lại nút Header
+    setLoading(false);
     window.localStorage.removeItem(STORAGE_KEY);
     window.dispatchEvent(new Event("auth-changed"));
   };
@@ -93,24 +91,16 @@ export function AuthSessionProvider({
     const originalFetch = window.fetch;
 
     window.fetch = async (...args) => {
-      // Bỏ qua chặn 401 nếu đang cố gọi API Refresh (tránh lặp vô tận)
       const isRefreshApi =
         typeof args[0] === "string" && args[0].includes("/auth/refresh");
 
       const response = await originalFetch(...args);
 
       if (response.status === 401 && !isRefreshApi) {
-        const rawValue = window.localStorage.getItem(STORAGE_KEY);
-        if (rawValue && JSON.parse(rawValue).token) {
-          window.dispatchEvent(new Event("force-logout"));
-        }
-        return new Response(
-          JSON.stringify({ code: 401, message: "Unauthorized" }),
-          {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+        window.dispatchEvent(new Event("force-logout"));
+
+        // Thay vì trả về JSON, chúng ta ném lỗi để các hàm gọi fetch biết mà dừng lại
+        throw new Error("UNAUTHORIZED");
       }
 
       return response;
@@ -126,7 +116,7 @@ export function AuthSessionProvider({
     const handleForceLogout = () => {
       if (!sessionStorage.getItem("is_logging_out")) {
         sessionStorage.setItem("is_logging_out", "true");
-        clearSession(); // Đã bao gồm setLoading(false)
+        clearSession();
 
         message.error("Phiên đăng nhập không hợp lệ hoặc đã hết hạn!");
         router.push("/dang-nhap");
@@ -149,7 +139,7 @@ export function AuthSessionProvider({
         const session = JSON.parse(rawValue);
         if (session.token && getTokenRemainingTime(session.token) <= 0) {
           window.dispatchEvent(new Event("force-logout"));
-          setLoading(false); // 🔥 Đã thêm: Tấm khiên bảo vệ thứ 2, đảm bảo tắt loading khi load trang với token cũ
+          setLoading(false);
         } else {
           applySession(session);
         }
@@ -181,22 +171,19 @@ export function AuthSessionProvider({
     };
   }, [pathname]);
 
-  // 🔥 2. SILENT REFRESH TOKEN (Quét mỗi 5s)
+  // SILENT REFRESH TOKEN (Quét mỗi 5s)
   useEffect(() => {
     if (!token) return;
 
     const interval = setInterval(async () => {
       const remainingTime = getTokenRemainingTime(token);
 
-      // Nếu dưới 0 giây -> Đá văng luôn
       if (remainingTime <= 0) {
         window.dispatchEvent(new Event("force-logout"));
         return;
       }
 
-      // 🔥 Nếu token còn DƯỚI 5 PHÚT (300 giây) -> Gọi API Refresh ngầm
       if (remainingTime > 0 && remainingTime < 300) {
-        // Chống gọi API liên tục nhiều lần bằng biến cờ
         const isRefreshing = sessionStorage.getItem("is_refreshing_token");
 
         if (!isRefreshing) {
@@ -208,34 +195,28 @@ export function AuthSessionProvider({
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: token }), // Gửi token cũ để đổi
+                body: JSON.stringify({ token: token }),
               },
             );
 
             if (res.ok) {
               const data = await res.json();
-
               if (data.code === 1000 && data.result?.token) {
-                // Đổi token thành công -> Lưu đè token mới vào LocalStorage
                 const rawValue = window.localStorage.getItem(STORAGE_KEY);
                 if (rawValue) {
                   const session = JSON.parse(rawValue);
-                  session.token = data.result.token; // Thay token mới
+                  session.token = data.result.token;
                   window.localStorage.setItem(
                     STORAGE_KEY,
                     JSON.stringify(session),
                   );
-                  window.dispatchEvent(new Event("auth-changed")); // Kích hoạt UI cập nhật ngầm
+                  window.dispatchEvent(new Event("auth-changed"));
                 }
               }
-            } else {
-              // Nếu Refresh bị lỗi (backend từ chối), kệ nó để hết giờ sẽ tự out
-              console.warn("Refresh Token failed.");
             }
           } catch (error) {
             console.error("Lỗi làm mới token:", error);
           } finally {
-            // Mở khóa cờ
             sessionStorage.removeItem("is_refreshing_token");
           }
         }
@@ -243,7 +224,7 @@ export function AuthSessionProvider({
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [token]); // Chạy lại interval mỗi khi token thay đổi
+  }, [token]);
 
   const value = useMemo<AuthSession>(() => {
     const handleSignOut = () => {

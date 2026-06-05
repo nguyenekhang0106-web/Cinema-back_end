@@ -19,6 +19,7 @@ import {
   BarChartOutlined,
   FilterOutlined,
   ReloadOutlined,
+  ShoppingCartOutlined,
 } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import RevenueAnalytics from "./admin/revenue-analytics";
@@ -27,6 +28,7 @@ import UserAnalytics from "./admin/user-analytics";
 import TheaterAnalytics from "./admin/theater-analytics";
 import { exportToExcel, exportToPDF } from "../lib/statistics-utils";
 import { SiteShell } from "./site-shell";
+import ConcessionAnalytics from "./admin/concession-analytics";
 // 🔥 IMPORT HOOK ĐA NGÔN NGỮ
 import { useLocale } from "./locale-provider";
 
@@ -52,6 +54,7 @@ export default function AdminStatistics() {
       tabRevenue: "💰 Thống Kê Doanh Thu",
       tabMovie: "🎬 Hiệu Suất Phim",
       tabUser: "👥 Thống Kê Người Dùng",
+      tabConcession: "🍿 Bắp Nước",
       tabTheater: "🏢 Thống Kê Rạp & Phòng Chiếu",
       msgExcelSuccess: "Xuất file Excel thành công!",
       msgExcelError: "Lỗi khi xuất file Excel",
@@ -77,6 +80,7 @@ export default function AdminStatistics() {
       tabRevenue: "💰 Revenue Analytics",
       tabMovie: "🎬 Movie Performance",
       tabUser: "👥 User Analytics",
+      tabConcession: "🍿 Concessions",
       tabTheater: "🏢 Theaters & Halls",
       msgExcelSuccess: "Excel file exported successfully!",
       msgExcelError: "Failed to export Excel file",
@@ -330,6 +334,23 @@ export default function AdminStatistics() {
                           <RevenueAnalytics
                             dateRange={dateRange}
                             selectedTheater={selectedTheater}
+                          />
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "concession",
+                      label: (
+                        <span className="font-medium flex items-center gap-2">
+                          <ShoppingCartOutlined className="text-[#a61d24]" />
+                          {t.tabConcession}
+                        </span>
+                      ),
+                      children: (
+                        <div className="bg-gray-50/50 p-6">
+                          <ConcessionAnalytics
+                            selectedTheater={selectedTheater}
+                            dateRange={dateRange}
                           />
                         </div>
                       ),

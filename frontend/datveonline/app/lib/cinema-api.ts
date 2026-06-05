@@ -588,9 +588,26 @@ export async function toggleUserStatusApi(token: string, id: string) {
 
 const API_BASE = "http://localhost:9090/cinema";
 
+// 🔥 1. NÂNG CẤP HÀM LẤY TOKEN ĐỂ ĐỌC ĐÚNG TỪ KHO LƯU TRỮ MỚI
 export function getStoredToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+
+  // Ưu tiên 1: Đọc từ kho lưu trữ bảo mật mới của AuthSessionProvider
+  const sessionStr = window.localStorage.getItem("kct-auth-session");
+  if (sessionStr) {
+    try {
+      const session = JSON.parse(sessionStr);
+      if (session.token) return session.token;
+    } catch (e) {
+      console.error("Lỗi đọc session:", e);
+    }
+  }
+
+  // Ưu tiên 2: Dự phòng cho các code cũ (nếu có sót lại)
+  return (
+    window.localStorage.getItem("token") ||
+    window.sessionStorage.getItem("token")
+  );
 }
 
 export function setStoredToken(token: string) {
@@ -598,11 +615,21 @@ export function setStoredToken(token: string) {
   window.dispatchEvent(new Event("auth-changed"));
 }
 
+// 🔥 2. ĐỒNG BỘ HÀM XÓA DỮ LIỆU KHI TOKEN HỎNG
 export function clearAuthAndRedirect() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  window.dispatchEvent(new Event("auth-changed"));
-  window.location.href = "/";
+  if (typeof window !== "undefined") {
+    // Xóa sạch mọi dấu vết token cũ và mới
+    window.localStorage.removeItem("token");
+    window.localStorage.removeItem("user");
+    window.localStorage.removeItem("kct-auth-session"); // Thêm dòng này để xóa session mới
+
+    // Kích hoạt sự kiện để React UI tự động update
+    window.dispatchEvent(new Event("auth-changed"));
+    window.dispatchEvent(new Event("force-logout")); // Kích hoạt lệnh đá văng an toàn
+
+    // Đẩy về trang đăng nhập
+    window.location.href = "/dang-nhap";
+  }
 }
 
 export async function refreshAccessToken() {

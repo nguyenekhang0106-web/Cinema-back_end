@@ -103,11 +103,11 @@ const generateDates = () => {
     "Thứ Bảy",
   ];
   for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const iso = d.toISOString().split("T")[0];
-    const dateLabel = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
-    let dayLabel = days[d.getDay()];
+    // 🔥 SỬ DỤNG DAYJS ĐỂ CHUẨN MÚI GIỜ VIỆT NAM, TRÁNH LỖI BỊ ĐẨY LÙI NGÀY
+    const d = dayjs().add(i, "day");
+    const iso = d.format("YYYY-MM-DD");
+    const dateLabel = d.format("DD/MM");
+    let dayLabel = days[d.day()];
     if (i === 0) dayLabel = "Hôm nay";
     dates.push({ iso, dateLabel, dayLabel });
   }
@@ -252,13 +252,15 @@ export default function CinemaPricingPage() {
       setCinemaHallsForShowtimes(fetchedHalls);
       const hallIds = fetchedHalls.map((h: any) => h.id);
 
-      // 2. Load Showtimes
+      // 2. Load Showtimes (Lấy từ Database)
       const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
       if (stRes.ok) {
         const stData = await stRes.json();
         const allShowtimes = stData.result || [];
-        const filtered = allShowtimes.filter(
-          (st: any) => hallIds.includes(st.hallId) && st.status === "SCHEDULED",
+
+        // 🔥 BỎ ĐIỀU KIỆN LỌC 'SCHEDULED' ĐỂ ADMIN THẤY ĐƯỢC TOÀN BỘ (CẢ HỦY VÀ ĐÃ CHIẾU)
+        const filtered = allShowtimes.filter((st: any) =>
+          hallIds.includes(st.hallId),
         );
         setCinemaShowtimes(filtered);
       }
@@ -534,33 +536,35 @@ export default function CinemaPricingPage() {
 
   const getGroupedShowtimes = () => {
     const now = dayjs();
-    const thresholdTime = now.subtract(20, 'minute'); // Mốc thời gian: Hiện tại trừ 20 phút
+    const thresholdTime = now.subtract(20, "minute"); // Mốc thời gian: Hiện tại trừ 20 phút
 
-    const dateShowtimes = cinemaShowtimes.filter(st => {
-        // 1. Phải thuộc ngày đang chọn trên Tabs
-        if (!st.startTime.startsWith(selectedDate)) return false;
+    const dateShowtimes = cinemaShowtimes.filter((st) => {
+      // 1. Phải thuộc ngày đang chọn trên Tabs
+      if (!st.startTime.startsWith(selectedDate)) return false;
 
-        // 2. Kiểm tra quá giờ chiếu 20 phút
-        const showtimeTime = dayjs(st.startTime);
-        if (showtimeTime.isBefore(thresholdTime)) {
-            // Nếu là Admin -> Cho phép hiển thị (để còn xóa/sửa)
-            // Nếu là Khách -> Ẩn hoàn toàn
-            if (!isAdmin) return false;
-        }
-        
-        return true;
+      // 2. Kiểm tra quá giờ chiếu 20 phút
+      const showtimeTime = dayjs(st.startTime);
+      if (showtimeTime.isBefore(thresholdTime)) {
+        // Nếu là Admin -> Cho phép hiển thị (để còn xóa/sửa)
+        // Nếu là Khách -> Ẩn hoàn toàn
+        if (!isAdmin) return false;
+      }
+
+      return true;
     });
 
     const groups: Record<string, any[]> = {};
-    
-    dateShowtimes.forEach(st => {
-        if (!groups[st.movieId]) groups[st.movieId] = [];
-        groups[st.movieId].push(st);
+
+    dateShowtimes.forEach((st) => {
+      if (!groups[st.movieId]) groups[st.movieId] = [];
+      groups[st.movieId].push(st);
     });
 
-    return Object.keys(groups).map(movieId => ({
-        movieId,
-        showtimes: groups[movieId].sort((a, b) => a.startTime.localeCompare(b.startTime))
+    return Object.keys(groups).map((movieId) => ({
+      movieId,
+      showtimes: groups[movieId].sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      ),
     }));
   };
 
@@ -816,18 +820,46 @@ export default function CinemaPricingPage() {
         <main className="cinema-shell px-4 py-8 sm:px-6 max-w-7xl mx-auto">
           {/* HEADER RẠP */}
           <div className="flex justify-between items-end mb-10 mt-4">
-            <div style={{ borderLeft: "5px solid #a61d24", paddingLeft: "18px" }}>
-              <Typography.Title level={1} style={{ margin: 0, color: "#4a3426", textTransform: "uppercase", fontSize: "2.5rem", fontWeight: 800 }}>
+            <div
+              style={{ borderLeft: "5px solid #a61d24", paddingLeft: "18px" }}
+            >
+              <Typography.Title
+                level={1}
+                style={{
+                  margin: 0,
+                  color: "#4a3426",
+                  textTransform: "uppercase",
+                  fontSize: "2.5rem",
+                  fontWeight: 800,
+                }}
+              >
                 {/* 🔥 LOGIC PHÂN QUYỀN TIÊU ĐỀ 🔥 */}
-                {isAdmin 
-                  ? (locale === "vi" ? "RẠP & PHÒNG CHIẾU" : "CINEMAS & HALLS") 
-                  : (locale === "vi" ? "RẠP & LỊCH CHIẾU" : "CINEMAS & SHOWTIMES")}
+                {isAdmin
+                  ? locale === "vi"
+                    ? "RẠP & PHÒNG CHIẾU"
+                    : "CINEMAS & HALLS"
+                  : locale === "vi"
+                    ? "RẠP & LỊCH CHIẾU"
+                    : "CINEMAS & SHOWTIMES"}
               </Typography.Title>
-              <div style={{ height: "4px", width: "150px", background: "linear-gradient(90deg, #a61d24 0%, rgba(166, 29, 36, 0) 100%)", marginTop: "4px" }}></div>
+              <div
+                style={{
+                  height: "4px",
+                  width: "150px",
+                  background:
+                    "linear-gradient(90deg, #a61d24 0%, rgba(166, 29, 36, 0) 100%)",
+                  marginTop: "4px",
+                }}
+              ></div>
             </div>
-            
+
             {isAdmin && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCinema} className="bg-[#a61d24] border-none font-semibold">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddCinema}
+                className="bg-[#a61d24] border-none font-semibold"
+              >
                 Thêm Rạp Mới
               </Button>
             )}
@@ -1091,98 +1123,183 @@ export default function CinemaPricingPage() {
                                       </p>
 
                                       <div className="flex flex-wrap gap-3">
-                                          {movieGroup.showtimes.map((st: any) => {
-                                              const hall = cinemaHallsForShowtimes.find((h: any) => h.id === st.hallId);
-                                              const hallName = hall ? hall.name : 'Phòng chiếu';
-                                              
-                                              const now = dayjs();
-                                              const startTime = dayjs(st.startTime);
-                                              const endTime = dayjs(st.endTime); 
-                                              const timeStr = startTime.format('HH:mm'); 
-                                              
-                                              // 1. Phân tích trạng thái dựa trên dữ liệu DB và Thời gian thực
-                                              let displayTag = null;
-                                              let buttonStyle = "bg-gray-50 border-gray-300 hover:border-[#1eb3a6] hover:bg-white cursor-pointer";
-                                              let textStyle = "text-gray-800 group-hover:text-[#1eb3a6]";
-                                              let isLockedForUser = false;
+                                        {movieGroup.showtimes.map((st: any) => {
+                                          const hall =
+                                            cinemaHallsForShowtimes.find(
+                                              (h: any) => h.id === st.hallId,
+                                            );
+                                          const hallName = hall
+                                            ? hall.name
+                                            : "Phòng chiếu";
 
-                                              if (st.status === 'CANCELLED') {
-                                                  displayTag = <span className="text-[9px] text-red-600 bg-red-100 px-2 py-0.5 rounded mt-1 font-bold">ĐÃ HỦY</span>;
-                                                  buttonStyle = "bg-red-50 border-red-200 opacity-70 cursor-not-allowed";
-                                                  textStyle = "text-red-400 line-through";
-                                                  isLockedForUser = true;
-                                              } 
-                                              else if (st.status === 'COMPLETED' || now.isAfter(endTime)) {
-                                                  displayTag = <span className="text-[9px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded mt-1 font-bold">ĐÃ CHIẾU</span>;
-                                                  buttonStyle = "bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed";
-                                                  textStyle = "text-gray-400";
-                                                  isLockedForUser = true;
-                                              }
-                                              else if (st.status === 'SCHEDULED') {
-                                                  if (now.isAfter(startTime) && now.isBefore(endTime)) {
-                                                      displayTag = <span className="text-[9px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded mt-1 font-bold animate-pulse">ĐANG CHIẾU</span>;
-                                                      buttonStyle = "bg-blue-50 border-blue-200 cursor-not-allowed";
-                                                      textStyle = "text-blue-500";
-                                                      isLockedForUser = true; 
-                                                  } 
-                                                  else if (now.isAfter(startTime.add(20, 'minute'))) {
-                                                      displayTag = <span className="text-[9px] text-orange-600 bg-orange-100 px-2 py-0.5 rounded mt-1 font-bold">ĐÓNG BÁN VÉ</span>;
-                                                      buttonStyle = "bg-gray-50 border-gray-200 opacity-80 cursor-not-allowed";
-                                                      textStyle = "text-gray-500";
-                                                      isLockedForUser = true;
-                                                  }
-                                              }
+                                          const now = dayjs();
+                                          const startTime = dayjs(st.startTime);
+                                          const endTime = dayjs(st.endTime);
+                                          const timeStr =
+                                            startTime.format("HH:mm");
 
-                                              if (!isAdmin && isLockedForUser) {
-                                                  return null; 
-                                              }
-                                              
-                                              // Tách nội dung bên trong ra một biến để tái sử dụng
-                                              const innerContent = (
-                                                <>
-                                                  <span className={`font-bold text-lg ${textStyle}`}>
-                                                    {timeStr}
-                                                  </span>
-                                                  <span className={`text-xs mt-1 ${isLockedForUser ? 'text-gray-400' : 'text-gray-500'}`}>
-                                                    {hallName}
-                                                  </span>
-                                                  {st.format && (
-                                                    <span className={`text-[10px] font-bold mt-1 px-2 rounded-full ${isLockedForUser ? 'bg-gray-200 text-gray-400' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                      {formatDisplayMap[st.format] || st.format}
-                                                    </span>
-                                                  )}
-                                                  {isAdmin && displayTag}
-                                                </>
+                                          // 1. Phân tích trạng thái dựa trên dữ liệu DB và Thời gian thực
+                                          let displayTag = null;
+                                          let buttonStyle =
+                                            "bg-gray-50 border-gray-300 hover:border-[#1eb3a6] hover:bg-white cursor-pointer";
+                                          let textStyle =
+                                            "text-gray-800 group-hover:text-[#1eb3a6]";
+                                          let isLockedForUser = false;
+
+                                          if (st.status === "CANCELLED") {
+                                            displayTag = (
+                                              <span className="text-[9px] text-red-600 bg-red-100 px-2 py-0.5 rounded mt-1 font-bold">
+                                                ĐÃ HỦY
+                                              </span>
+                                            );
+                                            buttonStyle =
+                                              "bg-red-50 border-red-200 opacity-70 cursor-not-allowed";
+                                            textStyle =
+                                              "text-red-400 line-through";
+                                            isLockedForUser = true;
+                                          } else if (
+                                            st.status === "COMPLETED" ||
+                                            now.isAfter(endTime)
+                                          ) {
+                                            displayTag = (
+                                              <span className="text-[9px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded mt-1 font-bold">
+                                                ĐÃ CHIẾU
+                                              </span>
+                                            );
+                                            buttonStyle =
+                                              "bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed";
+                                            textStyle = "text-gray-400";
+                                            isLockedForUser = true;
+                                          } else if (
+                                            st.status === "SCHEDULED"
+                                          ) {
+                                            if (
+                                              now.isAfter(startTime) &&
+                                              now.isBefore(endTime)
+                                            ) {
+                                              displayTag = (
+                                                <span className="text-[9px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded mt-1 font-bold animate-pulse">
+                                                  ĐANG CHIẾU
+                                                </span>
                                               );
-
-                                              return (
-                                                <div key={st.id} className="relative group inline-block">
-                                                  
-                                                  {/* 🔥 Dùng điều kiện rõ ràng để TypeScript hiểu */}
-                                                  {isLockedForUser && !isAdmin ? (
-                                                    <div className={`w-full border rounded-lg px-5 py-2 flex flex-col items-center transition-all ${buttonStyle}`}>
-                                                      {innerContent}
-                                                    </div>
-                                                  ) : (
-                                                    <Link 
-                                                      href={localizeHref(`/dat-ve/${st.id}`, locale)} 
-                                                      className={`w-full border rounded-lg px-5 py-2 flex flex-col items-center transition-all ${buttonStyle}`}
-                                                    >
-                                                      {innerContent}
-                                                    </Link>
-                                                  )}
-                                                  
-                                                  {isAdmin && (
-                                                    <div className="absolute -top-3 -right-3 hidden group-hover:flex gap-1 z-10 bg-white p-1 rounded-full shadow-md border border-gray-200">
-                                                      <Button size="small" shape="circle" icon={<EditOutlined className="text-blue-500"/>} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditShowtime(st); }} className="border-none shadow-none" />
-                                                      <Popconfirm title="Xóa (Hủy) suất chiếu này?" onConfirm={(e) => { e?.stopPropagation(); handleDeleteShowtime(st.id); }} onCancel={(e) => e?.stopPropagation()}>
-                                                        <Button size="small" shape="circle" danger icon={<DeleteOutlined />} onClick={(e) => e.preventDefault()} className="border-none shadow-none" />
-                                                      </Popconfirm>
-                                                    </div>
-                                                  )}
-                                                </div>
+                                              buttonStyle =
+                                                "bg-blue-50 border-blue-200 cursor-not-allowed";
+                                              textStyle = "text-blue-500";
+                                              isLockedForUser = true;
+                                            } else if (
+                                              now.isAfter(
+                                                startTime.add(20, "minute"),
                                               )
-                                          })}
+                                            ) {
+                                              displayTag = (
+                                                <span className="text-[9px] text-orange-600 bg-orange-100 px-2 py-0.5 rounded mt-1 font-bold">
+                                                  ĐÓNG BÁN VÉ
+                                                </span>
+                                              );
+                                              buttonStyle =
+                                                "bg-gray-50 border-gray-200 opacity-80 cursor-not-allowed";
+                                              textStyle = "text-gray-500";
+                                              isLockedForUser = true;
+                                            }
+                                          }
+
+                                          if (!isAdmin && isLockedForUser) {
+                                            return null;
+                                          }
+
+                                          // Tách nội dung bên trong ra một biến để tái sử dụng
+                                          const innerContent = (
+                                            <>
+                                              <span
+                                                className={`font-bold text-lg ${textStyle}`}
+                                              >
+                                                {timeStr}
+                                              </span>
+                                              <span
+                                                className={`text-xs mt-1 ${isLockedForUser ? "text-gray-400" : "text-gray-500"}`}
+                                              >
+                                                {hallName}
+                                              </span>
+                                              {st.format && (
+                                                <span
+                                                  className={`text-[10px] font-bold mt-1 px-2 rounded-full ${isLockedForUser ? "bg-gray-200 text-gray-400" : "bg-yellow-100 text-yellow-800"}`}
+                                                >
+                                                  {formatDisplayMap[
+                                                    st.format
+                                                  ] || st.format}
+                                                </span>
+                                              )}
+                                              {isAdmin && displayTag}
+                                            </>
+                                          );
+
+                                          return (
+                                            <div
+                                              key={st.id}
+                                              className="relative group inline-block"
+                                            >
+                                              {/* 🔥 Dùng điều kiện rõ ràng để TypeScript hiểu */}
+                                              {isLockedForUser && !isAdmin ? (
+                                                <div
+                                                  className={`w-full border rounded-lg px-5 py-2 flex flex-col items-center transition-all ${buttonStyle}`}
+                                                >
+                                                  {innerContent}
+                                                </div>
+                                              ) : (
+                                                <Link
+                                                  href={localizeHref(
+                                                    `/dat-ve/${st.id}`,
+                                                    locale,
+                                                  )}
+                                                  className={`w-full border rounded-lg px-5 py-2 flex flex-col items-center transition-all ${buttonStyle}`}
+                                                >
+                                                  {innerContent}
+                                                </Link>
+                                              )}
+
+                                              {isAdmin && (
+                                                <div className="absolute -top-3 -right-3 hidden group-hover:flex gap-1 z-10 bg-white p-1 rounded-full shadow-md border border-gray-200">
+                                                  <Button
+                                                    size="small"
+                                                    shape="circle"
+                                                    icon={
+                                                      <EditOutlined className="text-blue-500" />
+                                                    }
+                                                    onClick={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      handleEditShowtime(st);
+                                                    }}
+                                                    className="border-none shadow-none"
+                                                  />
+                                                  <Popconfirm
+                                                    title="Xóa (Hủy) suất chiếu này?"
+                                                    onConfirm={(e) => {
+                                                      e?.stopPropagation();
+                                                      handleDeleteShowtime(
+                                                        st.id,
+                                                      );
+                                                    }}
+                                                    onCancel={(e) =>
+                                                      e?.stopPropagation()
+                                                    }
+                                                  >
+                                                    <Button
+                                                      size="small"
+                                                      shape="circle"
+                                                      danger
+                                                      icon={<DeleteOutlined />}
+                                                      onClick={(e) =>
+                                                        e.preventDefault()
+                                                      }
+                                                      className="border-none shadow-none"
+                                                    />
+                                                  </Popconfirm>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   </div>
