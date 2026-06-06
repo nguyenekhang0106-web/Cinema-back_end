@@ -5,7 +5,6 @@ import "antd/dist/reset.css";
 import "./globals.css";
 import { AntdProvider } from "./components/antd-provider";
 import { AuthSessionProvider } from "./components/auth-session-provider";
-import { ChatWidget } from "./components/chat-widget";
 import { LanguageHtmlUpdater } from "./components/language-html-updater";
 import { LocaleProvider } from "./components/locale-provider";
 
@@ -46,10 +45,7 @@ export default function RootLayout({
           <AuthSessionProvider>
             <LanguageHtmlUpdater />
             <AntdRegistry>
-              <AntdProvider>
-                {children}
-                <ChatWidget />
-              </AntdProvider>
+              <AntdProvider>{children}</AntdProvider>
             </AntdRegistry>
           </AuthSessionProvider>
         </LocaleProvider>

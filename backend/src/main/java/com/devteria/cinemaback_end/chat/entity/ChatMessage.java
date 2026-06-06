@@ -1,5 +1,6 @@
 package com.devteria.cinemaback_end.chat.entity;
 
+import com.devteria.cinemaback_end.chat.entity.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -19,17 +20,29 @@ public class ChatMessage {
     String id;
 
     @Column(nullable = false)
-    String roomId; // Dùng userId của khách hàng làm roomId
+    String roomId;
 
     @Column(nullable = false)
-    String senderId; // ID của người gửi (Khách hàng hoặc Admin)
+    String senderId;
 
     @Column(nullable = false)
-    String senderName; // Tên hiển thị (ví dụ: "Khách", "Admin")
+    String senderName;
 
     @Column(columnDefinition = "TEXT", nullable = false)
-    String content; // Nội dung tin nhắn
+    String content;
 
     @Builder.Default
     LocalDateTime timestamp = LocalDateTime.now();
+
+    @Column(nullable = false)
+    String senderRole; // USER / ADMIN
+
+    String avatarUrl;
+    String imageUrl;
+
+    @Enumerated(EnumType.STRING)
+    private MessageType messageType;
+
+    @Builder.Default
+    boolean adminRead = false;
 }

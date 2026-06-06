@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import AdminChatManager from "../admin/components/admin-chat-manager";
 
 // ==========================================
 // 2. THIRD-PARTY LIBRARIES
@@ -50,6 +51,7 @@ import {
   PhoneOutlined,
   UploadOutlined,
   UserOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 
 // ==========================================
@@ -1371,6 +1373,18 @@ export function AdminDashboardPage() {
       action: () => openArticleEditor("create"),
       actionLabel: locale === "vi" ? "Thêm tin tức" : "Add News",
     },
+    {
+      title: "Tin nhắn hỗ trợ",
+      value: "Hộp thư",
+      desc: "Trả lời tin nhắn và hỗ trợ khách hàng trực tuyến.",
+      action: () => {
+        // Tự động cuộn trang xuống khu vực Chat
+        document
+          .getElementById("chat-section")
+          ?.scrollIntoView({ behavior: "smooth" });
+      },
+      actionLabel: "Mở hộp thư",
+    },
   ];
 
   return (
@@ -1608,6 +1622,34 @@ export function AdminDashboardPage() {
                     pagination={{ pageSize: 5 }}
                     scroll={{ x: "max-content" }}
                   />
+                </Space>
+              </Card>
+            </Col>
+            <Col span={24} id="chat-section">
+              <Card bordered={false} className="cinema-paper rounded-[24px]">
+                <Space direction="vertical" size={18} className="w-full">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Typography.Title
+                        level={3}
+                        style={{ margin: 0, color: "#4a3426" }}
+                      >
+                        <MessageOutlined className="mr-2" />
+                        Hỗ trợ khách hàng trực tuyến
+                      </Typography.Title>
+                      <Typography.Paragraph
+                        style={{ color: "#6d5a46", margin: "8px 0 0" }}
+                      >
+                        Tiếp nhận và giải đáp thắc mắc của khách hàng theo thời
+                        gian thực (giống Messenger).
+                      </Typography.Paragraph>
+                    </div>
+                  </div>
+
+                  {/* Hiển thị Giao diện Chat */}
+                  <div className="mt-4 border rounded-2xl overflow-hidden shadow-sm">
+                    <AdminChatManager />
+                  </div>
                 </Space>
               </Card>
             </Col>

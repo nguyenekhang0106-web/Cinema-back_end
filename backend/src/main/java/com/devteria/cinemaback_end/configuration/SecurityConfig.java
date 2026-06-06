@@ -29,7 +29,8 @@ public class SecurityConfig {
             "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh",
             "/auth/forgot-password", "/auth/reset-password",
             "/payments/*/execute",
-            "/ws/**"
+            "/ws/**",
+            "/api/chat/upload-image"
     };
 
     private final String[] PUBLIC_GET_ENDPOINTS = {
@@ -50,7 +51,10 @@ public class SecurityConfig {
 
             "/payments/vnpay/return", "/payments/vnpay/return/**",
             "/payments/vnpay/ipn", "/payments/vnpay/ipn/**",
-            "/ws/**", "/images/**"
+            "/ws/**", "/images/**",
+
+            "/api/chat/**",
+
     };
 
     @Value("${jwt.signerKey}")
@@ -85,9 +89,14 @@ public class SecurityConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.addAllowedOrigin("http://localhost:3000");
+
+        // 🔥 SỬ DỤNG AllowedOriginPatterns thay vì addAllowedOrigin để tương thích với Credentials
+        corsConfiguration.setAllowedOriginPatterns(java.util.List.of("http://localhost:3000"));
         corsConfiguration.addAllowedMethod("*");
         corsConfiguration.addAllowedHeader("*");
+
+        // 🔥 BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ FIX TRÚNG ĐÍCH LỖI "Access-Control-Allow-Credentials"
+        corsConfiguration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration);

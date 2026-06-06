@@ -11,6 +11,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -22,33 +23,49 @@ public class ChatController {
     SimpMessagingTemplate messagingTemplate;
     ChatService chatService;
 
-    // ==========================================
-    // 1. WEBSOCKET ENDPOINT (Real-time Chat)
-    // Frontend gửi tin nhắn qua kênh: /app/chat.sendMessage
-    // ==========================================
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessageRequest chatMessageRequest) {
-        // 1. Lưu tin nhắn vào Database
         ChatMessageResponse savedMsg = chatService.saveMessage(chatMessageRequest);
 
-        // 2. Bắn tin nhắn này đến kênh dành riêng cho roomId đó
-        // Ví dụ: Khách A có roomId là "USR-123", kênh sẽ là "/topic/chat/USR-123"
-        // Cả Khách A và Admin đều đang "lắng nghe" kênh này trên Frontend.
         messagingTemplate.convertAndSend("/topic/chat/" + chatMessageRequest.getRoomId(), savedMsg);
-
-        // 3. (Tùy chọn) Bắn thêm 1 thông báo cho Admin biết có tin nhắn mới (kênh tổng của Admin)
         messagingTemplate.convertAndSend("/topic/admin/chat", savedMsg);
     }
 
-    // ==========================================
-    // 2. REST API ENDPOINT (Lấy Lịch Sử Chat)
-    // URL: GET /api/chat/{roomId}
-    // ==========================================
+    // Lấy lịch sử 1 phòng chat sau khi refresh
     @GetMapping("/api/chat/{roomId}")
     public ApiResponse<List<ChatMessageResponse>> getChatHistory(@PathVariable String roomId) {
         return ApiResponse.<List<ChatMessageResponse>>builder()
                 .code(1000)
                 .result(chatService.getChatHistory(roomId))
+                .build();
+    }
+
+    // Lấy danh sách khách đã từng nhắn cho admin
+    @GetMapping("/api/chat/admin/rooms")
+    public ApiResponse<List<ChatMessageResponse>> getActiveRooms() {
+        return ApiResponse.<List<ChatMessageResponse>>builder()
+                .code(1000)
+                .result(chatService.getActiveRooms())
+                .build();
+    }
+
+    // Khi admin click vào 1 phòng thì đánh dấu đã đọc
+    @PutMapping("/api/chat/admin/rooms/{roomId}/read")
+    public ApiResponse<Void> markRoomAsRead(@PathVariable String roomId) {
+        chatService.markRoomAsReadByAdmin(roomId);
+        return ApiResponse.<Void>builder()
+                .code(1000)
+                .message("Đã đánh dấu đã đọc")
+                .build();
+    }
+
+    // Upload ảnh chat, FE gọi API này trước rồi gửi message kèm imageUrl qua WebSocket
+    @PostMapping("/api/chat/upload-image")
+    public ApiResponse<String> uploadChatImage(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.<String>builder()
+                .code(1000)
+                .message("Upload ảnh chat thành công")
+                .result(chatService.uploadChatImage(file))
                 .build();
     }
 }

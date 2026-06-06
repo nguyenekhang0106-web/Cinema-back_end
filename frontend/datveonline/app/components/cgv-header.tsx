@@ -205,11 +205,8 @@ export function CgvHeader() {
           </div>
 
           <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              <input
-                className="w-full rounded-2xl border border-[#e4d1b4] bg-white px-4 py-3 outline-none md:min-w-0 lg:max-w-[430px]"
-                placeholder={dictionary.header.searchPlaceholder}
-              />
+            {/* 🔥 Đã thêm justify-end để căn phải các nút bấm sau khi xóa ô tìm kiếm */}
+            <div className="flex flex-col gap-3 md:flex-row md:items-center justify-end">
               <div className="flex shrink-0 flex-wrap gap-3 md:flex-nowrap">
                 <Link
                   href={localizeHref("/phim", locale)}

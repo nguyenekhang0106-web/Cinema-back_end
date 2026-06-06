@@ -201,6 +201,12 @@ public class S3Service {
         }
 
         String value = keyOrUrl.trim();
+
+        // 🔥 FIX QUAN TRỌNG: Cắt bỏ toàn bộ đuôi token bảo mật phía sau dấu "?"
+        if (value.contains("?")) {
+            value = value.substring(0, value.indexOf("?"));
+        }
+
         String publicPrefix = String.format("https://%s.s3.%s.amazonaws.com/", bucketName, region);
         if (value.startsWith(publicPrefix)) {
             return value.substring(publicPrefix.length());
