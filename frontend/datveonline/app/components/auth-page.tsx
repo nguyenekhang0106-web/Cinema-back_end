@@ -1,22 +1,40 @@
 "use client";
 
 import { ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Form, Input, Radio, Select, Space, Typography, Tabs, Modal } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Form,
+  Input,
+  Radio,
+  Select,
+  Space,
+  Typography,
+  Tabs,
+  Modal,
+} from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   loginWithBackend,
   registerWithBackend,
   verifyOtpWithBackend,
   forgotPasswordApi, // 🔥 THÊM DÒNG NÀY
+  resendOtpApi,
 } from "../lib/cinema-api";
 import { localizeHref } from "../lib/i18n";
 import { useAuthSession } from "./auth-session-provider";
 import { useDictionary, useLocale } from "./locale-provider";
 
-import { MailOutlined, LockOutlined, UserOutlined, PhoneOutlined } from "@ant-design/icons";
+import {
+  MailOutlined,
+  LockOutlined,
+  UserOutlined,
+  PhoneOutlined,
+} from "@ant-design/icons";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -25,21 +43,82 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const dictionary = useDictionary();
   const { message } = App.useApp();
   const { signIn } = useAuthSession();
-  
-  // Thiết lập Tab mặc định dựa trên URL
-  const [activeTab, setActiveTab] = useState(mode); 
 
-  const registerCopy = locale === "en" ? registerContent.en : registerContent.vi;
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    // Nếu thời gian đã chạm 0 thì không làm gì cả
+    if (resendCooldown <= 0) return;
+
+    // Thiết lập đồng hồ chạy mỗi 1000ms (1 giây)
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer); // Dừng đồng hồ khi chạm 0
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Dọn dẹp đồng hồ nếu người dùng chuyển trang
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // 🔥 2. THÊM LUÔN HÀM GỬI LẠI MÃ VÀO ĐÂY
+  // 🔥 2. THÊM LUÔN HÀM GỬI LẠI MÃ VÀO ĐÂY
+  const handleResendOtp = async () => {
+    try {
+      // 🔥 SỬ DỤNG state registeredEmail thay vì form để không bị mất dữ liệu khi chuyển màn hình
+      const email = registeredEmail || registerForm.getFieldValue("email");
+      if (!email) {
+        message.error("Không tìm thấy email để gửi lại mã!");
+        return;
+      }
+
+      const res = await resendOtpApi(email);
+      if (res.code === 1000) {
+        // Lấy thông báo trực tiếp từ Backend (nếu có), nếu không có mới dùng câu mặc định
+        message.success(
+          res.result?.message ||
+            res.message ||
+            "Mã OTP mới đã được gửi đến email của bạn!",
+        );
+
+        // Ép kiểu an toàn về số (Number) để đồng hồ đếm ngược chắc chắn chạy được
+        const cooldown = Number(res.result?.resendCooldownSeconds);
+        setResendCooldown(!isNaN(cooldown) && cooldown > 0 ? cooldown : 300); // Đổi mặc định thành 300s
+      } else {
+        // [CỰC KỲ QUAN TRỌNG] Nếu gửi lỗi do click quá nhanh (Backend chặn spam)
+        // Ta cũng cần lấy thời gian phạt từ Backend để khóa nút lại trên giao diện
+        if (res.result?.resendCooldownSeconds) {
+          setResendCooldown(Number(res.result.resendCooldownSeconds));
+        }
+
+        message.error(
+          res.message || "Không thể gửi lại mã OTP. Vui lòng thử lại sau!",
+        );
+      }
+    } catch (error) {
+      message.error("Lỗi mạng khi gửi lại OTP");
+    }
+  };
+
+  // Thiết lập Tab mặc định dựa trên URL
+  const [activeTab, setActiveTab] = useState(mode);
+
+  const registerCopy =
+    locale === "en" ? registerContent.en : registerContent.vi;
   const loginCopy = locale === "en" ? loginContent.en : loginContent.vi;
-  
+
   const [loginForm] = Form.useForm();
   const [registerForm] = Form.useForm();
-  
+
   const [captchaCode, setCaptchaCode] = useState(() => createCaptchaCode());
   const [submitting, setSubmitting] = useState(false);
 
-  const [isOtpStep, setIsOtpStep] = useState(false); 
-  const [registeredEmail, setRegisteredEmail] = useState(""); 
+  const [isOtpStep, setIsOtpStep] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const [otpForm] = Form.useForm();
 
   // State cho Quên mật khẩu
@@ -60,13 +139,21 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   if (isOtpStep) {
     return (
       <div className="w-full flex justify-center items-center py-12">
-        <Card bordered={false} className="cinema-paper mx-auto max-w-[560px] w-full rounded-[28px] shadow-lg border border-[#ead6bb]">
+        <Card
+          bordered={false}
+          className="cinema-paper mx-auto max-w-[560px] w-full rounded-[28px] shadow-lg border border-[#ead6bb]"
+        >
           <div className="text-center mb-6">
-            <Typography.Title level={2} style={{ color: "#4a3426", marginTop: 0 }}>
+            <Typography.Title
+              level={2}
+              style={{ color: "#4a3426", marginTop: 0 }}
+            >
               Xác thực Email
             </Typography.Title>
             <Typography.Paragraph style={{ color: "#6d5a46" }}>
-              Hệ thống đã gửi một mã gồm 6 chữ số tới email <strong style={{ color: "#a61d24" }}>{registeredEmail}</strong>.<br />
+              Hệ thống đã gửi một mã gồm 6 chữ số tới email{" "}
+              <strong style={{ color: "#a61d24" }}>{registeredEmail}</strong>.
+              <br />
               Vui lòng kiểm tra hộp thư (và mục Spam) để hoàn tất.
             </Typography.Paragraph>
           </div>
@@ -90,13 +177,36 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             <Form.Item
               name="otp"
               style={{ display: "flex", justifyContent: "center" }}
-              rules={[{ required: true, message: "Vui lòng nhập mã OTP." }, { len: 6, message: "Mã OTP phải gồm đúng 6 chữ số." }]}
+              rules={[
+                { required: true, message: "Vui lòng nhập mã OTP." },
+                { len: 6, message: "Mã OTP phải gồm đúng 6 chữ số." },
+              ]}
             >
               <Input.OTP length={6} size="large" />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }}>
+            <Button
+              type="primary"
+              size="large"
+              htmlType="submit"
+              block
+              loading={submitting}
+              style={{ backgroundColor: "#14b8a6", borderColor: "#14b8a6" }}
+            >
               Xác nhận mã
             </Button>
+
+            <div className="mt-4 text-center">
+              <Button
+                type="link"
+                disabled={resendCooldown > 0}
+                onClick={handleResendOtp}
+                className="text-gray-500 hover:text-[#a61d24] transition-colors"
+              >
+                {resendCooldown > 0
+                  ? `Gửi lại mã sau ${resendCooldown}s`
+                  : "Bạn chưa nhận được mã? Gửi lại ngay"}
+              </Button>
+            </div>
           </Form>
         </Card>
       </div>
@@ -114,34 +224,70 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       onFinish={async (values) => {
         setSubmitting(true);
         try {
-          const auth = await loginWithBackend(String(values.email).trim().toLowerCase(), String(values.password));
+          const auth = await loginWithBackend(
+            String(values.email).trim().toLowerCase(),
+            String(values.password),
+          );
           signIn(auth.token, auth.user);
           message.success(loginCopy.loginSuccess);
           const nextPath = searchParams.get("next");
-          router.push(nextPath || localizeHref(auth.user.role === "admin" ? "/admin" : "/user", locale));
+          router.push(
+            nextPath ||
+              localizeHref(
+                auth.user.role === "admin" ? "/admin" : "/user",
+                locale,
+              ),
+          );
         } catch (error) {
-          message.error(error instanceof Error ? error.message : loginCopy.invalidCredentials);
+          message.error(
+            error instanceof Error
+              ? error.message
+              : loginCopy.invalidCredentials,
+          );
         } finally {
           setSubmitting(false);
         }
       }}
     >
-      <Form.Item name="email" rules={[{ required: true, message: dictionary.auth.emailRequired }]}>
-        <Input prefix={<MailOutlined className="text-gray-400 mr-2" />} placeholder={locale === "vi" ? "Email / Số điện thoại" : "Email / Phone"} className="rounded-lg bg-gray-50/50" />
+      <Form.Item
+        name="email"
+        rules={[{ required: true, message: dictionary.auth.emailRequired }]}
+      >
+        <Input
+          prefix={<MailOutlined className="text-gray-400 mr-2" />}
+          placeholder={
+            locale === "vi" ? "Email / Số điện thoại" : "Email / Phone"
+          }
+          className="rounded-lg bg-gray-50/50"
+        />
       </Form.Item>
 
-      <Form.Item name="password" rules={[{ required: true, message: dictionary.auth.passwordRequired }]}>
-        <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={dictionary.auth.password} className="rounded-lg bg-gray-50/50" />
+      <Form.Item
+        name="password"
+        rules={[{ required: true, message: dictionary.auth.passwordRequired }]}
+      >
+        <Input.Password
+          prefix={<LockOutlined className="text-gray-400 mr-2" />}
+          placeholder={dictionary.auth.password}
+          className="rounded-lg bg-gray-50/50"
+        />
       </Form.Item>
 
       <div className="flex justify-center mt-6">
-        <Button type="primary" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} className="font-bold rounded-lg h-12 text-lg">
+        <Button
+          type="primary"
+          htmlType="submit"
+          block
+          loading={submitting}
+          style={{ backgroundColor: "#14b8a6", borderColor: "#14b8a6" }}
+          className="font-bold rounded-lg h-12 text-lg"
+        >
           {dictionary.auth.login}
         </Button>
       </div>
 
       <div className="text-center mt-4">
-        <span 
+        <span
           className="text-[#a61d24] cursor-pointer hover:underline font-medium"
           onClick={() => setForgotPwdModalOpen(true)} // 🔥 BẬT POPUP TẠI ĐÂY
         >
@@ -162,89 +308,274 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       onFinish={async (values) => {
         setSubmitting(true);
         try {
-          await registerWithBackend({
+          // 🔥 HỨNG KẾT QUẢ TỪ API TRẢ VỀ VÀO BIẾN res
+          const res: any = await registerWithBackend({
             fullName: String(values.fullName),
             email: String(values.email).trim().toLowerCase(),
             phone: String(values.phone),
             password: String(values.password),
             citizenIdNumber: String(values.citizenId),
-            gender: values.gender === "male" ? "Nam" : undefined,
-            dateOfBirth: buildBirthDate(values.birthYear, values.birthMonth, values.birthDay),
+            gender:
+              values.gender === "male"
+                ? "Nam"
+                : values.gender === "female"
+                  ? "Nữ"
+                  : "khác",
+            dateOfBirth: buildBirthDate(
+              values.birthYear,
+              values.birthMonth,
+              values.birthDay,
+            ),
             area: provinceToArea(String(values.province)),
           });
+
           setRegisteredEmail(String(values.email).trim().toLowerCase());
           setIsOtpStep(true);
-          message.success(registerCopy.registerSuccess);
-        } catch (error) {
-          message.error(error instanceof Error ? error.message : registerCopy.registerFailed);
+
+          // 🔥 1. ĐỒNG BỘ THÔNG BÁO TỪ BACKEND ("Đã gửi OTP mới" HOẶC "OTP cũ vẫn còn hạn")
+          message.success(
+            res?.result?.message ||
+              res?.message ||
+              registerCopy.registerSuccess,
+          );
+
+          // 🔥 2. ĐỒNG BỘ THỜI GIAN ĐẾM NGƯỢC CHÍNH XÁC TỪ BACKEND
+          const cooldown = Number(res?.result?.resendCooldownSeconds);
+          setResendCooldown(!isNaN(cooldown) && cooldown > 0 ? cooldown : 300);
+        } catch (error: any) {
+          message.error(
+            error instanceof Error
+              ? error.message
+              : error?.message || registerCopy.registerFailed,
+          );
         } finally {
           setSubmitting(false);
         }
       }}
     >
       <div className="grid gap-x-4 md:grid-cols-2">
-        <Form.Item name="fullName" rules={[{ required: true, message: registerCopy.fullNameRequired }]}>
-          <Input prefix={<UserOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.fullName} className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="fullName"
+          rules={[{ required: true, message: registerCopy.fullNameRequired }]}
+        >
+          <Input
+            prefix={<UserOutlined className="text-gray-400 mr-2" />}
+            placeholder={registerCopy.fullName}
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
-        <Form.Item name="gender" rules={[{ required: true, message: registerCopy.genderRequired }]}>
-          <Select placeholder={registerCopy.gender} options={[{ label: registerCopy.male, value: "male" }, { label: registerCopy.female, value: "female" }, { label: registerCopy.other, value: "other" }]} />
+        <Form.Item
+          name="gender"
+          rules={[{ required: true, message: registerCopy.genderRequired }]}
+        >
+          <Select
+            placeholder={registerCopy.gender}
+            options={[
+              { label: registerCopy.male, value: "male" },
+              { label: registerCopy.female, value: "female" },
+              { label: registerCopy.other, value: "other" },
+            ]}
+          />
         </Form.Item>
       </div>
 
       <div className="grid gap-x-4 md:grid-cols-2">
-        <Form.Item name="email" rules={[{ required: true, message: dictionary.auth.emailRequired }, { type: "email", message: dictionary.auth.emailRequired }]}>
-          <Input prefix={<MailOutlined className="text-gray-400 mr-2" />} placeholder="Email" className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="email"
+          rules={[
+            { required: true, message: dictionary.auth.emailRequired },
+            { type: "email", message: dictionary.auth.emailRequired },
+          ]}
+        >
+          <Input
+            prefix={<MailOutlined className="text-gray-400 mr-2" />}
+            placeholder="Email"
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
-        <Form.Item name="phone" rules={[{ required: true, message: registerCopy.phoneRequired }, { pattern: /^(84|0[35789])\d{8}$/, message: registerCopy.phoneInvalid }]}>
-          <Input prefix={<PhoneOutlined className="text-gray-400 mr-2" />} inputMode="tel" placeholder={registerCopy.phone} className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="phone"
+          rules={[
+            { required: true, message: registerCopy.phoneRequired },
+            {
+              pattern: /^(84|0[35789])\d{8}$/,
+              message: registerCopy.phoneInvalid,
+            },
+          ]}
+        >
+          <Input
+            prefix={<PhoneOutlined className="text-gray-400 mr-2" />}
+            inputMode="tel"
+            placeholder={registerCopy.phone}
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
       </div>
 
       <div className="grid gap-x-2 grid-cols-3 mb-6">
-        <Form.Item name="birthDay" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
-          <Select placeholder={registerCopy.day} options={days.map((day) => ({ label: day, value: day }))} />
+        <Form.Item
+          name="birthDay"
+          noStyle
+          rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+        >
+          <Select
+            placeholder={registerCopy.day}
+            options={days.map((day) => ({ label: day, value: day }))}
+          />
         </Form.Item>
-        <Form.Item name="birthMonth" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
-          <Select placeholder={registerCopy.month} options={months.map((month) => ({ label: month, value: month }))} />
+        <Form.Item
+          name="birthMonth"
+          noStyle
+          rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+        >
+          <Select
+            placeholder={registerCopy.month}
+            options={months.map((month) => ({ label: month, value: month }))}
+          />
         </Form.Item>
-        <Form.Item name="birthYear" noStyle rules={[{ required: true, message: registerCopy.birthDateRequired }]}>
-          <Select placeholder={registerCopy.year} options={years.map((year) => ({ label: year, value: year }))} showSearch optionFilterProp="label" />
+        <Form.Item
+          name="birthYear"
+          noStyle
+          rules={[{ required: true, message: registerCopy.birthDateRequired }]}
+        >
+          <Select
+            placeholder={registerCopy.year}
+            options={years.map((year) => ({ label: year, value: year }))}
+            showSearch
+            optionFilterProp="label"
+          />
         </Form.Item>
       </div>
 
       <div className="grid gap-x-4 md:grid-cols-2">
-        <Form.Item name="province" rules={[{ required: true, message: registerCopy.provinceRequired }]}>
-          <Select placeholder={registerCopy.province} showSearch optionFilterProp="label" options={VIETNAM_PROVINCES.map((province) => ({ label: province, value: province }))} />
+        <Form.Item
+          name="province"
+          rules={[{ required: true, message: registerCopy.provinceRequired }]}
+        >
+          <Select
+            placeholder={registerCopy.province}
+            showSearch
+            optionFilterProp="label"
+            options={VIETNAM_PROVINCES.map((province) => ({
+              label: province,
+              value: province,
+            }))}
+          />
         </Form.Item>
-        <Form.Item name="citizenId" rules={[{ required: true, message: registerCopy.citizenIdRequired }, { pattern: /^\d{12}$/, message: registerCopy.citizenIdInvalid }]}>
-          <Input inputMode="numeric" maxLength={12} placeholder={registerCopy.citizenId} className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="citizenId"
+          rules={[
+            { required: true, message: registerCopy.citizenIdRequired },
+            { pattern: /^\d{12}$/, message: registerCopy.citizenIdInvalid },
+          ]}
+        >
+          <Input
+            inputMode="numeric"
+            maxLength={12}
+            placeholder={registerCopy.citizenId}
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
       </div>
 
       <div className="grid gap-x-4 md:grid-cols-2">
-        <Form.Item name="password" rules={[{ required: true, message: registerCopy.passwordRequired }, { min: 8, message: registerCopy.passwordTooShort }, { pattern: /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, message: registerCopy.passwordWeak }]}>
-          <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.password} className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="password"
+          rules={[
+            { required: true, message: registerCopy.passwordRequired },
+            { min: 8, message: registerCopy.passwordTooShort },
+            {
+              pattern:
+                /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+              message: registerCopy.passwordWeak,
+            },
+          ]}
+        >
+          <Input.Password
+            prefix={<LockOutlined className="text-gray-400 mr-2" />}
+            placeholder={registerCopy.password}
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
-        <Form.Item name="confirmPassword" dependencies={["password"]} rules={[{ required: true, message: registerCopy.confirmPasswordRequired }, ({ getFieldValue }) => ({ validator(_, value) { if (!value || getFieldValue("password") === value) { return Promise.resolve(); } return Promise.reject(new Error(registerCopy.confirmPasswordMismatch)); } })]}>
-          <Input.Password prefix={<LockOutlined className="text-gray-400 mr-2" />} placeholder={registerCopy.confirmPassword} className="rounded-lg bg-gray-50/50" />
+        <Form.Item
+          name="confirmPassword"
+          dependencies={["password"]}
+          rules={[
+            { required: true, message: registerCopy.confirmPasswordRequired },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue("password") === value) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(
+                  new Error(registerCopy.confirmPasswordMismatch),
+                );
+              },
+            }),
+          ]}
+        >
+          <Input.Password
+            prefix={<LockOutlined className="text-gray-400 mr-2" />}
+            placeholder={registerCopy.confirmPassword}
+            className="rounded-lg bg-gray-50/50"
+          />
         </Form.Item>
       </div>
 
       <Form.Item required className="mb-2">
         <div className="auth-register-captcha-wrap border border-gray-200 p-2 rounded-lg bg-gray-50 flex items-center justify-between">
-          <Image alt={registerCopy.captchaAlt} src={buildCaptchaDataUri(captchaCode)} width={220} height={78} className="rounded" />
-          <Button icon={<ReloadOutlined />} onClick={() => setCaptchaCode(createCaptchaCode())} size="middle" type="dashed">
+          <Image
+            alt={registerCopy.captchaAlt}
+            src={buildCaptchaDataUri(captchaCode)}
+            width={220}
+            height={78}
+            className="rounded"
+          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => setCaptchaCode(createCaptchaCode())}
+            size="middle"
+            type="dashed"
+          >
             {registerCopy.refreshCaptcha}
           </Button>
         </div>
       </Form.Item>
 
-      <Form.Item name="captchaInput" rules={[{ required: true, message: registerCopy.captchaRequired }, () => ({ validator(_, value) { if (typeof value === "string" && value.trim().toUpperCase() === captchaCode) { return Promise.resolve(); } return Promise.reject(new Error(registerCopy.captchaMismatch)); } })]}>
-        <Input maxLength={6} placeholder={registerCopy.captchaPlaceholder} onPaste={(event) => event.preventDefault()} className="rounded-lg bg-gray-50/50 text-center uppercase tracking-[0.25em]" />
+      <Form.Item
+        name="captchaInput"
+        rules={[
+          { required: true, message: registerCopy.captchaRequired },
+          () => ({
+            validator(_, value) {
+              if (
+                typeof value === "string" &&
+                value.trim().toUpperCase() === captchaCode
+              ) {
+                return Promise.resolve();
+              }
+              return Promise.reject(new Error(registerCopy.captchaMismatch));
+            },
+          }),
+        ]}
+      >
+        <Input
+          maxLength={6}
+          placeholder={registerCopy.captchaPlaceholder}
+          onPaste={(event) => event.preventDefault()}
+          className="rounded-lg bg-gray-50/50 text-center uppercase tracking-[0.25em]"
+        />
       </Form.Item>
 
       <div className="flex justify-center mt-6">
-        <Button type="primary" htmlType="submit" block loading={submitting} style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} className="font-bold rounded-lg h-12 text-lg">
+        <Button
+          type="primary"
+          htmlType="submit"
+          block
+          loading={submitting}
+          style={{ backgroundColor: "#14b8a6", borderColor: "#14b8a6" }}
+          className="font-bold rounded-lg h-12 text-lg"
+        >
           {dictionary.auth.register}
         </Button>
       </div>
@@ -253,14 +584,13 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
 
   return (
     <div className="w-full flex flex-col justify-center items-center py-10 md:py-16">
-      
       {/* Khối bọc Tabs: Đây mới là nơi giới hạn chiều rộng (chỉ giới hạn cái form) */}
-      <div 
-         className="w-full bg-white rounded-xl shadow-lg overflow-hidden border border-[#ead6bb] metiz-auth-container mx-auto"
-         style={{ 
-           maxWidth: activeTab === 'register' ? '800px' : '500px',
-           transition: 'max-width 0.3s ease' 
-         }}
+      <div
+        className="w-full bg-white rounded-xl shadow-lg overflow-hidden border border-[#ead6bb] metiz-auth-container mx-auto"
+        style={{
+          maxWidth: activeTab === "register" ? "800px" : "500px",
+          transition: "max-width 0.3s ease",
+        }}
       >
         <Tabs
           activeKey={activeTab}
@@ -271,13 +601,23 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           items={[
             {
               key: "login",
-              label: <span className="px-6 md:px-12 font-bold text-base">{dictionary.auth.login}</span>,
+              label: (
+                <span className="px-6 md:px-12 font-bold text-base">
+                  {dictionary.auth.login}
+                </span>
+              ),
               children: <div className="p-6 md:p-10">{loginContentForm}</div>,
             },
             {
               key: "register",
-              label: <span className="px-6 md:px-12 font-bold text-base">{dictionary.auth.register}</span>,
-              children: <div className="p-6 md:p-10">{registerContentForm}</div>,
+              label: (
+                <span className="px-6 md:px-12 font-bold text-base">
+                  {dictionary.auth.register}
+                </span>
+              ),
+              children: (
+                <div className="p-6 md:p-10">{registerContentForm}</div>
+              ),
             },
           ]}
         />
@@ -310,7 +650,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             setForgotPwdLoading(true);
             try {
               await forgotPasswordApi(values.email);
-              message.success("Đã gửi liên kết! Vui lòng kiểm tra email của bạn.");
+              message.success(
+                "Đã gửi liên kết! Vui lòng kiểm tra email của bạn.",
+              );
               setForgotPwdModalOpen(false);
               forgotPwdForm.resetFields();
             } catch (error: any) {
@@ -327,28 +669,27 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               { type: "email", message: "Email không đúng định dạng!" },
             ]}
           >
-            <Input 
-              prefix={<MailOutlined className="text-gray-400 mr-2" />} 
-              size="large" 
-              placeholder="Nhập email của bạn" 
+            <Input
+              prefix={<MailOutlined className="text-gray-400 mr-2" />}
+              size="large"
+              placeholder="Nhập email của bạn"
               className="rounded-lg bg-gray-50/50"
             />
           </Form.Item>
-          
-          <Button 
-            type="primary" 
-            htmlType="submit" 
-            size="large" 
-            block 
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            size="large"
+            block
             loading={forgotPwdLoading}
-            style={{ backgroundColor: '#14b8a6', borderColor: '#14b8a6' }} 
+            style={{ backgroundColor: "#14b8a6", borderColor: "#14b8a6" }}
             className="font-bold rounded-lg h-12"
           >
             Gửi yêu cầu
           </Button>
         </Form>
       </Modal>
-
     </div>
   );
 }

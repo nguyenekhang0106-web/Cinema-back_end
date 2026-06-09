@@ -1566,7 +1566,16 @@ export function AdminDashboardPage() {
                     rowKey="key"
                     columns={userColumns}
                     dataSource={users}
-                    pagination={false}
+                    // 🔥 THAY THẾ pagination={false} BẰNG ĐOẠN NÀY:
+                    pagination={{
+                      defaultCurrent: 1,
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      pageSizeOptions: ["10", "20", "50", "100"],
+                      position: ["bottomCenter"],
+                      showTotal: (total, range) =>
+                        `Đang xem ${range[0]}-${range[1]} trên tổng số ${total} người dùng`,
+                    }}
                     scroll={{ x: "max-content" }}
                   />
                 </Space>

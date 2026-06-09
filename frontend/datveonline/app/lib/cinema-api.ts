@@ -16,6 +16,7 @@ export type AuthRole = "admin" | "user";
 export type AuthUser = {
   id?: string;
   email?: string;
+  fullName?: string; // 🔥 BỔ SUNG DÒNG NÀY VÀO LÀ HẾT LỖI
   role: AuthRole;
 };
 
@@ -137,16 +138,32 @@ export async function getMovieBySlugWithFallback(locale: Locale, slug: string) {
 }
 
 function parseUserFromToken(token: string): AuthUser {
-  const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
+  // Lấy phần payload của Token
+  const base64Url = token.split(".")[1] ?? "";
+  // Chuẩn hóa lại chuỗi base64
+  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+
+  // 🔥 XỬ LÝ LỖI FONT TIẾNG VIỆT (UTF-8)
+  const jsonPayload = decodeURIComponent(
+    atob(base64)
+      .split("")
+      .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+      .join(""),
+  );
+
+  const payload = JSON.parse(jsonPayload) as {
     sub?: string;
     scope?: string;
     userId?: string;
+    fullName?: string;
   };
+
   const scope = payload.scope ?? "";
 
   return {
     id: payload.userId,
     email: payload.sub,
+    fullName: payload.fullName,
     role: scope.includes("ROLE_ADMIN") ? "admin" : "user",
   };
 }
@@ -689,4 +706,16 @@ export async function authFetch(input: string, init: RequestInit = {}) {
   }
 
   return res;
+}
+
+// 🔥 GỌI API GỬI LẠI MÃ OTP
+export async function resendOtpApi(email: string) {
+  const res = await fetch(`${API_BASE_URL}/users/resend-otp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
 }

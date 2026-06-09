@@ -145,6 +145,7 @@ public class AuthenticationService {
                 .claim("scope", buildScope(user))
                 // 🔥 BỔ SUNG: Nhét User ID vào Token để Frontend lấy ra upload Avatar
                 .claim("userId", user.getId())
+                .claim("fullName", user.getFullName())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());

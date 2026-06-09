@@ -21,6 +21,7 @@ import {
   Table,
   Empty,
   App,
+  Pagination,
 } from "antd";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
@@ -34,10 +35,66 @@ import {
   collectVoucherApi,
 } from "../lib/cinema-api";
 
+const PAGE_CONTENT = {
+  vi: {
+    availableVouchers: "Voucher khả dụng",
+    tierPromos: "Ưu đãi theo hạng",
+    pointPromos: "Ưu đãi theo điểm",
+    ready: "Sẵn sàng",
+    collected: "Đã nhận",
+    collect: "Nhận mã",
+    notStarted: "Chưa tới hạn",
+    pointsNeeded: "Cần",
+    points: "điểm",
+    tierNeeded: "Hạng:",
+    expired: "Hết hạn",
+    used: "Đã dùng",
+    voucherAndPromo: "Kho Voucher & Khuyến Mãi",
+    promoPrograms: "Chương trình Khuyến mãi",
+    yourVouchers: "Voucher của bạn",
+    noPromos: "Hiện chưa có chương trình khuyến mãi nào",
+    loginToView: "Vui lòng đăng nhập để xem kho Voucher cá nhân của bạn.",
+    loginNow: "Đăng nhập ngay",
+    voucherCode: "Mã giảm giá",
+    offer: "Ưu đãi",
+    scope: "Phạm vi",
+    expiry: "Hạn dùng",
+    status: "Trạng thái",
+    birthday: "Sinh nhật",
+  },
+  en: {
+    availableVouchers: "Available Vouchers",
+    tierPromos: "Tier Promotions",
+    pointPromos: "Point Promotions",
+    ready: "Ready",
+    collected: "Collected",
+    collect: "Collect",
+    notStarted: "Not Started",
+    pointsNeeded: "Need",
+    points: "points",
+    tierNeeded: "Tier:",
+    expired: "Expired",
+    used: "Used",
+    voucherAndPromo: "Vouchers & Promotions",
+    promoPrograms: "Promotional Programs",
+    yourVouchers: "Your Vouchers",
+    noPromos: "No promotional programs available at the moment",
+    loginToView: "Please log in to view your personal voucher wallet.",
+    loginNow: "Log In Now",
+    voucherCode: "Discount Code",
+    offer: "Offer",
+    scope: "Scope",
+    expiry: "Expiry Date",
+    status: "Status",
+    birthday: "Birthday",
+  },
+};
+
 export default function MemberPage() {
   const { message } = App.useApp();
   const dictionary = useDictionary();
   const locale = useLocale();
+  const t = locale === "en" ? PAGE_CONTENT.en : PAGE_CONTENT.vi;
   const router = useRouter();
   const { token } = useAuthSession();
 
@@ -49,6 +106,16 @@ export default function MemberPage() {
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
   const [myVouchers, setMyVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 🔥 THÊM STATE QUẢN LÝ PHÂN TRANG Ở ĐÂY:
+  const [availPage, setAvailPage] = useState(1);
+  const [tierPage, setTierPage] = useState(1);
+  const [pointPage, setPointPage] = useState(1);
+  const [promoPage, setPromoPage] = useState(1);
+
+  // Khai báo số lượng item trên 1 trang
+  const ITEMS_PER_SMALL_PAGE = 3; // 3 voucher cho 3 cột nhỏ ở trên
+  const ITEMS_PER_MAIN_PAGE = 6; // 6 voucher cho danh sách chính ở dưới
 
   // Hàm format chuẩn hóa dữ liệu dùng chung
   const formatVouchers = (vouchers: any[]) => {
@@ -157,7 +224,7 @@ export default function MemberPage() {
   // Cấu hình bảng hiển thị trong Tab 2
   const myVoucherColumns = [
     {
-      title: "Mã giảm giá",
+      title: t.voucherCode, // 🔥 Đổi thành t.voucherCode
       dataIndex: "code",
       key: "code",
       render: (text: string) => (
@@ -166,9 +233,9 @@ export default function MemberPage() {
         </Typography.Text>
       ),
     },
-    { title: "Ưu đãi", dataIndex: "title", key: "title" },
+    { title: t.offer, dataIndex: "title", key: "title" }, // 🔥 Đổi thành t.offer
     {
-      title: "Phạm vi",
+      title: t.scope, // 🔥 Đổi thành t.scope
       dataIndex: "target",
       key: "target",
       render: (target: string) => (
@@ -176,19 +243,19 @@ export default function MemberPage() {
       ),
     },
     {
-      title: "Hạn dùng",
+      title: t.expiry, // 🔥 Đổi thành t.expiry
       dataIndex: "validUntil",
       key: "date",
       render: (date: string) => dayjs(date).format("DD/MM/YYYY"),
     },
     {
-      title: "Trạng thái",
+      title: t.status, // 🔥 Đổi thành t.status
       key: "status",
       render: (_: any, record: any) => {
-        if (record.isUsed) return <Tag color="default">Đã dùng</Tag>;
+        if (record.isUsed) return <Tag color="default">{t.used}</Tag>; // 🔥 Sửa chữ
         if (dayjs().isAfter(dayjs(record.validUntil)))
-          return <Tag color="red">Hết hạn</Tag>;
-        return <Tag color="green">Sẵn sàng</Tag>;
+          return <Tag color="red">{t.expired}</Tag>; // 🔥 Sửa chữ
+        return <Tag color="green">{t.ready}</Tag>; // 🔥 Sửa chữ
       },
     },
   ];
@@ -328,44 +395,62 @@ export default function MemberPage() {
                   <div className="flex gap-3 items-center">
                     <TagOutlined style={{ fontSize: 24, color: "#a61d24" }} />
                     <Typography.Title level={4} style={{ margin: 0 }}>
-                      Voucher khả dụng
+                      {t.availableVouchers}
                     </Typography.Title>
                   </div>
 
-                  {availableVouchers.slice(0, 4).map((voucher) => (
-                    <div
-                      key={voucher.id}
-                      className="rounded-xl border border-red-100 bg-red-50/40 p-3"
-                    >
-                      <div className="flex justify-between gap-2">
-                        <div>
-                          <Typography.Text strong className="text-[#a61d24]">
-                            {voucher.code}
-                          </Typography.Text>
-                          <div className="text-xs text-gray-600">
-                            {voucher.title}
+                  {availableVouchers
+                    .slice(
+                      (availPage - 1) * ITEMS_PER_SMALL_PAGE,
+                      availPage * ITEMS_PER_SMALL_PAGE,
+                    )
+                    .map((voucher) => (
+                      <div
+                        key={voucher.id}
+                        className="rounded-xl border border-red-100 bg-red-50/40 p-3"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <div>
+                            <Typography.Text strong className="text-[#a61d24]">
+                              {voucher.code}
+                            </Typography.Text>
+                            <div className="text-xs text-gray-600">
+                              {voucher.title}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              HSD:{" "}
+                              {dayjs(voucher.validUntil).format(
+                                "DD/MM/YYYY HH:mm",
+                              )}
+                            </div>
+                            <Tag color="green" className="mt-1">
+                              {t.ready}
+                            </Tag>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            HSD:{" "}
-                            {dayjs(voucher.validUntil).format(
-                              "DD/MM/YYYY HH:mm",
-                            )}
-                          </div>
-                          <Tag color="green" className="mt-1">
-                            Sẵn sàng
-                          </Tag>
-                        </div>
 
-                        <Button
-                          size="small"
-                          disabled
-                          className="rounded-full font-semibold px-3"
-                        >
-                          Đã nhận
-                        </Button>
+                          <Button
+                            size="small"
+                            disabled
+                            className="rounded-full font-semibold px-3"
+                          >
+                            {t.collected}
+                          </Button>
+                        </div>
                       </div>
+                    ))}
+
+                  {/* 🔥 THANH PHÂN TRANG VOUCHER KHẢ DỤNG */}
+                  {availableVouchers.length > ITEMS_PER_SMALL_PAGE && (
+                    <div className="flex justify-center mt-2">
+                      <Pagination
+                        size="small"
+                        current={availPage}
+                        total={availableVouchers.length}
+                        pageSize={ITEMS_PER_SMALL_PAGE}
+                        onChange={setAvailPage}
+                      />
                     </div>
-                  ))}
+                  )}
                 </Space>
               </Card>
             </Col>
@@ -379,53 +464,71 @@ export default function MemberPage() {
                   <div className="flex gap-3 items-center">
                     <CrownOutlined style={{ fontSize: 24, color: "#eab308" }} />
                     <Typography.Title level={4} style={{ margin: 0 }}>
-                      Ưu đãi theo hạng
+                      {t.tierPromos}
                     </Typography.Title>
                   </div>
 
-                  {tierPromotions.slice(0, 4).map((promo) => {
-                    const isCollected = myVouchers.some(
-                      (v) => v.id === promo.id,
-                    );
+                  {tierPromotions
+                    .slice(
+                      (tierPage - 1) * ITEMS_PER_SMALL_PAGE,
+                      tierPage * ITEMS_PER_SMALL_PAGE,
+                    )
+                    .map((promo) => {
+                      const isCollected = myVouchers.some(
+                        (v) => v.id === promo.id,
+                      );
 
-                    return (
-                      <div
-                        key={promo.id}
-                        className="rounded-xl border border-yellow-100 bg-yellow-50/40 p-3"
-                      >
-                        <div className="flex justify-between gap-2">
-                          <div>
-                            <Typography.Text strong>
-                              {promo.title}
-                            </Typography.Text>
-                            <div className="text-xs text-gray-600">
-                              {promo.discountCode}
+                      return (
+                        <div
+                          key={promo.id}
+                          className="rounded-xl border border-yellow-100 bg-yellow-50/40 p-3"
+                        >
+                          <div className="flex justify-between gap-2">
+                            <div>
+                              <Typography.Text strong>
+                                {promo.title}
+                              </Typography.Text>
+                              <div className="text-xs text-gray-600">
+                                {promo.discountCode}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                HSD:{" "}
+                                {dayjs(promo.validUntil).format(
+                                  "DD/MM/YYYY HH:mm",
+                                )}
+                              </div>
+                              <Tag color="purple" className="mt-1">
+                                {t.tierNeeded} {promo.requiredMemberTier}
+                              </Tag>
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              HSD:{" "}
-                              {dayjs(promo.validUntil).format(
-                                "DD/MM/YYYY HH:mm",
-                              )}
-                            </div>
-                            <Tag color="purple" className="mt-1">
-                              Hạng: {promo.requiredMemberTier}
-                            </Tag>
+
+                            <Button
+                              type={isCollected ? "default" : "primary"}
+                              size="small"
+                              danger={!isCollected}
+                              disabled={isCollected}
+                              className="rounded-full font-semibold px-3"
+                              onClick={() => handleCollect(promo.id)}
+                            >
+                              {isCollected ? t.collected : t.collect}
+                            </Button>
                           </div>
-
-                          <Button
-                            type={isCollected ? "default" : "primary"}
-                            size="small"
-                            danger={!isCollected}
-                            disabled={isCollected}
-                            className="rounded-full font-semibold px-3"
-                            onClick={() => handleCollect(promo.id)}
-                          >
-                            {isCollected ? "Đã nhận" : "Nhận mã"}
-                          </Button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+
+                  {/* 🔥 THANH PHÂN TRANG ƯU ĐÃI THEO HẠNG */}
+                  {tierPromotions.length > ITEMS_PER_SMALL_PAGE && (
+                    <div className="flex justify-center mt-2">
+                      <Pagination
+                        size="small"
+                        current={tierPage}
+                        total={tierPromotions.length}
+                        pageSize={ITEMS_PER_SMALL_PAGE}
+                        onChange={setTierPage}
+                      />
+                    </div>
+                  )}
                 </Space>
               </Card>
             </Col>
@@ -441,53 +544,72 @@ export default function MemberPage() {
                       style={{ fontSize: 24, color: "#3b82f6" }}
                     />
                     <Typography.Title level={4} style={{ margin: 0 }}>
-                      Ưu đãi theo điểm
+                      {t.pointPromos}
                     </Typography.Title>
                   </div>
 
-                  {pointPromotions.slice(0, 4).map((promo) => {
-                    const isCollected = myVouchers.some(
-                      (v) => v.id === promo.id,
-                    );
+                  {pointPromotions
+                    .slice(
+                      (pointPage - 1) * ITEMS_PER_SMALL_PAGE,
+                      pointPage * ITEMS_PER_SMALL_PAGE,
+                    )
+                    .map((promo) => {
+                      const isCollected = myVouchers.some(
+                        (v) => v.id === promo.id,
+                      );
 
-                    return (
-                      <div
-                        key={promo.id}
-                        className="rounded-xl border border-blue-100 bg-blue-50/40 p-3"
-                      >
-                        <div className="flex justify-between gap-2">
-                          <div>
-                            <Typography.Text strong>
-                              {promo.title}
-                            </Typography.Text>
-                            <div className="text-xs text-gray-600">
-                              {promo.discountCode}
+                      return (
+                        <div
+                          key={promo.id}
+                          className="rounded-xl border border-blue-100 bg-blue-50/40 p-3"
+                        >
+                          <div className="flex justify-between gap-2">
+                            <div>
+                              <Typography.Text strong>
+                                {promo.title}
+                              </Typography.Text>
+                              <div className="text-xs text-gray-600">
+                                {promo.discountCode}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                HSD:{" "}
+                                {dayjs(promo.validUntil).format(
+                                  "DD/MM/YYYY HH:mm",
+                                )}
+                              </div>
+                              <Tag color="cyan" className="mt-1">
+                                {t.pointsNeeded} {promo.requiredRewardPoints}{" "}
+                                {t.points}
+                              </Tag>
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              HSD:{" "}
-                              {dayjs(promo.validUntil).format(
-                                "DD/MM/YYYY HH:mm",
-                              )}
-                            </div>
-                            <Tag color="cyan" className="mt-1">
-                              Cần {promo.requiredRewardPoints} điểm
-                            </Tag>
+
+                            <Button
+                              type={isCollected ? "default" : "primary"}
+                              size="small"
+                              danger={!isCollected}
+                              disabled={isCollected}
+                              className="rounded-full font-semibold px-3"
+                              onClick={() => handleCollect(promo.id)}
+                            >
+                              {isCollected ? t.collected : t.collect}
+                            </Button>
                           </div>
-
-                          <Button
-                            type={isCollected ? "default" : "primary"}
-                            size="small"
-                            danger={!isCollected}
-                            disabled={isCollected}
-                            className="rounded-full font-semibold px-3"
-                            onClick={() => handleCollect(promo.id)}
-                          >
-                            {isCollected ? "Đã nhận" : "Nhận mã"}
-                          </Button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+
+                  {/* 🔥 THANH PHÂN TRANG ƯU ĐÃI THEO ĐIỂM */}
+                  {pointPromotions.length > ITEMS_PER_SMALL_PAGE && (
+                    <div className="flex justify-center mt-2">
+                      <Pagination
+                        size="small"
+                        current={pointPage}
+                        total={pointPromotions.length}
+                        pageSize={ITEMS_PER_SMALL_PAGE}
+                        onChange={setPointPage}
+                      />
+                    </div>
+                  )}
                 </Space>
               </Card>
             </Col>
@@ -501,9 +623,7 @@ export default function MemberPage() {
             <div className="bg-[#a61d24] p-4 -mx-6 -mt-6 mb-6 flex items-center gap-3">
               <GiftOutlined style={{ color: "#fff", fontSize: 24 }} />
               <Typography.Title level={4} style={{ margin: 0, color: "#fff" }}>
-                {locale === "vi"
-                  ? "Kho Voucher & Khuyến Mãi"
-                  : "Vouchers & Promotions"}
+                {t.voucherAndPromo}
               </Typography.Title>
             </div>
 
@@ -515,150 +635,173 @@ export default function MemberPage() {
               items={[
                 {
                   key: "1",
-                  label: "Chương trình Khuyến mãi",
+                  label: t.promoPrograms,
                   children: (
                     <div className="py-4">
                       <Row gutter={[20, 20]}>
                         {allPromotions.length > 0 ? (
-                          allPromotions.map((promo) => {
-                            // Kiểm tra xem User đã nhận mã này chưa
-                            const isCollected = myVouchers.some(
-                              (v) => v.id === promo.id,
-                            );
-                            const isNotStarted = dayjs().isBefore(
-                              dayjs(promo.validFrom),
-                            );
+                          // 🔥 SỬA CHỖ NÀY ĐỂ CẮT DỮ LIỆU
+                          allPromotions
+                            .slice(
+                              (promoPage - 1) * ITEMS_PER_MAIN_PAGE,
+                              promoPage * ITEMS_PER_MAIN_PAGE,
+                            )
+                            .map((promo) => {
+                              // Kiểm tra xem User đã nhận mã này chưa
+                              const isCollected = myVouchers.some(
+                                (v) => v.id === promo.id,
+                              );
+                              const isNotStarted = dayjs().isBefore(
+                                dayjs(promo.validFrom),
+                              );
 
-                            return (
-                              <Col xs={24} sm={12} lg={8} key={promo.id}>
-                                <Card
-                                  className="rounded-xl border-dashed border-red-200 hover:border-red-500 transition-colors h-full flex flex-col justify-between"
-                                  bodyStyle={{
-                                    padding: "16px",
-                                    height: "100%",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                  }}
-                                >
-                                  <div className="flex-1 flex flex-col gap-2">
-                                    <div className="flex justify-between items-start">
-                                      <Tag
-                                        color="red"
-                                        className="w-fit m-0 text-sm"
+                              return (
+                                <Col xs={24} sm={12} lg={8} key={promo.id}>
+                                  <Card
+                                    className="rounded-xl border-dashed border-red-200 hover:border-red-500 transition-colors h-full flex flex-col justify-between"
+                                    bodyStyle={{
+                                      padding: "16px",
+                                      height: "100%",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                    }}
+                                  >
+                                    <div className="flex-1 flex flex-col gap-2">
+                                      <div className="flex justify-between items-start">
+                                        <Tag
+                                          color="red"
+                                          className="w-fit m-0 text-sm"
+                                        >
+                                          {promo.discountPercent}% OFF
+                                        </Tag>
+                                        <Tag color="blue" className="m-0">
+                                          {getTargetLabel(promo.target)}
+                                        </Tag>
+                                      </div>
+                                      <Typography.Title
+                                        level={5}
+                                        className="!m-0 mt-2"
                                       >
-                                        {promo.discountPercent}% OFF
-                                      </Tag>
-                                      <Tag color="blue" className="m-0">
-                                        {getTargetLabel(promo.target)}
-                                      </Tag>
-                                    </div>
-                                    <Typography.Title
-                                      level={5}
-                                      className="!m-0 mt-2"
-                                    >
-                                      {promo.title}
-                                    </Typography.Title>
-                                    <Typography.Text
-                                      type="secondary"
-                                      className="text-xs line-clamp-2"
-                                    >
-                                      {promo.description ||
-                                        "Áp dụng cho toàn bộ các suất chiếu tại hệ thống."}
-                                    </Typography.Text>
-                                    <div className="mt-auto space-y-1">
-                                      <Typography.Text className="block text-xs text-gray-500">
-                                        Bắt đầu:{" "}
-                                        {dayjs(promo.validFrom).format(
-                                          "DD/MM/YYYY HH:mm",
-                                        )}
+                                        {promo.title}
+                                      </Typography.Title>
+                                      <Typography.Text
+                                        type="secondary"
+                                        className="text-xs line-clamp-2"
+                                      >
+                                        {promo.description ||
+                                          "Áp dụng cho toàn bộ các suất chiếu tại hệ thống."}
                                       </Typography.Text>
+                                      <div className="mt-auto space-y-1">
+                                        <Typography.Text className="block text-xs text-gray-500">
+                                          Bắt đầu:{" "}
+                                          {dayjs(promo.validFrom).format(
+                                            "DD/MM/YYYY HH:mm",
+                                          )}
+                                        </Typography.Text>
 
-                                      <Typography.Text className="block text-xs text-gray-500">
-                                        HSD:{" "}
-                                        {dayjs(promo.validUntil).format(
-                                          "DD/MM/YYYY HH:mm",
-                                        )}
-                                      </Typography.Text>
+                                        <Typography.Text className="block text-xs text-gray-500">
+                                          HSD:{" "}
+                                          {dayjs(promo.validUntil).format(
+                                            "DD/MM/YYYY HH:mm",
+                                          )}
+                                        </Typography.Text>
 
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {promo.requiredMemberTier &&
-                                          promo.requiredMemberTier !==
-                                            "BASIC" && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {promo.requiredMemberTier &&
+                                            promo.requiredMemberTier !==
+                                              "BASIC" && (
+                                              <Tag
+                                                color="purple"
+                                                className="w-fit m-0"
+                                              >
+                                                {t.tierNeeded}{" "}
+                                                {promo.requiredMemberTier}
+                                              </Tag>
+                                            )}
+
+                                          {promo.requiredRewardPoints > 0 && (
                                             <Tag
-                                              color="purple"
+                                              color="cyan"
                                               className="w-fit m-0"
                                             >
-                                              Hạng: {promo.requiredMemberTier}
+                                              {t.pointsNeeded}{" "}
+                                              {promo.requiredRewardPoints}{" "}
+                                              {t.points}
                                             </Tag>
                                           )}
 
-                                        {promo.requiredRewardPoints > 0 && (
-                                          <Tag
-                                            color="cyan"
-                                            className="w-fit m-0"
-                                          >
-                                            Cần {promo.requiredRewardPoints}{" "}
-                                            điểm
-                                          </Tag>
-                                        )}
+                                          {promo.isBirthdayPromo && (
+                                            <Tag
+                                              color="magenta"
+                                              className="w-fit m-0"
+                                            >
+                                              {t.birthday}
+                                            </Tag>
+                                          )}
 
-                                        {promo.isBirthdayPromo && (
-                                          <Tag
-                                            color="magenta"
-                                            className="w-fit m-0"
-                                          >
-                                            Sinh nhật
-                                          </Tag>
-                                        )}
-
-                                        {isNotStarted && (
-                                          <Tag
-                                            color="gold"
-                                            className="w-fit m-0"
-                                          >
-                                            Chưa có hiệu lực
-                                          </Tag>
-                                        )}
+                                          {isNotStarted && (
+                                            <Tag
+                                              color="gold"
+                                              className="w-fit m-0"
+                                            >
+                                              {t.notStarted}
+                                            </Tag>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-                                    <Typography.Text className="font-mono font-bold text-[#a61d24]">
-                                      {promo.discountCode}
-                                    </Typography.Text>
-                                    <Button
-                                      type={isCollected ? "default" : "primary"}
-                                      size="small"
-                                      danger={!isCollected && !isNotStarted}
-                                      disabled={isCollected || isNotStarted}
-                                      className="rounded-full font-semibold px-4"
-                                      onClick={() => handleCollect(promo.id)}
-                                    >
-                                      {isCollected
-                                        ? "Đã nhận"
-                                        : isNotStarted
-                                          ? "Chưa tới hạn"
-                                          : "Nhận mã"}
-                                    </Button>
-                                  </div>
-                                </Card>
-                              </Col>
-                            );
-                          })
+                                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                                      <Typography.Text className="font-mono font-bold text-[#a61d24]">
+                                        {promo.discountCode}
+                                      </Typography.Text>
+                                      <Button
+                                        type={
+                                          isCollected ? "default" : "primary"
+                                        }
+                                        size="small"
+                                        danger={!isCollected && !isNotStarted}
+                                        disabled={isCollected || isNotStarted}
+                                        className="rounded-full font-semibold px-4"
+                                        onClick={() => handleCollect(promo.id)}
+                                      >
+                                        {isCollected
+                                          ? t.collected
+                                          : isNotStarted
+                                            ? t.notStarted
+                                            : t.collect}
+                                      </Button>
+                                    </div>
+                                  </Card>
+                                </Col>
+                              );
+                            })
                         ) : (
                           <Empty
-                            description="Hiện chưa có chương trình khuyến mãi nào"
+                            description={t.noPromos}
                             className="w-full py-10"
                           />
                         )}
                       </Row>
+
+                      {/* 🔥 THÊM THANH CHUYỂN TRANG CHO DANH SÁCH CHÍNH */}
+                      {allPromotions.length > ITEMS_PER_MAIN_PAGE && (
+                        <div className="flex justify-center mt-6 pb-2">
+                          <Pagination
+                            current={promoPage}
+                            total={allPromotions.length}
+                            pageSize={ITEMS_PER_MAIN_PAGE}
+                            onChange={setPromoPage}
+                            showSizeChanger={false}
+                          />
+                        </div>
+                      )}
                     </div>
                   ),
                 },
                 {
                   key: "2",
-                  label: "Voucher của bạn",
+                  label: t.yourVouchers,
                   children: (
                     <div className="py-4">
                       {token ? (
@@ -677,8 +820,7 @@ export default function MemberPage() {
                       ) : (
                         <div className="text-center py-10">
                           <Typography.Paragraph className="text-gray-500 text-lg">
-                            Vui lòng đăng nhập để xem kho Voucher cá nhân của
-                            bạn.
+                            {t.loginToView}
                           </Typography.Paragraph>
                           <Button
                             type="primary"
@@ -687,7 +829,7 @@ export default function MemberPage() {
                             className="rounded-full px-8 mt-2"
                             onClick={() => router.push("/dang-nhap")}
                           >
-                            Đăng nhập ngay
+                            {t.loginNow}
                           </Button>
                         </div>
                       )}

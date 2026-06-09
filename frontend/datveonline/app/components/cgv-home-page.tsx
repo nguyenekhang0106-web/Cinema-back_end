@@ -74,13 +74,12 @@ function BannerManagerModal({
   const [editingBanner, setEditingBanner] = useState<BannerItem | null>(null);
   const [form] = Form.useForm();
 
-  // Hàm lấy token
+  // 🔥 1. Nâng cấp hàm lấy Token thông minh hơn (Duyệt cả mảng JSON bị ẩn)
   const getAuthToken = () => {
     let token =
       localStorage.getItem("token") ||
       localStorage.getItem("accessToken") ||
       sessionStorage.getItem("token");
-
     if (!token) {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -95,11 +94,6 @@ function BannerManagerModal({
           }
         }
       }
-    }
-
-    if (!token) {
-      message.error("Không tìm thấy phiên đăng nhập. Vui lòng đăng nhập lại!");
-      return "";
     }
     return token;
   };
@@ -422,8 +416,8 @@ function CinemaAndPromoSection() {
   const locale = useLocale();
   const dictionary = useDictionary();
   const promotions = getLocalizedPromotions(locale);
-  const { role } = useAuthSession();
-  const isAdmin = role === "admin";
+  const { role, token } = useAuthSession();
+  const isAdmin = String(role).toUpperCase().includes("ADMIN");
 
   // === STATE CỦA RẠP & LỊCH CHIẾU ===
   const [cinemas, setCinemas] = useState<any[]>([]);
@@ -463,93 +457,84 @@ function CinemaAndPromoSection() {
     );
   };
 
-  // 1. TẢI DỮ LIỆU RẠP & PHIM KHI MỞ TRANG
-  useEffect(() => {
-    let isMounted = true;
+  // 🔥 ĐƯỢC ĐƯA RA NGOÀI ĐỂ GỌI LÀM MỚI TẠI CHỖ GIỐNG TRANG PAGE.TSX
+  const fetchCinemaData = async () => {
+    try {
+      setLoading(true);
+      const cinemasData = await getCinemas();
 
-    const fetchCinemaData = async () => {
-      try {
-        setLoading(true);
-        const cinemasData = await getCinemas();
-        if (!isMounted) return;
-
-        const moviesRes = await fetch(`http://localhost:9090/cinema/movies`);
-        if (moviesRes.ok) {
-          const moviesData = await moviesRes.json();
-          setMoviesList(moviesData.result || []);
-        }
-
-        const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
-        let activeShowtimes: any[] = [];
-        if (stRes.ok) {
-          const stData = await stRes.json();
-          activeShowtimes = (stData.result || []).filter(
-            (st: any) => st.status === "SCHEDULED",
-          );
-        }
-        if (!isMounted) return;
-
-        const today = dayjs().format("YYYY-MM-DD");
-        const now = dayjs();
-
-        const mappedCinemas = await Promise.all(
-          cinemasData.map(async (cinema: any) => {
-            try {
-              const hallRes = await fetch(
-                `http://localhost:9090/cinema/halls/cinema/${cinema.id}`,
-              );
-              let hallIds: string[] = [];
-              if (hallRes.ok) {
-                const hallData = await hallRes.json();
-                hallIds = (hallData.result || []).map((h: any) => h.id);
-              }
-
-              const cinemaShowtimes = activeShowtimes
-                .filter((st: any) => {
-                  const stTime = dayjs(st.startTime);
-                  return (
-                    hallIds.includes(st.hallId) &&
-                    stTime.format("YYYY-MM-DD") === today &&
-                    stTime.isAfter(now)
-                  );
-                })
-                .sort((a: any, b: any) =>
-                  a.startTime.localeCompare(b.startTime),
-                );
-
-              // Lưu lại mảng giờ HH:mm để hiển thị
-              const timeStrings = cinemaShowtimes.map((st: any) =>
-                dayjs(st.startTime).format("HH:mm"),
-              );
-              const uniqueShowtimes = Array.from(new Set(timeStrings)).slice(
-                0,
-                4,
-              );
-
-              return {
-                ...cinema,
-                todayShowtimes: cinemaShowtimes, // 🔥 Lưu trữ toàn bộ object suất chiếu để dùng cho Popup
-                showtimesToDisplay: uniqueShowtimes,
-              };
-            } catch (e) {
-              return { ...cinema, todayShowtimes: [], showtimesToDisplay: [] };
-            }
-          }),
-        );
-
-        if (isMounted) setCinemas(mappedCinemas);
-      } catch (error) {
-        console.error("Lỗi tải dữ liệu rạp:", error);
-      } finally {
-        if (isMounted) setLoading(false);
+      const moviesRes = await fetch(`http://localhost:9090/cinema/movies`);
+      if (moviesRes.ok) {
+        const moviesData = await moviesRes.json();
+        setMoviesList(moviesData.result || []);
       }
-    };
 
+      const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
+      let activeShowtimes: any[] = [];
+      if (stRes.ok) {
+        const stData = await stRes.json();
+        activeShowtimes = (stData.result || []).filter(
+          (st: any) => st.status === "SCHEDULED",
+        );
+      }
+
+      const today = dayjs().format("YYYY-MM-DD");
+      const now = dayjs();
+
+      const mappedCinemas = await Promise.all(
+        cinemasData.map(async (cinema: any) => {
+          try {
+            const hallRes = await fetch(
+              `http://localhost:9090/cinema/halls/cinema/${cinema.id}`,
+            );
+            let hallIds: string[] = [];
+            if (hallRes.ok) {
+              const hallData = await hallRes.json();
+              hallIds = (hallData.result || []).map((h: any) => h.id);
+            }
+
+            const cinemaShowtimes = activeShowtimes
+              .filter((st: any) => {
+                const stTime = dayjs(st.startTime);
+                return (
+                  hallIds.includes(st.hallId) &&
+                  stTime.format("YYYY-MM-DD") === today &&
+                  stTime.isAfter(now)
+                );
+              })
+              .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+
+            const timeStrings = cinemaShowtimes.map((st: any) =>
+              dayjs(st.startTime).format("HH:mm"),
+            );
+            const uniqueShowtimes = Array.from(new Set(timeStrings)).slice(
+              0,
+              4,
+            );
+
+            return {
+              ...cinema,
+              todayShowtimes: cinemaShowtimes,
+              showtimesToDisplay: uniqueShowtimes,
+            };
+          } catch (e) {
+            return { ...cinema, todayShowtimes: [], showtimesToDisplay: [] };
+          }
+        }),
+      );
+
+      setCinemas(mappedCinemas);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu rạp:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gọi lần đầu khi mở trang
+  useEffect(() => {
     fetchCinemaData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [locale]);
 
   // 2. TẢI LỊCH CHIẾU & ẢNH RẠP KHI BẤM NÚT "XEM LỊCH CHIẾU" (XỔ XUỐNG)
   const loadCinemaDetails = async (cinemaId: string) => {
@@ -680,8 +665,12 @@ function CinemaAndPromoSection() {
   };
 
   const handleDeleteShowtime = async (showtimeId: string) => {
-    const token = getAuthToken();
-    if (!token) return;
+    // 🔥 Không gọi hàm ngoài nữa, dùng luôn biến token của hệ thống
+    if (!token) {
+      message.error("Vui lòng đăng nhập lại!");
+      return;
+    }
+
     try {
       const res = await fetch(
         `http://localhost:9090/cinema/showtimes/${showtimeId}`,
@@ -692,7 +681,10 @@ function CinemaAndPromoSection() {
       );
       if (res.ok) {
         message.success("Đã xóa suất chiếu thành công!");
-        loadCinemaDetails(expandedCinemaId!);
+        fetchCinemaData();
+        if (expandedCinemaId) {
+          loadCinemaDetails(expandedCinemaId);
+        }
       } else {
         message.error("Lỗi xóa suất chiếu");
       }
@@ -702,19 +694,25 @@ function CinemaAndPromoSection() {
   };
 
   const handleSaveShowtime = async (values: any) => {
-    const token = getAuthToken();
-    if (!token) return;
-    const isUpdate = !!editingShowtime;
-    const url = isUpdate
-      ? `http://localhost:9090/cinema/showtimes/${editingShowtime.id}`
-      : `http://localhost:9090/cinema/showtimes`;
-
-    const payload = {
-      ...values,
-      startTime: values.startTime.format("YYYY-MM-DDTHH:mm:ss"),
-    };
-
     try {
+      // 🔥 Dùng trực tiếp biến token từ useAuthSession
+      if (!token) {
+        message.error(
+          "Lỗi xác thực: Không tìm thấy Token! Vui lòng đăng nhập lại.",
+        );
+        return;
+      }
+
+      const isUpdate = !!editingShowtime;
+      const url = isUpdate
+        ? `http://localhost:9090/cinema/showtimes/${editingShowtime.id}`
+        : `http://localhost:9090/cinema/showtimes`;
+
+      const payload = {
+        ...values,
+        startTime: dayjs(values.startTime).format("YYYY-MM-DDTHH:mm:ss"),
+      };
+
       const res = await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
         headers: {
@@ -723,18 +721,23 @@ function CinemaAndPromoSection() {
         },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
         message.success(
           isUpdate ? "Cập nhật thành công!" : "Thêm mới thành công!",
         );
         setIsShowtimeModalOpen(false);
-        loadCinemaDetails(expandedCinemaId!);
+        fetchCinemaData();
+        if (expandedCinemaId) {
+          loadCinemaDetails(expandedCinemaId);
+        }
       } else {
         const err = await res.json();
-        message.error(err.message || "Lỗi lưu suất chiếu");
+        message.error(err.message || "Lỗi lưu suất chiếu từ Server!");
       }
     } catch (error) {
-      message.error("Lỗi mạng");
+      console.error("Lỗi khi lưu suất chiếu: ", error);
+      message.error("Lỗi mạng hoặc hệ thống!");
     }
   };
 
@@ -1205,25 +1208,27 @@ function CinemaAndPromoSection() {
           form={showtimeForm}
           layout="vertical"
           onFinish={handleSaveShowtime}
+          // 🔥 Nếu lỗi ẩn xảy ra, nó sẽ thông báo thay vì im lặng
+          onFinishFailed={() => {
+            message.error("Vui lòng điền đầy đủ và chính xác thông tin!");
+          }}
           className="mt-4"
         >
-          <Form.Item label="Phim chiếu" required>
-            <div className="flex gap-2">
-              <Form.Item
-                name="movieId"
-                noStyle
-                rules={[{ required: true, message: "Chọn phim!" }]}
-              >
-                <Select placeholder="-- Chọn một bộ phim --" className="flex-1">
-                  {moviesList.map((m) => (
-                    <Select.Option key={m.id} value={m.id}>
-                      {m.title || m.name || "Phim chưa có tên"}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </div>
+          {/* 🔥 Đã gỡ bỏ noStyle để Form hoạt động chuẩn xác */}
+          <Form.Item
+            name="movieId"
+            label="Phim chiếu"
+            rules={[{ required: true, message: "Chọn phim!" }]}
+          >
+            <Select placeholder="-- Chọn một bộ phim --" className="w-full">
+              {moviesList.map((m) => (
+                <Select.Option key={m.id} value={m.id}>
+                  {m.title || m.name || "Phim chưa có tên"}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
+
           <Form.Item
             name="hallId"
             label="Phòng chiếu"
@@ -1237,6 +1242,7 @@ function CinemaAndPromoSection() {
               ))}
             </Select>
           </Form.Item>
+
           <Form.Item
             name="startTime"
             label="Thời gian bắt đầu (Ngày giờ)"
@@ -1252,15 +1258,14 @@ function CinemaAndPromoSection() {
               }
             />
           </Form.Item>
+
           <div className="flex gap-4">
             <Form.Item
               name="basePrice"
               label="Giá vé cơ bản (VNĐ)"
               className="w-1/2"
-              rules={[
-                { required: true, message: "Nhập giá vé!" },
-                { type: "number", min: 1000 },
-              ]}
+              // 🔥 ĐÃ XÓA `type: "number"` ĐỂ KHÔNG BỊ XUNG ĐỘT VALIDATION NGẦM NỮA
+              rules={[{ required: true, message: "Nhập giá vé!" }]}
             >
               <InputNumber
                 min={1000 as number}
@@ -1270,13 +1275,13 @@ function CinemaAndPromoSection() {
                 formatter={(value) =>
                   `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
+                // 🔥 SỬ DỤNG REGEX /\D/g ĐỂ LỌC LẤY SỐ TUYỆT ĐỐI CHÍNH XÁC
                 parser={(value) =>
-                  (value
-                    ? value.replace(/\$\s?|(,*)/g, "")
-                    : "") as unknown as number
+                  value ? (Number(value.replace(/\D/g, "")) as any) : 0
                 }
               />
             </Form.Item>
+
             <Form.Item
               name="format"
               label="Định dạng hình ảnh"
@@ -1501,6 +1506,8 @@ export function CgvHomePage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const { role } = useAuthSession();
 
+  const isAdmin = String(role).toUpperCase().includes("ADMIN");
+
   // ====================================================================
   // 🔥 MÁY HÚT BỤI: DỌN SẠCH CÁC PHIÊN ĐẶT VÉ CŨ KHI USER VỀ TRANG CHỦ
   // ====================================================================
@@ -1543,7 +1550,7 @@ export function CgvHomePage() {
           {/* BANNER TỰ ĐỘNG LẤY TỪ DB */}
           <div className="px-4 sm:px-6 pt-6 relative group">
             {/* NÚT QUẢN LÝ CHO ADMIN */}
-            {role === "admin" && (
+            {isAdmin && (
               <div className="absolute top-10 right-10 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Button
                   type="primary"
@@ -1593,7 +1600,7 @@ export function CgvHomePage() {
                   <p className="text-lg font-semibold">
                     Chưa có banner nào được kích hoạt
                   </p>
-                  {role === "admin" && (
+                  {isAdmin && (
                     <p className="mt-2">
                       Bấm "Quản lý Banner" ở góc phải để thêm mới.
                     </p>
@@ -1640,7 +1647,7 @@ export function CgvHomePage() {
       </SiteShell>
 
       {/* NHÚNG MODAL QUẢN LÝ VÀO GIAO DIỆN */}
-      {role === "admin" && (
+      {isAdmin && (
         <BannerManagerModal
           open={isManageModalOpen}
           onCancel={() => setIsManageModalOpen(false)}

@@ -64,10 +64,6 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setAvatarUrl(DEFAULT_AVATAR_KEY); // Dùng hằng số
 
-        if (user.getFullName() != null && !user.getFullName().isEmpty()) {
-            user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
-        }
-
         HashSet<Role> roles = new HashSet<>();
         roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
         user.setRoles(roles);
@@ -128,9 +124,6 @@ public class UserService {
         // 🔥 GỌI HÀM MAP MỚI TẠO Ở UserMapper
         userMapper.updateUserFromRequest(user, request);
 
-        if (user.getFullName() != null && !user.getFullName().isEmpty()) {
-            user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
-        }
 
         return buildUserResponse(userRepository.save(user));
     }

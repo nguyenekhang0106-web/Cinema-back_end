@@ -110,23 +110,56 @@ public class StatisticsService {
                 BookingStatus.PAID, PaymentStatus.SUCCESS, monthStart, monthEnd, cinemaId);
 
         double w1 = 0, w2 = 0, w3 = 0, w4 = 0;
+
         for (Object[] obj : rawData) {
             String dateStr = (String) obj[0]; // Có dạng "dd/MM"
             int day = Integer.parseInt(dateStr.substring(0, 2));
             double rev = obj[1] != null ? ((Number) obj[1]).doubleValue() : 0.0;
 
-            if (day >= 1 && day <= 7) w1 += rev;
-            else if (day >= 8 && day <= 14) w2 += rev;
-            else if (day >= 15 && day <= 21) w3 += rev;
-            else w4 += rev; // Từ ngày 22 đến cuối tháng
+            if (day >= 1 && day <= 7) {
+                w1 += rev;
+            } else if (day >= 8 && day <= 14) {
+                w2 += rev;
+            } else if (day >= 15 && day <= 21) {
+                w3 += rev;
+            } else {
+                w4 += rev; // Từ ngày 22 đến cuối tháng
+            }
         }
 
-        // 🔥 ÉP KIỂU <String, Object> ĐỂ TRÁNH LỖI BIÊN DỊCH
+        /*
+         * Công thức mục tiêu:
+         * targetRevenue = lastWeekRevenue * 1.1
+         *
+         * Tuần đầu tiên không có tuần trước trong cùng khoảng thống kê,
+         * nên tạm đặt mục tiêu bằng chính doanh thu tuần đó.
+         */
+        double targetW1 = w1;
+        double targetW2 = Math.round(w1 * 1.1);
+        double targetW3 = Math.round(w2 * 1.1);
+        double targetW4 = Math.round(w3 * 1.1);
+
         return List.of(
-                Map.<String, Object>of("period", String.format("01/%02d/%04d - 07/%02d/%04d", month, year, month, year), "revenue", w1, "target", 300000000.0),
-                Map.<String, Object>of("period", String.format("08/%02d/%04d - 14/%02d/%04d", month, year, month, year), "revenue", w2, "target", 320000000.0),
-                Map.<String, Object>of("period", String.format("15/%02d/%04d - 21/%02d/%04d", month, year, month, year), "revenue", w3, "target", 350000000.0),
-                Map.<String, Object>of("period", String.format("22/%02d/%04d - %02d/%02d/%04d", month, year, lastDayOfMonth, month, year), "revenue", w4, "target", 400000000.0)
+                Map.<String, Object>of(
+                        "period", String.format("01/%02d/%04d - 07/%02d/%04d", month, year, month, year),
+                        "revenue", w1,
+                        "target", targetW1
+                ),
+                Map.<String, Object>of(
+                        "period", String.format("08/%02d/%04d - 14/%02d/%04d", month, year, month, year),
+                        "revenue", w2,
+                        "target", targetW2
+                ),
+                Map.<String, Object>of(
+                        "period", String.format("15/%02d/%04d - 21/%02d/%04d", month, year, month, year),
+                        "revenue", w3,
+                        "target", targetW3
+                ),
+                Map.<String, Object>of(
+                        "period", String.format("22/%02d/%04d - %02d/%02d/%04d", month, year, lastDayOfMonth, month, year),
+                        "revenue", w4,
+                        "target", targetW4
+                )
         );
     }
 

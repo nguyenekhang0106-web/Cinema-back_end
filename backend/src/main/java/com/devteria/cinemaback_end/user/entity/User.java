@@ -71,10 +71,6 @@ public class User {
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cinema_id", nullable = true)
-    Cinema cinema;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",

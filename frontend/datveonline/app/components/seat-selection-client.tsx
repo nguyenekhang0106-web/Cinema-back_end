@@ -45,7 +45,8 @@ import { Client } from "@stomp/stompjs";
 export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
   const locale = useLocale();
   const router = useRouter();
-  const { token } = useAuthSession();
+  const { token, role } = useAuthSession(); // 🔥 Lấy thêm role
+  const isAdmin = String(role).toUpperCase().includes("ADMIN"); // 🔥 Kiểm tra quyền Admin
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [memberTier, setMemberTier] = useState("BASIC");
 
@@ -1093,7 +1094,6 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
                 disabled={currentStep === 0}
                 onClick={goBack}
               >
-                {/* 🔥 HIỂN THỊ CHỮ "VỀ TRANG CHỦ" KHI ĐANG Ở BƯỚC XUẤT VÉ */}
                 {currentStep === 4
                   ? locale === "vi"
                     ? "Về Trang Chủ"
@@ -1102,22 +1102,25 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
               </Button>
 
               {currentStep < 4 ? (
-                <Button
-                  size="large"
-                  type="primary"
-                  icon={
-                    currentStep === 3 ? (
-                      <CheckCircleOutlined />
-                    ) : (
-                      <CreditCardOutlined />
-                    )
-                  }
-                  disabled={currentStep === 0 && selectedSeats.length === 0}
-                  onClick={goNext}
-                  className="bg-[#a61d24]"
-                >
-                  {currentStep === 3 ? "Thanh toán qua VNPay" : copy.next}
-                </Button>
+                // 🔥 NẾU LÀ ADMIN THÌ ẨN LUÔN NÚT TIẾP TỤC
+                !isAdmin && (
+                  <Button
+                    size="large"
+                    type="primary"
+                    icon={
+                      currentStep === 3 ? (
+                        <CheckCircleOutlined />
+                      ) : (
+                        <CreditCardOutlined />
+                      )
+                    }
+                    disabled={currentStep === 0 && selectedSeats.length === 0}
+                    onClick={goNext}
+                    className="bg-[#a61d24]"
+                  >
+                    {currentStep === 3 ? "Thanh toán qua VNPay" : copy.next}
+                  </Button>
+                )
               ) : (
                 // 🔥 THÊM NÚT ĐẶT THÊM VÉ (RESET TRẠNG THÁI VỀ BƯỚC 0)
                 <Button
@@ -1184,6 +1187,7 @@ function SeatStep({
   dynamicRows,
   selectedSeats,
   toggleSeat,
+  isAdmin, // 🔥 1. BỔ SUNG THÊM isAdmin VÀO ĐÂY
 }: any) {
   return (
     <Space direction="vertical" size={18} className="w-full">
@@ -1229,9 +1233,11 @@ function SeatStep({
                         <button
                           key={seatObj.seat}
                           type="button"
-                          disabled={seatObj.disabled}
+                          // 🔥 2. CHẶN CLICK NẾU LÀ ADMIN
+                          disabled={seatObj.disabled || isAdmin}
                           onClick={() => toggleSeat(seatObj.seat)}
-                          className={`h-9 w-9 shrink-0 rounded-t-lg border-2 text-[10px] transition-all ${seatClass}`}
+                          // 🔥 3. THÊM STYLE CON TRỎ CHUỘT BỊ CHẶN CHO ADMIN
+                          className={`h-9 w-9 shrink-0 rounded-t-lg border-2 text-[10px] transition-all ${seatClass} ${isAdmin ? "cursor-not-allowed" : ""}`}
                         >
                           {seatObj.seat}
                         </button>

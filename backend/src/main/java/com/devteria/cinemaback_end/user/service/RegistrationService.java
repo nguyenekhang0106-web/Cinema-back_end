@@ -46,49 +46,95 @@ public class RegistrationService {
      * Phase 2: Send OTP via email
      */
     @Transactional
-    public OtpResponse register(UserRequest request) { // 🔥 Trả thẳng DTO, việc gói bằng ApiResponse nên để Controller làm
+    public OtpResponse register(UserRequest request) {
         String normalizedEmail = normalize(request.getEmail());
 
-        try {
-            // CHECK 1: Email already verified?
-            Optional<User> existingUser = userRepository.findByEmail(normalizedEmail);
-            if (existingUser.isPresent() && existingUser.get().isEmailVerified()) {
+        // BƯỚC 1: KIỂM TRA EMAIL ĐÃ TỒN TẠI HAY CHƯA
+        Optional<User> existingUserOpt = userRepository.findByEmail(normalizedEmail);
+
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+
+            // 1.1 Nếu đã xác thực -> Chặn luôn, báo lỗi đã tồn tại
+            if (existingUser.isEmailVerified()) {
                 throw new AppException(ErrorCode.EMAIL_EXISTED);
             }
 
-            // If user exists but not verified, delete old record
-            if (existingUser.isPresent() && !existingUser.get().isEmailVerified()) {
-                userRepository.delete(existingUser.get());
-                log.info("Deleted unverified user: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail));
+            // 1.2 Nếu CHƯA xác thực -> Cập nhật thông tin mới nhất (nhỡ user đổi tên, Pass, số ĐT)
+            if (request.getPhone() != null
+                    && !request.getPhone().equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(request.getPhone())) {
+                throw new AppException(ErrorCode.PHONE_EXISTED);
+            }
+            if (request.getCitizenIdNumber() != null
+                    && !request.getCitizenIdNumber().equals(existingUser.getCitizenIdNumber())
+                    && userRepository.existsByCitizenIdNumber(request.getCitizenIdNumber())) {
+                throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
             }
 
-            // STEP 1: Create new user (emailVerified = false)
+            existingUser.setFullName(request.getFullName());
+            existingUser.setPhone(request.getPhone());
+            existingUser.setPassword(passwordEncoder.encode(request.getPassword()));
+            if(request.getCitizenIdNumber() != null) {
+                existingUser.setCitizenIdNumber(request.getCitizenIdNumber());
+            }
+            userRepository.save(existingUser);
+            log.info("Updated unverified user info: {}", normalizedEmail);
+
+            // 1.3 Kiểm tra xem OTP cũ còn hạn chống Spam không
+            long cooldown = registrationOtpService.getResendCooldownRemaining(normalizedEmail);
+
+            if (cooldown > 0) {
+                // OTP vẫn còn hạn đếm ngược -> Báo FE chuyển sang form OTP, tiếp tục chạy đồng hồ
+                return OtpResponse.builder()
+                        .message("Mã OTP đã được gửi trước đó. Vui lòng kiểm tra email!")
+                        .resendCooldownSeconds(cooldown) // Trả về số giây còn lại
+                        .remainingAttempts(3)
+                        .registrationExpiryMinutes(7L * 24 * 60)
+                        .build();
+            } else {
+                // Đã hết thời gian chờ -> Coi như Resend OTP, gửi lại mã mới
+                registrationOtpService.sendOtp(normalizedEmail, existingUser.getFullName());
+                return OtpResponse.builder()
+                        .message("Mã OTP mới đã được gửi đến email của bạn.")
+                        .resendCooldownSeconds(300L) // Cooldown 5 phút theo cấu hình của bạn
+                        .remainingAttempts(3)
+                        .registrationExpiryMinutes(7L * 24 * 60)
+                        .build();
+            }
+        }
+
+        // BƯỚC 2: TRƯỜNG HỢP USER MỚI HOÀN TOÀN
+        if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
+            throw new AppException(ErrorCode.PHONE_EXISTED);
+        }
+        if (request.getCitizenIdNumber() != null && userRepository.existsByCitizenIdNumber(request.getCitizenIdNumber())) {
+            throw new AppException(ErrorCode.CITIZEN_ID_EXISTED);
+        }
+
+        try {
+            // Khởi tạo User mới
             User user = userMapper.toUser(request);
+            user.setEmail(normalizedEmail);
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setEmailVerified(false);
-            user.setAvatarUrl(DEFAULT_AVATAR_KEY); // 🔥 Dùng hằng số
-
-            // 🔥 ĐỒNG BỘ: Chống XSS cho FullName
-            if (user.getFullName() != null && !user.getFullName().isEmpty()) {
-                user.setFullName(StringEscapeUtils.escapeHtml4(user.getFullName()));
-            }
+            user.setAvatarUrl(DEFAULT_AVATAR_KEY);
 
             HashSet<Role> roles = new HashSet<>();
             roleRepository.findByName(RoleName.USER).ifPresent(roles::add);
             user.setRoles(roles);
 
-            userRepository.save(user); // Spring Data JPA tự động cập nhật lại ID vào biến 'user'
+            userRepository.save(user);
             log.info("New user created: {} [hash: {}]", normalizedEmail, SecurityUtils.hashSensitiveData(normalizedEmail));
 
-            // STEP 2: Send OTP
-            registrationOtpService.sendOtp(request.getEmail(), user.getFullName());
+            // Gửi OTP lần đầu
+            registrationOtpService.sendOtp(normalizedEmail, user.getFullName());
 
-            // Build response
             return OtpResponse.builder()
                     .message("Mã OTP đã được gửi đến email của bạn. Vui lòng nhập để xác thực.")
                     .remainingAttempts(3)
-                    .resendCooldownSeconds(0L)
-                    .registrationExpiryMinutes(7L * 24 * 60) // 7 days
+                    .resendCooldownSeconds(300L) // Set cứng 300s (5 phút) cho lần gửi đầu tiên
+                    .registrationExpiryMinutes(7L * 24 * 60)
                     .build();
 
         } catch (DataIntegrityViolationException e) {
@@ -105,11 +151,8 @@ public class RegistrationService {
             throw e;
         } catch (Exception e) {
             log.error("Registration failed for: {}", normalizedEmail, e);
-
-            // 🔥 ĐỒNG BỘ: DB đã được @Transactional tự động Rollback, ta chỉ cần dọn dẹp Redis
             registrationOtpService.cleanupOtpKeys(normalizedEmail);
-
-            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION, "Đăng ký thất bại");
         }
     }
 

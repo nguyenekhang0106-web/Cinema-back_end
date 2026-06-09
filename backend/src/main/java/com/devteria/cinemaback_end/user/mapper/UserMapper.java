@@ -15,7 +15,6 @@ public interface UserMapper {
     @Mapping(target = "memberTier", ignore = true)
     @Mapping(target = "totalRewardPoints", ignore = true)
     @Mapping(target = "roles", ignore = true)
-    @Mapping(target = "cinema", ignore = true)
     @Mapping(target = "emailVerified", ignore = true)
     User toUser(UserRequest request);
 
@@ -26,7 +25,6 @@ public interface UserMapper {
     @Mapping(target = "memberTier", ignore = true)
     @Mapping(target = "totalRewardPoints", ignore = true)
     @Mapping(target = "roles", ignore = true)
-    @Mapping(target = "cinema", ignore = true)
     @Mapping(target = "emailVerified", ignore = true)
     void updateUser(@MappingTarget User user, UserRequest request);
 
@@ -37,7 +35,6 @@ public interface UserMapper {
     @Mapping(target = "memberTier", ignore = true)
     @Mapping(target = "totalRewardPoints", ignore = true)
     @Mapping(target = "roles", ignore = true)
-    @Mapping(target = "cinema", ignore = true)
     @Mapping(target = "emailVerified", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
     void updateUserFromRequest(@MappingTarget User user, UserUpdateRequest request);

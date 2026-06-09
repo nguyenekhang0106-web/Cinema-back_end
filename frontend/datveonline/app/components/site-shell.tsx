@@ -25,6 +25,40 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
     normalizedPathname.includes("/admin") ||
     String(role).toUpperCase().includes("ADMIN");
 
+  const footerText =
+    locale === "en"
+      ? {
+          project: "Online movie ticket booking system",
+          course: "Software Engineering Project",
+          university:
+            "University of Science and Technology - The University of Danang",
+          members: "Team Members",
+          tech: "Technologies",
+          support: "Customer Support",
+          hotline: "Hotline",
+          email: "Support email",
+          address: "Administrative Center",
+          addressValue: "57 Nguyen Luong Bang, Lien Chieu, Da Nang, Vietnam",
+          copyright:
+            "Software Engineering Project - University of Science and Technology, The University of Danang",
+          team: "Team",
+        }
+      : {
+          project: "Hệ thống đặt vé xem phim trực tuyến",
+          course: "Đồ án Công nghệ phần mềm",
+          university: "Trường Đại học Bách Khoa - Đại học Đà Nẵng",
+          members: "Thành viên thực hiện",
+          tech: "Công nghệ sử dụng",
+          support: "Chăm sóc khách hàng",
+          hotline: "Hotline",
+          email: "Email hỗ trợ",
+          address: "Trung tâm hành chính",
+          addressValue:
+            "57 Nguyễn Lương Bằng - Liên Chiểu - Đà Nẵng - Việt Nam",
+          copyright: "Đồ án Công nghệ phần mềm - Đại học Bách Khoa Đà Nẵng",
+          team: "Nhóm thực hiện",
+        };
+
   return (
     <>
       <CgvHeader />
@@ -33,57 +67,62 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
       <footer className="cinema-footer mt-12 px-0 py-10 text-white">
         <div className="cinema-shell px-4 sm:px-6">
-          <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+          <div className="grid gap-8 md:grid-cols-4">
             <div>
               <h3 className="text-2xl font-bold">KCT Cinema</h3>
-              <p className="mt-3 text-white/80">
-                {dictionary.footer.description}
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-[#f9d36b]">
-                {dictionary.footer.navigation}
-              </h4>
-
-              <div className="mt-3 flex flex-col gap-2">
-                {dictionary.header.nav.slice(0, 3).map((item) => (
-                  <Link
-                    key={item.href}
-                    href={localizeHref(item.href, locale)}
-                    className="text-white/80 hover:text-white"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
-                <Link
-                  href={localizeHref("/dang-nhap", locale)}
-                  className="text-white/80 hover:text-white"
-                >
-                  {dictionary.header.login}
-                </Link>
+              <div className="mt-3 flex flex-col gap-3 text-white/80">
+                <span>{footerText.project}</span>
+                <span>{footerText.course}</span>
+                <span>{footerText.university}</span>
               </div>
             </div>
 
             <div>
               <h4 className="text-lg font-semibold text-[#f9d36b]">
-                {dictionary.footer.availableParts}
+                {footerText.members}
               </h4>
-
               <div className="mt-3 flex flex-col gap-2 text-white/80">
-                {dictionary.footer.items.map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
+                <span>Nguyễn Mạnh Cường</span>
+                <span>Vương Quốc Trung</span>
+                <span>Đinh Huỳnh Nguyên Khang</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-[#f9d36b]">
+                {footerText.support}
+              </h4>
+              <div className="mt-3 flex flex-col gap-2 text-white/80">
+                <span>{footerText.hotline}: 0774155608</span>
+                <span>{footerText.email}: kctcinemavietnam@gmail.com</span>
+                <span>
+                  {footerText.address}: {footerText.addressValue}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-[#f9d36b]">
+                {footerText.tech}
+              </h4>
+              <div className="mt-3 flex flex-col gap-2 text-white/80">
+                <span>Next.js</span>
+                <span>Spring Boot</span>
+                <span>MySQL</span>
+                <span>Redis</span>
+                <span>RabbitMQ</span>
+                <span>AWS S3</span>
               </div>
             </div>
           </div>
 
           <div className="mt-8 border-t border-white/20 pt-8 text-center text-sm text-white/60">
             <p>
-              &copy; {new Date().getFullYear()} KCT Cinema.{" "}
-              {(dictionary.footer as any).rights ||
-                "Bản quyền đã được bảo lưu."}
+              © {new Date().getFullYear()} KCT Cinema. {footerText.copyright}
+            </p>
+            <p className="mt-2">
+              {footerText.team}: Nguyễn Mạnh Cường - Vương Quốc Trung - Đinh
+              Huỳnh Nguyên Khang
             </p>
           </div>
         </div>

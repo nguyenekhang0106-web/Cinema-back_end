@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "./auth-session-provider";
 import { useDictionary, useLocale } from "./locale-provider";
 import { getLocaleSwitchHref, localizeHref } from "../lib/i18n";
+import { UserOutlined, GiftOutlined, HomeOutlined } from "@ant-design/icons"; // 🔥 Bổ sung import icon UserOutlined
 
 export function CgvHeader() {
   const { message } = App.useApp();
@@ -14,7 +15,10 @@ export function CgvHeader() {
   const dictionary = useDictionary();
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, loading, role, signOut } = useAuthSession();
+  // 🔥 Lấy thêm biến 'user' để hiển thị tên
+  const { isAuthenticated, loading, role, user, signOut } = useAuthSession();
+
+  const isAdmin = String(role).toUpperCase().includes("ADMIN");
 
   // 🔥 Định nghĩa Menu Dropdown cho mục "Ưu đãi thành viên"
   const memberMenuItems: MenuProps["items"] = [
@@ -82,7 +86,7 @@ export function CgvHeader() {
     );
   };
 
-  const dashboardHref = role === "admin" ? "/admin" : "/user";
+  const dashboardHref = isAdmin ? "/admin" : "/user";
 
   const handleSignOut = () => {
     signOut();
@@ -101,25 +105,27 @@ export function CgvHeader() {
       <div className="cinema-top-stripe text-white">
         <div className="cinema-shell flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
-            {topLinks.map((item) => (
-              // 🔥 Bọc Link bằng Dropdown để hiển thị Menu con khi Hover
-              <Dropdown
-                key={item.href}
-                menu={{ items: memberMenuItems }}
-                placement="bottomLeft"
-                arrow={{ pointAtCenter: true }}
-              >
-                <Link
-                  href={localizeHref(item.href, locale)}
-                  onClick={(event) =>
-                    handleProtectedNavigation(event, item.href)
-                  }
-                  className="rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+            {!isAdmin &&
+              topLinks.map((item) => (
+                <Dropdown
+                  key={item.href}
+                  menu={{ items: memberMenuItems }}
+                  placement="bottomLeft"
+                  arrow={{ pointAtCenter: true }}
                 >
-                  {item.label}
-                </Link>
-              </Dropdown>
-            ))}
+                  <Link
+                    href={localizeHref(item.href, locale)}
+                    onClick={(event) =>
+                      handleProtectedNavigation(event, item.href)
+                    }
+                    className="flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+                  >
+                    {/* 🔥 1. Thêm Icon Hộp quà cho Ưu đãi thành viên */}
+                    <GiftOutlined className="text-base" />
+                    {item.label}
+                  </Link>
+                </Dropdown>
+              ))}
             <span className="rounded-full border border-white/15 bg-black/10 px-3 py-1.5 text-white">
               <Link
                 href={getLocaleSwitchHref(pathname, "vi")}
@@ -141,16 +147,22 @@ export function CgvHeader() {
               <>
                 <Link
                   href={localizeHref(dashboardHref, locale)}
-                  className="rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+                  className="flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
                 >
-                  {role === "admin"
-                    ? locale === "vi"
-                      ? "Trang admin"
-                      : "Admin dashboard"
-                    : locale === "vi"
-                      ? "Tài khoản của tôi"
-                      : "My account"}
+                  {/* 🔥 Thêm Icon User */}
+                  <UserOutlined className="text-base" />
+
+                  {/* 🔥 Hiển thị Tên User in hoa, tự động cắt chữ nếu quá dài */}
+                  <span className="uppercase max-w-[120px] md:max-w-[200px] truncate">
+                    {isAdmin
+                      ? locale === "vi"
+                        ? "Trang admin"
+                        : "Admin dashboard"
+                      : user?.fullName ||
+                        (locale === "vi" ? "Tài khoản" : "Account")}
+                  </span>
                 </Link>
+
                 <button
                   type="button"
                   onClick={handleSignOut}
@@ -196,12 +208,14 @@ export function CgvHeader() {
                 </p>
               </div>
             </Link>
-            <Link
-              href={localizeHref("/thanh-vien", locale)}
-              className="hidden rounded-full border border-[#c89a2b] px-4 py-2 text-sm font-semibold text-[#4a3426] lg:inline-flex"
-            >
-              {dictionary.header.club}
-            </Link>
+            {!isAdmin && (
+              <Link
+                href={localizeHref("/thanh-vien", locale)}
+                className="hidden rounded-full border border-[#c89a2b] px-4 py-2 text-sm font-semibold text-[#4a3426] lg:inline-flex"
+              >
+                {dictionary.header.club}
+              </Link>
+            )}
           </div>
 
           <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
@@ -251,16 +265,30 @@ export function CgvHeader() {
                     locale === "vi" ? "Đánh giá & Tin tức" : "Reviews & News";
                 }
 
+                // 🔥 NẾU LÀ ADMIN: Bỏ qua không render (ẩn) 2 mục Thành viên và Tin tức
+                if (
+                  isAdmin &&
+                  (item.href === "/thanh-vien" || item.href === "/cultureplex")
+                ) {
+                  return null;
+                }
+
+                // (Nếu bạn có bọc thẻ Dropdown ở bước trước, hãy đảm bảo đặt đoạn kiểm tra này nằm trước phần return đó)
                 return (
                   <Link
                     key={item.href}
                     href={localizeHref(item.href, locale)}
-                    className={`transition-all duration-300 pb-1 transform origin-bottom ${
+                    // 🔥 Bổ sung thêm "flex items-center gap-1.5" để Icon và Chữ nằm ngang
+                    className={`flex items-center gap-1.5 transition-all duration-300 pb-1 transform origin-bottom ${
                       isActive(item.href)
                         ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110"
                         : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
                     }`}
                   >
+                    {/* 🔥 4. Nếu là menu Trang chủ thì hiện Icon */}
+                    {item.href === "/" && (
+                      <HomeOutlined className="text-lg mb-[2px]" />
+                    )}
                     {displayLabel}
                   </Link>
                 );
