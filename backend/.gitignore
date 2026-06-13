@@ -1,10 +1,36 @@
-../HELP.md
+# =========================
+# Maven / Java build
+# =========================
 target/
+*.jar
+*.war
+*.class
+
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.properties
+.env.local
+.env.production
+application-local.yml
+application-prod.yml
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+backend-run.log
+backend-run.err.log
+
+# =========================
+# Spring Tool Suite
+# =========================
 .apt_generated
 .classpath
 .factorypath
@@ -13,22 +39,54 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
+# =========================
+# IntelliJ
+# =========================
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# =========================
+# VSCode
+# =========================
+.vscode/
+
+# =========================
+# NetBeans
+# =========================
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
+
+# =========================
+# Gradle
+# =========================
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-.vscode/
-/.env.properties
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Node / Next.js frontend
+# (nếu frontend nằm chung repo)
+# =========================
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log
+pnpm-lock.yaml
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.swp

@@ -7,23 +7,21 @@ spring:
   config:
     import: optional:file:.env.properties
 
-  # 🔥 BỔ SUNG CẤU HÌNH UPLOAD FILE (Nâng mức trần lên 5MB cho khớp với S3Service)
   servlet:
     multipart:
-      max-file-size: 20MB      # Nâng lên 20MB
-      max-request-size: 20MB   # Nâng lên 20MB
+      max-file-size: 20MB
+      max-request-size: 20MB
 
   data:
     redis:
-      host: localhost
-      port: 6379
-      # password: # bật nếu Redis có mật khẩu
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
     publisher-confirm-type: correlated
     publisher-returns: true
     listener:
@@ -32,26 +30,23 @@ spring:
         default-requeue-rejected: false
 
   datasource:
-    # Tham số createDatabaseIfNotExist=true sẽ ra lệnh cho MySQL tự tạo database nếu nó chưa tồn tại
-    url: "jdbc:mysql://localhost:3308/cinema_db?createDatabaseIfNotExist=true"
-    username: root
-    password: root
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
       format_sql: true
       ddl-auto: update
-      #ddl-auto: create # dùng khi cần xóa trắng và tạo lại bảng từ đầu
     show-sql: true
 
 jwt:
-  signerKey: "03c932a1642650fff48b9a8011929cfae0e31a62c4b23b23e9c062dbe3cad3c3"
-  valid-duration: 3600 # in seconds
-  refreshable-duration: 86400 # in seconds
+  signerKey: ${JWT_SIGNER_KEY}
+  valid-duration: ${JWT_VALID_DURATION:3600}
+  refreshable-duration: ${JWT_REFRESHABLE_DURATION:86400}
 
 app:
-  # TTL mã 6 số xác thực email (lưu trong Redis, key prefix cinema:email-verify:)
-  email-verification-ttl-minutes: 15
+  email-verification-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:15}
   rabbitmq:
     booking-paid-exchange: cinema.booking.exchange
     booking-paid-queue: cinema.booking.paid.queue
@@ -78,20 +73,19 @@ app:
 
 payment:
   vnpay:
-    pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-    tmn-code: 04OJW2NY
-    hash-secret: 0IBHWHW7AYDUVWMCH7J3XUOZ2F6UEQWY
-    # 🔥 ĐỔI THÀNH LINK FRONTEND NÀY:
-    return-url: http://localhost:3000/vnpay-return
+    pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    tmn-code: ${VNPAY_TMN_CODE}
+    hash-secret: ${VNPAY_HASH_SECRET}
+    return-url: ${VNPAY_RETURN_URL}
     version: "2.1.0"
     command: pay
     order-type: other
 
 mail:
-  host: smtp.gmail.com
-  port: 587
-  username: kctcinemavietnam@gmail.com
-  password: wrkbjtkzdarhlasc
+  host: ${MAIL_HOST:smtp.gmail.com}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME}
+  password: ${MAIL_PASSWORD}
   properties:
     mail:
       smtp:
@@ -105,8 +99,8 @@ cloud:
       access-key: ${AWS_ACCESS_KEY}
       secret-key: ${AWS_SECRET_KEY}
     region:
-      static: ap-southeast-2
+      static: ${AWS_REGION:ap-southeast-2}
 
 aws:
   bucket:
-    name: cinemapbl3
+    name: ${AWS_BUCKET_NAME}
