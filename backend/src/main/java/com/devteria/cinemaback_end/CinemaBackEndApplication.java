@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class CinemaBackEndApplication {
+public class    CinemaBackEndApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(CinemaBackEndApplication.class, args);
