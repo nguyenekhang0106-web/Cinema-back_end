@@ -67,6 +67,13 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> request
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // 🔥 MỞ PUBLIC CHO SOCKJS / WEBSOCKET
+                // SockJS sẽ gọi GET /ws/info và một số request phụ khác.
+                // Đặt ở đây để không bị JWT filter chặn trước khi vào endpoint websocket.
+                .requestMatchers("/ws").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+
                 .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                 .anyRequest().authenticated());

@@ -60,6 +60,7 @@ public class ArticleService {
     }
 
     // PUBLIC: Chỉ lấy những bài đã xuất bản
+    @Transactional(readOnly = true)
     public List<ArticleResponse> getPublishedArticles(ArticleType type) {
         if (type != null) {
             return articleRepository.findByTypeAndStatusOrderByPublishDateDesc(type, ArticleStatus.PUBLISHED).stream()
@@ -70,6 +71,7 @@ public class ArticleService {
     }
 
     // ADMIN: Lấy tất cả bài viết (Bao gồm nháp, ẩn)
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     public List<ArticleResponse> getAllArticlesForAdmin() {
         return articleRepository.findAll().stream()
@@ -77,6 +79,7 @@ public class ArticleService {
     }
 
     // PUBLIC: Lấy chi tiết 1 bài viết
+    @Transactional(readOnly = true)
     public ArticleResponse getArticleById(String id) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
