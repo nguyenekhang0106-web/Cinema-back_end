@@ -66,14 +66,27 @@ public class EmailSenderService {
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.starttls.required", "true");
         props.put("mail.smtp.ssl.trust", host);
-        props.put("mail.smtp.connectiontimeout", "10000");
-        props.put("mail.smtp.timeout", "10000");
-        props.put("mail.smtp.writetimeout", "10000");
+        props.put("mail.smtp.connectiontimeout", "30000");
+        props.put("mail.smtp.timeout", "30000");
+        props.put("mail.smtp.writetimeout", "30000");
 
-        log.info("[Mail] SMTP configured host={}, port={}, username={}", host, port, username);
+        // Gmail supports both:
+        // - port 587 with STARTTLS
+        // - port 465 with implicit SSL
+        // Render can occasionally time out on one route, so this config supports switching by MAIL_PORT.
+        if (port == 465) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "false");
+            props.put("mail.smtp.starttls.required", "false");
+        } else {
+            props.put("mail.smtp.ssl.enable", "false");
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
+
+        log.info("[Mail] SMTP configured host={}, port={}, username={}, ssl={}",
+                host, port, username, port == 465);
     }
 
     public void sendVerificationCode(String toEmail, String fullName, String sixDigitCode) {
