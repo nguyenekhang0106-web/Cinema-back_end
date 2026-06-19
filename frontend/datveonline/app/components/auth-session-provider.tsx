@@ -5,6 +5,10 @@ import { useRouter, usePathname } from "next/navigation";
 import { type AuthRole, type AuthUser } from "../lib/cinema-api";
 import { App } from "antd";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 type AuthSession = {
   isAuthenticated: boolean;
   role: AuthRole | null;
@@ -190,14 +194,11 @@ export function AuthSessionProvider({
           sessionStorage.setItem("is_refreshing_token", "true");
 
           try {
-            const res = await fetch(
-              "http://localhost:9090/cinema/auth/refresh",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: token }),
-              },
-            );
+            const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: token }),
+            });
 
             if (res.ok) {
               const data = await res.json();

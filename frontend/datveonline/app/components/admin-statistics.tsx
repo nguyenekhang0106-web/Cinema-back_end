@@ -32,6 +32,10 @@ import ConcessionAnalytics from "./admin/concession-analytics";
 // 🔥 IMPORT HOOK ĐA NGÔN NGỮ
 import { useLocale } from "./locale-provider";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 const { Content } = Layout;
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -124,7 +128,7 @@ export default function AdminStatistics() {
   useEffect(() => {
     const fetchCinemas = async () => {
       try {
-        const res = await fetch("http://localhost:9090/cinema/cinemas");
+        const res = await fetch(`${API_BASE_URL}/cinemas`);
         const data = await res.json();
         if (data.code === 1000 && data.result) {
           const realTheaters = data.result.map((c: any) => ({

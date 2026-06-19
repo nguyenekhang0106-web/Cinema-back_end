@@ -17,6 +17,12 @@ import {
 } from "recharts";
 import dayjs, { Dayjs } from "dayjs";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
+const STATISTICS_API_BASE_URL = `${API_BASE_URL}/statistics`;
+
 interface TheaterAnalyticsProps {
   selectedTheater: string;
   dateRange?: [Dayjs, Dayjs] | null; // Nhận thêm dateRange từ component cha
@@ -67,7 +73,7 @@ export default function TheaterAnalytics({
         const headers: any = {};
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const baseUrl = "http://localhost:9090/cinema/statistics";
+        const baseUrl = STATISTICS_API_BASE_URL;
 
         // Gọi 3 API cùng lúc
         const [resCinema, resHall, resSeat] = await Promise.all([

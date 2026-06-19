@@ -42,6 +42,10 @@ import Link from "next/link";
 import { localizeHref } from "../lib/i18n";
 import { useLocale } from "../components/locale-provider";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 const cityMapVi: Record<string, string> = {
   HA_NOI: "Hà Nội",
   TUYEN_QUANG: "Tuyên Quang",
@@ -221,7 +225,7 @@ export default function CinemaPricingPage() {
   const fetchMoviesList = async () => {
     setIsFetchingMovies(true);
     try {
-      const res = await fetch(`http://localhost:9090/cinema/movies`);
+      const res = await fetch(`${API_BASE_URL}/movies`);
       if (res.ok) {
         const data = await res.json();
         setMoviesList(data.result || []);
@@ -244,16 +248,14 @@ export default function CinemaPricingPage() {
     setIsFetchingShowtimes(true);
     try {
       // 1. Load Halls
-      const hallsRes = await fetch(
-        `http://localhost:9090/cinema/halls/cinema/${cinemaId}`,
-      );
+      const hallsRes = await fetch(`${API_BASE_URL}/halls/cinema/${cinemaId}`);
       const hallsData = await hallsRes.json();
       const fetchedHalls = hallsData.result || [];
       setCinemaHallsForShowtimes(fetchedHalls);
       const hallIds = fetchedHalls.map((h: any) => h.id);
 
       // 2. Load Showtimes (Lấy từ Database)
-      const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
+      const stRes = await fetch(`${API_BASE_URL}/showtimes`);
       if (stRes.ok) {
         const stData = await stRes.json();
         const allShowtimes = stData.result || [];
@@ -283,8 +285,8 @@ export default function CinemaPricingPage() {
 
       // SỬA Ở ĐÂY: Admin sẽ lấy link /all để thấy cả banner bị tắt
       const url = isAdmin
-        ? `http://localhost:9090/cinema/banners/cinema/${cinemaId}/all`
-        : `http://localhost:9090/cinema/banners/cinema/${cinemaId}`;
+        ? `${API_BASE_URL}/banners/cinema/${cinemaId}/all`
+        : `${API_BASE_URL}/banners/cinema/${cinemaId}`;
 
       const res = await fetch(url, { headers });
       if (res.ok) {
@@ -330,7 +332,7 @@ export default function CinemaPricingPage() {
     try {
       const token = getAuthToken();
       if (!token) return;
-      const res = await fetch(`http://localhost:9090/cinema/banners/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/banners/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -352,8 +354,8 @@ export default function CinemaPricingPage() {
 
       const isUpdate = !!editingTheaterBanner;
       const url = isUpdate
-        ? `http://localhost:9090/cinema/banners/${editingTheaterBanner.id}`
-        : "http://localhost:9090/cinema/banners";
+        ? `${API_BASE_URL}/banners/${editingTheaterBanner.id}`
+        : `${API_BASE_URL}/banners`;
 
       // Đẩy cinemaId vào payload để Backend map vào đúng rạp
       const payload = {
@@ -456,13 +458,10 @@ export default function CinemaPricingPage() {
     const token = getAuthToken();
     if (!token) return;
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/showtimes/${showtimeId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/showtimes/${showtimeId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         message.success("Đã xóa suất chiếu thành công!");
         loadCinemaDetails(expandedCinemaId!);
@@ -480,8 +479,8 @@ export default function CinemaPricingPage() {
     if (!token) return;
     const isUpdate = !!editingShowtime;
     const url = isUpdate
-      ? `http://localhost:9090/cinema/showtimes/${editingShowtime.id}`
-      : `http://localhost:9090/cinema/showtimes`;
+      ? `${API_BASE_URL}/showtimes/${editingShowtime.id}`
+      : `${API_BASE_URL}/showtimes`;
 
     const payload = {
       ...values,
@@ -582,7 +581,7 @@ export default function CinemaPricingPage() {
   const handleDeleteCinema = async (id: string) => {
     const token = getAuthToken();
     try {
-      await fetch(`http://localhost:9090/cinema/cinemas/${id}`, {
+      await fetch(`${API_BASE_URL}/cinemas/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -593,8 +592,8 @@ export default function CinemaPricingPage() {
     const token = getAuthToken();
     const isUpdate = !!editingCinema;
     const url = isUpdate
-      ? `http://localhost:9090/cinema/cinemas/${editingCinema.id}`
-      : `http://localhost:9090/cinema/cinemas`;
+      ? `${API_BASE_URL}/cinemas/${editingCinema.id}`
+      : `${API_BASE_URL}/cinemas`;
     try {
       await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
@@ -612,9 +611,7 @@ export default function CinemaPricingPage() {
   const fetchHallsByCinema = async (cinemaId: string) => {
     setIsHallsLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/halls/cinema/${cinemaId}`,
-      );
+      const res = await fetch(`${API_BASE_URL}/halls/cinema/${cinemaId}`);
       const data = await res.json();
       setHalls(data.result || []);
     } catch (error) {
@@ -641,7 +638,7 @@ export default function CinemaPricingPage() {
   const handleDeleteHall = async (hallId: string) => {
     const token = getAuthToken();
     try {
-      await fetch(`http://localhost:9090/cinema/halls/${hallId}`, {
+      await fetch(`${API_BASE_URL}/halls/${hallId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -652,8 +649,8 @@ export default function CinemaPricingPage() {
     const token = getAuthToken();
     const isUpdate = !!editingHall;
     const url = isUpdate
-      ? `http://localhost:9090/cinema/halls/${editingHall.id}`
-      : `http://localhost:9090/cinema/halls`;
+      ? `${API_BASE_URL}/halls/${editingHall.id}`
+      : `${API_BASE_URL}/halls`;
     try {
       await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
@@ -674,9 +671,7 @@ export default function CinemaPricingPage() {
   const fetchSeatsForHall = async (hallId: string) => {
     setIsSeatsLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/seats/hall/${hallId}`,
-      );
+      const res = await fetch(`${API_BASE_URL}/seats/hall/${hallId}`);
       const data = await res.json();
       setSeats(data.result || []);
     } catch (error) {
@@ -692,7 +687,7 @@ export default function CinemaPricingPage() {
   const handleGenerateSeats = async (values: any) => {
     const token = getAuthToken();
     try {
-      await fetch(`http://localhost:9090/cinema/seats/batch`, {
+      await fetch(`${API_BASE_URL}/seats/batch`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -716,7 +711,7 @@ export default function CinemaPricingPage() {
   const handleSaveSeat = async (values: any) => {
     const token = getAuthToken();
     try {
-      await fetch(`http://localhost:9090/cinema/seats/${selectedSeat.id}`, {
+      await fetch(`${API_BASE_URL}/seats/${selectedSeat.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -737,7 +732,7 @@ export default function CinemaPricingPage() {
   const handleDeleteSeat = async () => {
     const token = getAuthToken();
     try {
-      await fetch(`http://localhost:9090/cinema/seats/${selectedSeat.id}`, {
+      await fetch(`${API_BASE_URL}/seats/${selectedSeat.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -749,10 +744,10 @@ export default function CinemaPricingPage() {
   const handleDeleteAllSeats = async () => {
     const token = getAuthToken();
     try {
-      await fetch(
-        `http://localhost:9090/cinema/seats/hall/${selectedHallForSeats.id}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
-      );
+      await fetch(`${API_BASE_URL}/seats/hall/${selectedHallForSeats.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchSeatsForHall(selectedHallForSeats.id);
       fetchHallsByCinema(selectedCinemaForHalls!.id);
     } catch (error) {}

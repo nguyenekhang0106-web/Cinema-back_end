@@ -47,6 +47,10 @@ import { useAuthSession } from "./auth-session-provider";
 import { SiteShell } from "./site-shell";
 import { useLocale } from "./locale-provider"; // 🔥 Dùng hook để lấy ngôn ngữ hiện tại
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 export function CultureplexUI() {
   const { token, role } = useAuthSession();
   const { message } = App.useApp();
@@ -141,9 +145,9 @@ export function CultureplexUI() {
 
     try {
       const [cinemasRes, hallsRes, showtimesRes] = await Promise.all([
-        fetch("http://localhost:9090/cinema/cinemas"),
-        fetch("http://localhost:9090/cinema/halls"),
-        fetch("http://localhost:9090/cinema/showtimes"),
+        fetch(`${API_BASE_URL}/cinemas`),
+        fetch(`${API_BASE_URL}/halls`),
+        fetch(`${API_BASE_URL}/showtimes`),
       ]);
 
       const cinemasData = await cinemasRes.json();
@@ -220,11 +224,11 @@ export function CultureplexUI() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const movieRes = await fetch("http://localhost:9090/cinema/movies");
+        const movieRes = await fetch(`${API_BASE_URL}/movies`);
         const movieData = await movieRes.json();
 
         // Đã xóa phần ?type=NEWS để lấy tất cả bài xuất bản
-        const articleRes = await fetch("http://localhost:9090/cinema/articles");
+        const articleRes = await fetch(`${API_BASE_URL}/articles`);
         const articleData = await articleRes.json();
 
         if (movieData.code === 1000) {
@@ -242,7 +246,7 @@ export function CultureplexUI() {
             visibleMovies.map(async (movie: any) => {
               try {
                 const statRes = await fetch(
-                  `http://localhost:9090/cinema/reviews/movie/${movie.id}/stats`,
+                  `${API_BASE_URL}/reviews/movie/${movie.id}/stats`,
                 );
 
                 const statData = await statRes.json();
@@ -252,7 +256,7 @@ export function CultureplexUI() {
                 }
 
                 const reactionRes = await fetch(
-                  `http://localhost:9090/cinema/movies/${movie.id}/reaction-stats`,
+                  `${API_BASE_URL}/movies/${movie.id}/reaction-stats`,
                   token
                     ? { headers: { Authorization: `Bearer ${token}` } }
                     : undefined,
@@ -309,9 +313,7 @@ export function CultureplexUI() {
 
     setLoadingReviews(true);
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/reviews/movie/${movieId}`,
-      );
+      const res = await fetch(`${API_BASE_URL}/reviews/movie/${movieId}`);
       const data = await res.json();
       if (data.code === 1000) {
         setMovieReviews((prev) => ({ ...prev, [movieId]: data.result }));
@@ -325,9 +327,7 @@ export function CultureplexUI() {
 
   const refreshMovieStats = async (movieId: string) => {
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/reviews/movie/${movieId}/stats`,
-      );
+      const res = await fetch(`${API_BASE_URL}/reviews/movie/${movieId}/stats`);
       const data = await res.json();
 
       if (data.code === 1000) {
@@ -361,7 +361,7 @@ export function CultureplexUI() {
     }
 
     try {
-      const res = await fetch("http://localhost:9090/cinema/reviews", {
+      const res = await fetch(`${API_BASE_URL}/reviews`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -391,9 +391,7 @@ export function CultureplexUI() {
         [movieId]: { ratingScore: 0, comment: "" },
       }));
 
-      const reviewRes = await fetch(
-        `http://localhost:9090/cinema/reviews/movie/${movieId}`,
-      );
+      const reviewRes = await fetch(`${API_BASE_URL}/reviews/movie/${movieId}`);
       const reviewData = await reviewRes.json();
 
       if (reviewData.code === 1000) {
@@ -425,7 +423,7 @@ export function CultureplexUI() {
 
     try {
       const res = await fetch(
-        `http://localhost:9090/cinema/reviews/${reviewId}/react?isLike=${isLike}`,
+        `${API_BASE_URL}/reviews/${reviewId}/react?isLike=${isLike}`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -466,7 +464,7 @@ export function CultureplexUI() {
     }
 
     const res = await fetch(
-      `http://localhost:9090/cinema/movies/${movieId}/react?isLike=${isLike}`,
+      `${API_BASE_URL}/movies/${movieId}/react?isLike=${isLike}`,
       {
         method: "POST",
         headers: {
@@ -515,8 +513,8 @@ export function CultureplexUI() {
     try {
       const url =
         articleModal.mode === "edit"
-          ? `http://localhost:9090/cinema/articles/${articleModal.editingId}`
-          : "http://localhost:9090/cinema/articles";
+          ? `${API_BASE_URL}/articles/${articleModal.editingId}`
+          : `${API_BASE_URL}/articles`;
 
       const res = await fetch(url, {
         method: articleModal.mode === "edit" ? "PUT" : "POST",
@@ -539,7 +537,7 @@ export function CultureplexUI() {
       articleForm.resetFields();
 
       // Gọi lại API để làm mới toàn bộ bài viết
-      const reload = await fetch("http://localhost:9090/cinema/articles");
+      const reload = await fetch(`${API_BASE_URL}/articles`);
       const reloadData = await reload.json();
       setArticles(reloadData.result || []);
     } catch (error: any) {
@@ -552,7 +550,7 @@ export function CultureplexUI() {
   const deleteArticle = async (id: string) => {
     if (!token) return;
 
-    await fetch(`http://localhost:9090/cinema/articles/${id}`, {
+    await fetch(`${API_BASE_URL}/articles/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

@@ -40,6 +40,10 @@ import { useAuthSession } from "./auth-session-provider";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 // 🔥 ĐÃ XÓA MẢNG memberPromos FAKE
 
 export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
@@ -164,7 +168,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         if (currentToken && bookingIdToCancel) {
           try {
             await fetch(
-              `http://localhost:9090/cinema/bookings/${bookingIdToCancel}/cancel`,
+              `${API_BASE_URL}/bookings/${bookingIdToCancel}/cancel`,
               {
                 method: "POST",
                 headers: { Authorization: `Bearer ${currentToken}` },
@@ -257,7 +261,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         localStorage.getItem("token") || sessionStorage.getItem("token");
       if (!currentToken) return;
 
-      fetch("http://localhost:9090/cinema/seats/hold", {
+      fetch(`${API_BASE_URL}/seats/hold`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -343,9 +347,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
 
     const fetchBookingDetails = async () => {
       try {
-        const stRes = await fetch(
-          `http://localhost:9090/cinema/showtimes/${showtimeId}`,
-        );
+        const stRes = await fetch(`${API_BASE_URL}/showtimes/${showtimeId}`);
         if (!stRes.ok) throw new Error("Không tìm thấy suất chiếu");
         const stData = await stRes.json();
         const showtimeInfo = stData.result;
@@ -376,47 +378,42 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         setShowtime(showtimeInfo);
 
         const movieRes = await fetch(
-          `http://localhost:9090/cinema/movies/${showtimeInfo.movieId}`,
+          `${API_BASE_URL}/movies/${showtimeInfo.movieId}`,
         );
         const movieData = await movieRes.json();
         setMovie(movieData.result);
 
         const hallRes = await fetch(
-          `http://localhost:9090/cinema/halls/${showtimeInfo.hallId}`,
+          `${API_BASE_URL}/halls/${showtimeInfo.hallId}`,
         );
         const hallData = await hallRes.json();
         setHallInfo(hallData.result);
 
         const seatsRes = await fetch(
-          `http://localhost:9090/cinema/seats/hall/${showtimeInfo.hallId}`,
+          `${API_BASE_URL}/seats/hall/${showtimeInfo.hallId}`,
         );
         const seatsData = await seatsRes.json();
         setDynamicSeats(seatsData.result || []);
 
         const statusRes = await fetch(
-          `http://localhost:9090/cinema/seats/status/${showtimeId}`,
+          `${API_BASE_URL}/seats/status/${showtimeId}`,
         );
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           setRealtimeLocks(statusData.result || {});
         }
 
-        const concessionsRes = await fetch(
-          `http://localhost:9090/cinema/concessions`,
-        );
+        const concessionsRes = await fetch(`${API_BASE_URL}/concessions`);
         if (concessionsRes.ok) {
           const concessionsData = await concessionsRes.json();
           setConcessions(concessionsData.result || []);
         }
 
-        const profileRes = await fetch(
-          "http://localhost:9090/cinema/users/myInfo",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+        const profileRes = await fetch(`${API_BASE_URL}/users/myInfo`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+        });
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
@@ -424,7 +421,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         }
 
         const promosRes = await fetch(
-          `http://localhost:9090/cinema/promotions/my-vouchers`,
+          `${API_BASE_URL}/promotions/my-vouchers`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -464,7 +461,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
 
   useEffect(() => {
     if (!showtimeId || isAuthChecking) return;
-    const socket = new SockJS("http://localhost:9090/cinema/ws");
+    const socket = new SockJS(`${API_BASE_URL}/ws`);
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -626,7 +623,7 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
       const selectedSeatIds = selectedSeats.map(
         (seatCode) => seatMap.find((s) => s.seat === seatCode)?.id,
       );
-      const res = await fetch("http://localhost:9090/cinema/seats/hold", {
+      const res = await fetch(`${API_BASE_URL}/seats/hold`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -757,22 +754,19 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
           .filter(([id, qty]) => (qty as number) > 0)
           .map(([id, qty]) => ({ concessionItemId: id, quantity: qty }));
 
-        const bookingRes = await fetch(
-          "http://localhost:9090/cinema/bookings",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${currentToken}`,
-            },
-            body: JSON.stringify({
-              showtimeId: showtimeId,
-              seatIds: selectedSeatIds,
-              concessions: concessionList,
-              promoCode: appliedPromo ? appliedPromo.discountCode : null,
-            }),
+        const bookingRes = await fetch(`${API_BASE_URL}/bookings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
           },
-        );
+          body: JSON.stringify({
+            showtimeId: showtimeId,
+            seatIds: selectedSeatIds,
+            concessions: concessionList,
+            promoCode: appliedPromo ? appliedPromo.discountCode : null,
+          }),
+        });
         const bookingData = await bookingRes.json();
         if (!bookingRes.ok || bookingData.code !== 1000)
           throw new Error(bookingData.message || "Lỗi tạo hóa đơn!");
@@ -792,17 +786,14 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
         );
 
         // 3. GỌI API LẤY URL VNPAY TỪ BACKEND
-        const vnpayRes = await fetch(
-          "http://localhost:9090/cinema/payments/vnpay/create",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${currentToken}`,
-            },
-            body: JSON.stringify({ bookingId: realBookingId, method: "VNPAY" }),
+        const vnpayRes = await fetch(`${API_BASE_URL}/payments/vnpay/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
           },
-        );
+          body: JSON.stringify({ bookingId: realBookingId, method: "VNPAY" }),
+        });
         const vnpayData = await vnpayRes.json();
         if (!vnpayRes.ok || vnpayData.code !== 1000)
           throw new Error(vnpayData.message || "Lỗi kết nối VNPay!");
@@ -842,13 +833,10 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
             token ||
             localStorage.getItem("token") ||
             sessionStorage.getItem("token");
-          fetch(
-            `http://localhost:9090/cinema/bookings/${parsed.bookingId}/cancel`,
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${currentToken}` },
-            },
-          ).catch(() => {});
+          fetch(`${API_BASE_URL}/bookings/${parsed.bookingId}/cancel`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${currentToken}` },
+          }).catch(() => {});
           sessionStorage.removeItem("kct_booking_state");
         }
       }

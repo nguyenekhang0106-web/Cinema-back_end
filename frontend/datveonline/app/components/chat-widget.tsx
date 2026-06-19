@@ -12,12 +12,16 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { useAuthSession } from "./auth-session-provider";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema";
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
 
 function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     if (!file.type.startsWith("image/")) {
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_CINEMA_API_URL ??
+        "http://localhost:9090/cinema";
       resolve(file);
       return;
     }

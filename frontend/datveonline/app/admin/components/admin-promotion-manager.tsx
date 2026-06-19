@@ -23,6 +23,10 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useAuthSession } from "../../components/auth-session-provider";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 const { RangePicker } = DatePicker;
 
 interface Promotion {
@@ -64,12 +68,9 @@ export function AdminPromotionManager({
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:9090/cinema/promotions/admin/all",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/promotions/admin/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (res.ok && data.code === 1000) {
         setPromotions(data.result);
@@ -125,7 +126,7 @@ export function AdminPromotionManager({
   const handleDelete = async (id: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:9090/cinema/promotions/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/promotions/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -156,8 +157,8 @@ export function AdminPromotionManager({
       delete payload.dateRange;
 
       const url = editingItem
-        ? `http://localhost:9090/cinema/promotions/${editingItem.id}`
-        : "http://localhost:9090/cinema/promotions";
+        ? `${API_BASE_URL}/promotions/${editingItem.id}`
+        : `${API_BASE_URL}/promotions`;
       const method = editingItem ? "PUT" : "POST";
 
       const res = await fetch(url, {

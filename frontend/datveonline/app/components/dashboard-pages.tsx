@@ -86,6 +86,10 @@ import { useDictionary, useLocale } from "./locale-provider";
 import { AdminConcessionManager } from "../admin/components/admin-concession-manager";
 import { AdminPromotionManager } from "../admin/components/admin-promotion-manager";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 type MovieStatus = "COMING_SOON" | "NOW_SHOWING" | "STOPPED";
 type ShowtimeStatus = "open" | "paused" | "soldout";
 type UserRole = "admin" | "user";
@@ -462,21 +466,19 @@ export function AdminDashboardPage() {
   const fetchDashboardShowtimesData = async () => {
     setLoadingShowtimesData(true);
     try {
-      const cinemasRes = await fetch("http://localhost:9090/cinema/cinemas");
+      const cinemasRes = await fetch(`${API_BASE_URL}/cinemas`);
       const cinemasData = await cinemasRes.json();
       const cinemasList = cinemasData.result || [];
       setAllCinemas(cinemasList);
 
       const hallsPromises = cinemasList.map((c: any) =>
-        fetch(`http://localhost:9090/cinema/halls/cinema/${c.id}`).then((r) =>
-          r.json(),
-        ),
+        fetch(`${API_BASE_URL}/halls/cinema/${c.id}`).then((r) => r.json()),
       );
       const hallsResults = await Promise.all(hallsPromises);
       const flattenedHalls = hallsResults.flatMap((hr) => hr.result || []);
       setAllHalls(flattenedHalls);
 
-      const stRes = await fetch("http://localhost:9090/cinema/showtimes");
+      const stRes = await fetch(`${API_BASE_URL}/showtimes`);
       const stData = await stRes.json();
       setRawShowtimes(stData.result || []);
     } catch (error) {
@@ -584,9 +586,7 @@ export function AdminDashboardPage() {
     setLoadingArticles(true);
 
     try {
-      const res = await authFetch(
-        "http://localhost:9090/cinema/articles/admin/all",
-      );
+      const res = await authFetch(`${API_BASE_URL}/articles/admin/all`);
 
       const data = await res.json();
 
@@ -1000,7 +1000,7 @@ export function AdminDashboardPage() {
   }
 
   async function removeArticle(id: string) {
-    const res = await authFetch(`http://localhost:9090/cinema/articles/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/articles/${id}`, {
       method: "DELETE",
     });
 
@@ -1164,8 +1164,8 @@ export function AdminDashboardPage() {
 
       const isEdit = showtimeModal.mode === "edit" && showtimeModal.editingKey;
       const url = isEdit
-        ? `http://localhost:9090/cinema/showtimes/${showtimeModal.editingKey}`
-        : `http://localhost:9090/cinema/showtimes`;
+        ? `${API_BASE_URL}/showtimes/${showtimeModal.editingKey}`
+        : `${API_BASE_URL}/showtimes`;
 
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
@@ -1224,13 +1224,10 @@ export function AdminDashboardPage() {
   async function cycleShowtimeStatus(key: string) {
     if (!token) return;
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/showtimes/${key}/cancel`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/showtimes/${key}/cancel`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         message.success("Đã hủy suất chiếu thành công!");
         fetchDashboardShowtimesData();
@@ -1250,7 +1247,7 @@ export function AdminDashboardPage() {
   async function removeShowtime(key: string) {
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:9090/cinema/showtimes/${key}`, {
+      const res = await fetch(`${API_BASE_URL}/showtimes/${key}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1294,8 +1291,8 @@ export function AdminDashboardPage() {
     const isEdit = articleModal.mode === "edit" && articleModal.editingKey;
 
     const url = isEdit
-      ? `http://localhost:9090/cinema/articles/${articleModal.editingKey}`
-      : "http://localhost:9090/cinema/articles";
+      ? `${API_BASE_URL}/articles/${articleModal.editingKey}`
+      : `${API_BASE_URL}/articles`;
 
     const res = await authFetch(url, {
       method: isEdit ? "PUT" : "POST",

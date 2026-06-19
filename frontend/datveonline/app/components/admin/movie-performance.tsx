@@ -16,6 +16,12 @@ import {
 } from "recharts";
 import dayjs, { Dayjs } from "dayjs";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
+const STATISTICS_API_BASE_URL = `${API_BASE_URL}/statistics`;
+
 interface MoviePerformanceProps {
   dateRange: [Dayjs, Dayjs] | null;
   selectedTheater: string;
@@ -66,7 +72,7 @@ export default function MoviePerformance({
         const headers: any = {};
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const baseUrl = "http://localhost:9090/cinema/statistics";
+        const baseUrl = STATISTICS_API_BASE_URL;
 
         const [resMovie, resHourly, resHall] = await Promise.all([
           fetch(

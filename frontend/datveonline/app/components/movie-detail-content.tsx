@@ -38,6 +38,10 @@ import {
   uploadMovieImagesApi,
 } from "../lib/cinema-api";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 // --- HÀM TẠO 7 NGÀY (Dùng chung cho Modal Lịch Chiếu) ---
 const generateDates = () => {
   const dates = [];
@@ -131,9 +135,9 @@ export function MovieDetailContent({ movie }: { movie: MovieItem }) {
     setIsLoadingData(true);
     try {
       const [cinemasRes, hallsRes, showtimesRes] = await Promise.all([
-        fetch("http://localhost:9090/cinema/cinemas"),
-        fetch("http://localhost:9090/cinema/halls"),
-        fetch("http://localhost:9090/cinema/showtimes"),
+        fetch(`${API_BASE_URL}/cinemas`),
+        fetch(`${API_BASE_URL}/halls`),
+        fetch(`${API_BASE_URL}/showtimes`),
       ]);
 
       if (cinemasRes.ok && hallsRes.ok && showtimesRes.ok) {

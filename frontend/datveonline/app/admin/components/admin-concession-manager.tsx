@@ -28,6 +28,10 @@ import {
 // Lấy Token chuẩn xác từ hệ thống
 import { useAuthSession } from "../../components/auth-session-provider";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 interface Concession {
   id: string;
   name: string;
@@ -59,12 +63,9 @@ export function AdminConcessionManager({
 
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:9090/cinema/concessions/admin/all",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/concessions/admin/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (res.ok && data.code === 1000) {
         setConcessions(data.result);
@@ -101,13 +102,10 @@ export function AdminConcessionManager({
   const handleDelete = async (id: string) => {
     if (!token) return;
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/concessions/${id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/concessions/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (res.ok && data.code === 1000) {
         message.success("Xóa món thành công!");
@@ -124,8 +122,8 @@ export function AdminConcessionManager({
     if (!token) return;
     try {
       const url = editingItem
-        ? `http://localhost:9090/cinema/concessions/${editingItem.id}`
-        : "http://localhost:9090/cinema/concessions";
+        ? `${API_BASE_URL}/concessions/${editingItem.id}`
+        : `${API_BASE_URL}/concessions`;
       const method = editingItem ? "PUT" : "POST";
 
       const res = await fetch(url, {

@@ -2,8 +2,9 @@ import { allMovies, type MovieItem, type ShowTime } from "../data/cgv-template";
 import { getLocalizedMovies } from "./localized-data";
 import { type Locale } from "./i18n";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema";
+export const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
 
 type ApiResponse<T> = {
   code?: number;
@@ -469,7 +470,7 @@ export interface BannerItem {
 
 export async function getActiveBanners(): Promise<BannerItem[]> {
   try {
-    const response = await fetch("http://localhost:9090/cinema/banners", {
+    const response = await fetch(`${API_BASE_URL}/banners`, {
       cache: "no-store", // 🔥 ĐÃ SỬA: Đổi revalidate thành no-store
     });
     if (!response.ok) return [];
@@ -492,7 +493,7 @@ export interface CinemaItem {
 
 export async function getCinemas(): Promise<CinemaItem[]> {
   try {
-    const res = await fetch("http://localhost:9090/cinema/cinemas", {
+    const res = await fetch(`${API_BASE_URL}/cinemas`, {
       cache: "no-store", // 🔥 ĐÃ SỬA: Đổi revalidate thành no-store
     });
 
@@ -510,7 +511,7 @@ export async function getCinemas(): Promise<CinemaItem[]> {
 }
 
 export async function getMyTicketsApi(token: string) {
-  const res = await fetch("http://localhost:9090/cinema/tickets/my-tickets", {
+  const res = await fetch(`${API_BASE_URL}/tickets/my-tickets`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -523,31 +524,25 @@ export async function getMyTicketsApi(token: string) {
 
 // Lấy danh sách voucher trong ví của User
 export async function getMyVouchersApi(token: string) {
-  const res = await fetch(
-    "http://localhost:9090/cinema/promotions/my-vouchers",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+  const res = await fetch(`${API_BASE_URL}/promotions/my-vouchers`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
-  );
+  });
   if (!res.ok) throw new Error("Failed to fetch vouchers");
   return res.json();
 }
 
 // Chức năng: User bấm nút Nhận mã ưu đãi
 export async function collectVoucherApi(token: string, promotionId: string) {
-  const res = await fetch(
-    `http://localhost:9090/cinema/promotions/${promotionId}/collect`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const res = await fetch(`${API_BASE_URL}/promotions/${promotionId}/collect`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
     },
-  );
+  });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
     throw new Error(errData.message || "Lỗi khi nhận mã");
@@ -603,7 +598,7 @@ export async function toggleUserStatusApi(token: string, id: string) {
   });
 }
 
-const API_BASE = "http://localhost:9090/cinema";
+const API_BASE = API_BASE_URL;
 
 // 🔥 1. NÂNG CẤP HÀM LẤY TOKEN ĐỂ ĐỌC ĐÚNG TỪ KHO LƯU TRỮ MỚI
 export function getStoredToken() {

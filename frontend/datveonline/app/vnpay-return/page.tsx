@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spin, Typography } from "antd";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 export default function VnPayReturnPage() {
   const router = useRouter();
 
@@ -34,7 +38,7 @@ export default function VnPayReturnPage() {
 
         // 1. GỌI API BACKEND ĐỂ CHỐT ĐƠN (Đồng bộ)
         const res = await fetch(
-          `http://localhost:9090/cinema/payments/vnpay/return?${queryString}`,
+          `${API_BASE_URL}/payments/vnpay/return?${queryString}`,
           {
             headers: headers,
           },

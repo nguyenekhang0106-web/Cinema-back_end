@@ -22,8 +22,9 @@ import {
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema";
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
 const WS_URL = `${API_BASE_URL}/ws`;
 
 function compressImage(file: File): Promise<File> {

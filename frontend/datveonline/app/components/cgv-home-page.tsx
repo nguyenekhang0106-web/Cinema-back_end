@@ -56,6 +56,10 @@ import { useAuthSession } from "./auth-session-provider";
 import { BannerItem, getActiveBanners } from "../lib/cinema-api";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 // ============================================================================
 // 🔥 COMPONENT: TRÌNH QUẢN LÝ BANNER TRANG CHỦ DÀNH RIÊNG CHO ADMIN 🔥
 // ============================================================================
@@ -107,7 +111,7 @@ function BannerManagerModal({
         return;
       }
       // Gọi API lấy toàn bộ banner trang chủ (đã lọc cinemaId IS NULL ở backend)
-      const res = await fetch("http://localhost:9090/cinema/banners/all", {
+      const res = await fetch(`${API_BASE_URL}/banners/all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -143,7 +147,7 @@ function BannerManagerModal({
     try {
       const token = getAuthToken();
       if (!token) return;
-      const res = await fetch(`http://localhost:9090/cinema/banners/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/banners/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -166,8 +170,8 @@ function BannerManagerModal({
 
       const isUpdate = !!editingBanner;
       const url = isUpdate
-        ? `http://localhost:9090/cinema/banners/${editingBanner.id}`
-        : "http://localhost:9090/cinema/banners";
+        ? `${API_BASE_URL}/banners/${editingBanner.id}`
+        : `${API_BASE_URL}/banners`;
 
       // 🔥 QUAN TRỌNG: Ép cứng cinemaId = null để Backend biết đây là Banner Trang Chủ
       const payload = {
@@ -463,13 +467,13 @@ function CinemaAndPromoSection() {
       setLoading(true);
       const cinemasData = await getCinemas();
 
-      const moviesRes = await fetch(`http://localhost:9090/cinema/movies`);
+      const moviesRes = await fetch(`${API_BASE_URL}/movies`);
       if (moviesRes.ok) {
         const moviesData = await moviesRes.json();
         setMoviesList(moviesData.result || []);
       }
 
-      const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
+      const stRes = await fetch(`${API_BASE_URL}/showtimes`);
       let activeShowtimes: any[] = [];
       if (stRes.ok) {
         const stData = await stRes.json();
@@ -485,7 +489,7 @@ function CinemaAndPromoSection() {
         cinemasData.map(async (cinema: any) => {
           try {
             const hallRes = await fetch(
-              `http://localhost:9090/cinema/halls/cinema/${cinema.id}`,
+              `${API_BASE_URL}/halls/cinema/${cinema.id}`,
             );
             let hallIds: string[] = [];
             if (hallRes.ok) {
@@ -540,15 +544,13 @@ function CinemaAndPromoSection() {
   const loadCinemaDetails = async (cinemaId: string) => {
     setIsFetchingShowtimes(true);
     try {
-      const hallsRes = await fetch(
-        `http://localhost:9090/cinema/halls/cinema/${cinemaId}`,
-      );
+      const hallsRes = await fetch(`${API_BASE_URL}/halls/cinema/${cinemaId}`);
       const hallsData = await hallsRes.json();
       const fetchedHalls = hallsData.result || [];
       setCinemaHallsForShowtimes(fetchedHalls);
       const hallIds = fetchedHalls.map((h: any) => h.id);
 
-      const stRes = await fetch(`http://localhost:9090/cinema/showtimes`);
+      const stRes = await fetch(`${API_BASE_URL}/showtimes`);
       if (stRes.ok) {
         const stData = await stRes.json();
         const allShowtimes = stData.result || [];
@@ -562,8 +564,8 @@ function CinemaAndPromoSection() {
       const headers: any = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const url = isAdmin
-        ? `http://localhost:9090/cinema/banners/cinema/${cinemaId}/all`
-        : `http://localhost:9090/cinema/banners/cinema/${cinemaId}`;
+        ? `${API_BASE_URL}/banners/cinema/${cinemaId}/all`
+        : `${API_BASE_URL}/banners/cinema/${cinemaId}`;
       const imgRes = await fetch(url, { headers });
       if (imgRes.ok) {
         const imgData = await imgRes.json();
@@ -672,13 +674,10 @@ function CinemaAndPromoSection() {
     }
 
     try {
-      const res = await fetch(
-        `http://localhost:9090/cinema/showtimes/${showtimeId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/showtimes/${showtimeId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         message.success("Đã xóa suất chiếu thành công!");
         fetchCinemaData();
@@ -705,8 +704,8 @@ function CinemaAndPromoSection() {
 
       const isUpdate = !!editingShowtime;
       const url = isUpdate
-        ? `http://localhost:9090/cinema/showtimes/${editingShowtime.id}`
-        : `http://localhost:9090/cinema/showtimes`;
+        ? `${API_BASE_URL}/showtimes/${editingShowtime.id}`
+        : `${API_BASE_URL}/showtimes`;
 
       const payload = {
         ...values,
@@ -1383,7 +1382,7 @@ function NewsStrip() {
   useEffect(() => {
     const fetchFeaturedArticles = async () => {
       try {
-        const res = await fetch("http://localhost:9090/cinema/articles");
+        const res = await fetch(`${API_BASE_URL}/articles`);
         const data = await res.json();
 
         if (data.code === 1000) {

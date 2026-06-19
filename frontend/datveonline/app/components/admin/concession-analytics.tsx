@@ -60,8 +60,9 @@ const cardHeaderStyle = {
   padding: "16px 24px",
 };
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema";
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
 
 function formatMoney(value: number) {
   return `${(value || 0).toLocaleString("vi-VN")}₫`;

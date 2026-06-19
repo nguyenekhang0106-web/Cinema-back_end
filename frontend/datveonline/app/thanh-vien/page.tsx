@@ -35,6 +35,10 @@ import {
   collectVoucherApi,
 } from "../lib/cinema-api";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CINEMA_API_URL ?? "http://localhost:9090/cinema"
+).replace(/\/$/, "");
+
 const PAGE_CONTENT = {
   vi: {
     availableVouchers: "Voucher khả dụng",
@@ -144,7 +148,7 @@ export default function MemberPage() {
     const now = dayjs();
 
     // 1. Lấy danh sách Khuyến mãi chung của hệ thống
-    fetch("http://localhost:9090/cinema/promotions")
+    fetch(`${API_BASE_URL}/promotions`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.result) {
