@@ -35,6 +35,7 @@ public class BookingPaidTicketIssuer {
     SeatHoldService seatHoldService;
     SeatNotificationService seatNotificationService;
     TicketQrCodeService ticketQrCodeService;
+    TicketEmailService ticketEmailService;
 
     @Transactional
     public boolean issueTickets(BookingPaidMessage message) {
@@ -107,6 +108,13 @@ public class BookingPaidTicketIssuer {
             seatHoldService.releaseSeats(showtimeId, seatIds, userId);
             seatNotificationService.sendSeatStatus(showtimeId, seatIds, "BOOKED", userId, bookingId);
             log.info("[Booking Paid Consumer] notified BOOKED bookingId={}", bookingId);
+
+            try {
+                ticketEmailService.sendBookingTickets(bookingId);
+                log.info("[Booking Paid Consumer] ticket email queued/sent bookingId={}", bookingId);
+            } catch (Exception exception) {
+                log.error("[Booking Paid Consumer] cannot send ticket email bookingId={}", bookingId, exception);
+            }
         };
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
