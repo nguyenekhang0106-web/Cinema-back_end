@@ -26,6 +26,7 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -36,6 +37,8 @@ import java.util.*;
 public class VnPayService {
 
     private static final DateTimeFormatter VNPAY_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final int VNPAY_EXPIRE_MINUTES = 30;
 
     VnPayProperties vnPayProperties;
     PaymentService paymentService;
@@ -131,7 +134,11 @@ public class VnPayService {
     }
 
     private Map<String, String> buildPaymentParams(PaymentResponse payment, String clientIp) {
-        LocalDateTime now = LocalDateTime.now();
+        // Render thường chạy theo UTC, còn VNPay sandbox dùng mốc giờ Việt Nam.
+        // Nếu dùng LocalDateTime.now() mặc định của server, link thanh toán có thể bị VNPay hiểu là đã hết hạn.
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        LocalDateTime expireAt = now.plusMinutes(VNPAY_EXPIRE_MINUTES);
+
         Map<String, String> params = new HashMap<>();
         params.put("vnp_Version", vnPayProperties.getVersion());
         params.put("vnp_Command", vnPayProperties.getCommand());
@@ -145,7 +152,13 @@ public class VnPayService {
         params.put("vnp_ReturnUrl", vnPayProperties.getReturnUrl());
         params.put("vnp_IpAddr", clientIp);
         params.put("vnp_CreateDate", VNPAY_DATE_FORMAT.format(now));
-        params.put("vnp_ExpireDate", VNPAY_DATE_FORMAT.format(now.plusMinutes(15)));
+        params.put("vnp_ExpireDate", VNPAY_DATE_FORMAT.format(expireAt));
+
+        log.info("[VNPay] createDate={}, expireDate={}, zone={}",
+                VNPAY_DATE_FORMAT.format(now),
+                VNPAY_DATE_FORMAT.format(expireAt),
+                VIETNAM_ZONE);
+
         return params;
     }
 
