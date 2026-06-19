@@ -67,6 +67,13 @@ public class EmailSenderService {
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.starttls.required", "true");
+        props.put("mail.smtp.ssl.trust", host);
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.smtp.writetimeout", "10000");
+
+        log.info("[Mail] SMTP configured host={}, port={}, username={}", host, port, username);
     }
 
     public void sendVerificationCode(String toEmail, String fullName, String sixDigitCode) {
@@ -84,14 +91,14 @@ public class EmailSenderService {
         }
     }
 
-//    private static String buildVerificationBody(String fullName, String sixDigitCode) {
+    //    private static String buildVerificationBody(String fullName, String sixDigitCode) {
 //        return "Xin chào " + fullName + ",\n\n"
 //                + "Mã xác thực email của bạn là: " + sixDigitCode + "\n\n"
 //                + "Mã có hiệu lực trong thời gian giới hạn. Không chia sẻ mã này với người khác.\n\n"
 //                + "Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.\n";
 //    }
-private static String buildVerificationBody(String fullName, String sixDigitCode) {
-    String htmlTemplate = """
+    private static String buildVerificationBody(String fullName, String sixDigitCode) {
+        String htmlTemplate = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -127,8 +134,8 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
         </html>
         """;
 
-    return String.format(htmlTemplate, fullName, sixDigitCode);
-}
+        return String.format(htmlTemplate, fullName, sixDigitCode);
+    }
 
     public void sendPasswordResetLink(String toEmail, String resetLink) {
         try {
@@ -178,7 +185,7 @@ private static String buildVerificationBody(String fullName, String sixDigitCode
                     booking.getId(),
                     booking.getCustomer().getEmail(),
                     tickets.stream().map(Ticket::getTicketCode).toList());
-        } catch (MessagingException | MailException e) {
+        } catch (MessagingException | RuntimeException e) {
             log.error("Cannot send ticket email bookingId={}, email={}",
                     booking.getId(), booking.getCustomer().getEmail(), e);
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);

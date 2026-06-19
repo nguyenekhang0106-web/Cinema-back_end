@@ -111,8 +111,10 @@ public class BookingPaidTicketIssuer {
 
             try {
                 ticketEmailService.sendBookingTickets(bookingId);
-                log.info("[Booking Paid Consumer] ticket email queued/sent bookingId={}", bookingId);
+                log.info("[Booking Paid Consumer] ticket email sent bookingId={}", bookingId);
             } catch (Exception exception) {
+                // Không rollback hoặc retry vô hạn việc xuất vé chỉ vì gửi mail lỗi.
+                // Vé đã VALID/QR vẫn có thể xem trong tài khoản; log này dùng để debug SMTP/Gmail.
                 log.error("[Booking Paid Consumer] cannot send ticket email bookingId={}", bookingId, exception);
             }
         };
