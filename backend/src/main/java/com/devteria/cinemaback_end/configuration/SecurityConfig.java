@@ -90,12 +90,18 @@ public class SecurityConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
-        // 🔥 SỬ DỤNG AllowedOriginPatterns thay vì addAllowedOrigin để tương thích với Credentials
-        corsConfiguration.setAllowedOriginPatterns(java.util.List.of("http://localhost:3000"));
+        // 🔥 Cho phép Frontend local + Frontend đã deploy trên Vercel gọi API Render
+        // Dùng allowedOriginPatterns để vẫn bật được allowCredentials(true)
+        corsConfiguration.setAllowedOriginPatterns(java.util.List.of(
+                "http://localhost:3000",
+                "https://cinema-front-end.vercel.app",
+                "https://*.vercel.app"
+        ));
         corsConfiguration.addAllowedMethod("*");
         corsConfiguration.addAllowedHeader("*");
+        corsConfiguration.addExposedHeader("Authorization");
 
-        // 🔥 BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ FIX TRÚNG ĐÍCH LỖI "Access-Control-Allow-Credentials"
+        // 🔥 Cần cho các request có token / credentials
         corsConfiguration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
