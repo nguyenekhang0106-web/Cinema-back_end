@@ -23,6 +23,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import java.io.UnsupportedEncodingException;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -53,6 +54,9 @@ public class EmailSenderService {
 
     @Value("${mail.password}")
     String password;
+
+    @Value("${mail.from}")
+    String fromEmail; // <---
 
     JavaMailSenderImpl mailSender;
 
@@ -93,12 +97,12 @@ public class EmailSenderService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(username);
+            helper.setFrom(fromEmail, BRAND_NAME);
             helper.setTo(toEmail);
             helper.setSubject("Mã xác thực đăng ký " + BRAND_NAME);
             helper.setText(buildVerificationBody(fullName, sixDigitCode), true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("Cannot send verification email to {}", toEmail, e);
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);
         }
@@ -154,12 +158,12 @@ public class EmailSenderService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(username);
+            helper.setFrom(fromEmail, BRAND_NAME);
             helper.setTo(toEmail);
             helper.setSubject("Yêu cầu đặt lại mật khẩu " + BRAND_NAME);
             helper.setText(buildPasswordResetBody(resetLink), true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("Cannot send password reset email to {}", toEmail, e);
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);
         }
@@ -169,14 +173,14 @@ public class EmailSenderService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(username);
+            helper.setFrom(fromEmail, BRAND_NAME);
             helper.setTo(bookingPaidMessage.getCustomerEmail());
             helper.setSubject(BRAND_NAME + " - Booking paid " + bookingPaidMessage.getBookingCode());
             helper.setText(buildBookingPaidBody(bookingPaidMessage), true);
             mailSender.send(message);
             log.info("Booking paid email sent bookingId={}, email={}",
                     bookingPaidMessage.getBookingId(), bookingPaidMessage.getCustomerEmail());
-        } catch (MessagingException | MailException e) {
+        } catch (MessagingException | MailException | UnsupportedEncodingException e) {
             log.error("Cannot send booking paid email bookingId={}, email={}",
                     bookingPaidMessage.getBookingId(), bookingPaidMessage.getCustomerEmail(), e);
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);
@@ -187,7 +191,7 @@ public class EmailSenderService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(username);
+            helper.setFrom(fromEmail, BRAND_NAME);
             helper.setTo(booking.getCustomer().getEmail());
             helper.setSubject(BRAND_NAME + " - E-ticket " + booking.getBookingCode());
             helper.setText(buildBookingTicketBody(booking, tickets), true);
@@ -198,7 +202,7 @@ public class EmailSenderService {
                     booking.getId(),
                     booking.getCustomer().getEmail(),
                     tickets.stream().map(Ticket::getTicketCode).toList());
-        } catch (MessagingException | RuntimeException e) {
+        } catch (MessagingException | RuntimeException | UnsupportedEncodingException e) {
             log.error("Cannot send ticket email bookingId={}, email={}",
                     booking.getId(), booking.getCustomer().getEmail(), e);
             throw new AppException(ErrorCode.UNABLE_TO_SEND_EMAIL);
