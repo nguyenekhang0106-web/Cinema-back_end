@@ -69,9 +69,9 @@ public class EmailNotificationProducer {
             }, correlationData);
 
             CorrelationData.Confirm confirm = correlationData.getFuture().get(10, TimeUnit.SECONDS);
-            if (confirm == null || !confirm.isAck()) {
+            if (confirm == null || !confirm.ack()) {
                 throw new AmqpException("RabbitMQ publisher confirm failed: "
-                        + (confirm == null ? "timeout" : confirm.getReason()));
+                        + (confirm == null ? "timeout" : confirm.reason()));
             }
             if (correlationData.getReturned() != null) {
                 throw new AmqpException("RabbitMQ mandatory publish returned: "
