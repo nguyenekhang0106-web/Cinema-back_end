@@ -113,8 +113,6 @@ export function CgvHeader() {
                   placement="bottomLeft"
                   arrow={{ pointAtCenter: true }}
                 >
-                  **Thay bằng đoạn này (Thêm `hidden md:flex` để ẩn trên điện
-                  thoại, chỉ hiện trên iPad/PC):** ```tsx
                   <Link
                     href={localizeHref(item.href, locale)}
                     onClick={(event) =>
@@ -223,8 +221,6 @@ export function CgvHeader() {
           <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
             {/* 🔥 Đã thêm justify-end để căn phải các nút bấm sau khi xóa ô tìm kiếm */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center justify-end">
-              **Thay bằng đoạn này (Dùng `grid-cols-2` trên mobile, nút bấm căn
-              giữa `text-center`):** ```tsx
               <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto md:flex-nowrap">
                 <Link
                   href={localizeHref("/phim", locale)}
@@ -240,8 +236,6 @@ export function CgvHeader() {
                 </Link>
               </div>
             </div>
-            **Thay bằng thẻ này (Sửa `flex-wrap` thành `overflow-x-auto
-            whitespace-nowrap` để khách vuốt ngang được trên mobile):** ```tsx
             <nav className="flex overflow-x-auto whitespace-nowrap gap-6 pb-2 text-sm md:text-base md:flex-wrap md:overflow-visible md:pb-0 font-semibold no-scrollbar">
               {dictionary.header.nav.map((item) => {
                 let displayLabel = item.label;
