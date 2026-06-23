@@ -1,13 +1,13 @@
 "use client";
 
-import { App, Dropdown } from "antd"; // 🔥 Bổ sung import Dropdown
-import type { MenuProps } from "antd"; // 🔥 Bổ sung type MenuProps
+import { App, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "./auth-session-provider";
 import { useDictionary, useLocale } from "./locale-provider";
 import { getLocaleSwitchHref, localizeHref } from "../lib/i18n";
-import { UserOutlined, GiftOutlined, HomeOutlined } from "@ant-design/icons"; // 🔥 Bổ sung import icon UserOutlined
+import { UserOutlined, GiftOutlined, HomeOutlined } from "@ant-design/icons";
 
 export function CgvHeader() {
   const { message } = App.useApp();
@@ -15,12 +15,10 @@ export function CgvHeader() {
   const dictionary = useDictionary();
   const pathname = usePathname();
   const router = useRouter();
-  // 🔥 Lấy thêm biến 'user' để hiển thị tên
   const { isAuthenticated, loading, role, user, signOut } = useAuthSession();
 
   const isAdmin = String(role).toUpperCase().includes("ADMIN");
 
-  // 🔥 Định nghĩa Menu Dropdown cho mục "Ưu đãi thành viên"
   const memberMenuItems: MenuProps["items"] = [
     {
       key: "voucher",
@@ -59,7 +57,7 @@ export function CgvHeader() {
 
   const topLinks = [
     {
-      href: "/thanh-vien", // 🔥 Đã đổi link từ /uu-dai-thanh-vien sang /thanh-vien
+      href: "/thanh-vien",
       label: locale === "vi" ? "Ưu đãi thành viên" : "Member offers",
     },
   ];
@@ -113,6 +111,7 @@ export function CgvHeader() {
                   placement="bottomLeft"
                   arrow={{ pointAtCenter: true }}
                 >
+                  {/* Đã thêm hidden md:flex để ẩn nút Ưu đãi trên điện thoại */}
                   <Link
                     href={localizeHref(item.href, locale)}
                     onClick={(event) =>
@@ -120,7 +119,6 @@ export function CgvHeader() {
                     }
                     className="hidden md:flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
                   >
-                    {/* 🔥 1. Thêm Icon Hộp quà cho Ưu đãi thành viên */}
                     <GiftOutlined className="text-base" />
                     {item.label}
                   </Link>
@@ -149,10 +147,7 @@ export function CgvHeader() {
                   href={localizeHref(dashboardHref, locale)}
                   className="flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
                 >
-                  {/* 🔥 Thêm Icon User */}
                   <UserOutlined className="text-base" />
-
-                  {/* 🔥 Hiển thị Tên User in hoa, tự động cắt chữ nếu quá dài */}
                   <span className="uppercase max-w-[120px] md:max-w-[200px] truncate">
                     {isAdmin
                       ? locale === "vi"
@@ -211,7 +206,7 @@ export function CgvHeader() {
             {!isAdmin && (
               <Link
                 href={localizeHref("/thanh-vien", locale)}
-                className="hidden rounded-full border border-[#c89a2b] px-4 py-2 text-sm font-semibold text-[#4a3426] lg:inline-flex"
+                className="hidden rounded-full border-[#c89a2b] border px-4 py-2 text-sm font-semibold text-[#4a3426] lg:inline-flex"
               >
                 {dictionary.header.club}
               </Link>
@@ -219,8 +214,8 @@ export function CgvHeader() {
           </div>
 
           <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
-            {/* 🔥 Đã thêm justify-end để căn phải các nút bấm sau khi xóa ô tìm kiếm */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center justify-end">
+              {/* Đã chia đôi màn hình 50/50 trên mobile bằng grid-cols-2 */}
               <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto md:flex-nowrap">
                 <Link
                   href={localizeHref("/phim", locale)}
@@ -236,6 +231,8 @@ export function CgvHeader() {
                 </Link>
               </div>
             </div>
+
+            {/* Đã thêm tính năng lướt vuốt ngang trên mobile bằng overflow-x-auto */}
             <nav className="flex overflow-x-auto whitespace-nowrap gap-6 pb-2 text-sm md:text-base md:flex-wrap md:overflow-visible md:pb-0 font-semibold no-scrollbar">
               {dictionary.header.nav.map((item) => {
                 let displayLabel = item.label;
@@ -264,7 +261,6 @@ export function CgvHeader() {
                     locale === "vi" ? "Đánh giá & Tin tức" : "Reviews & News";
                 }
 
-                // 🔥 NẾU LÀ ADMIN: Bỏ qua không render (ẩn) 2 mục Thành viên và Tin tức
                 if (
                   isAdmin &&
                   (item.href === "/thanh-vien" || item.href === "/cultureplex")
@@ -272,19 +268,16 @@ export function CgvHeader() {
                   return null;
                 }
 
-                // (Nếu bạn có bọc thẻ Dropdown ở bước trước, hãy đảm bảo đặt đoạn kiểm tra này nằm trước phần return đó)
                 return (
                   <Link
                     key={item.href}
                     href={localizeHref(item.href, locale)}
-                    // 🔥 Bổ sung thêm "flex items-center gap-1.5" để Icon và Chữ nằm ngang
                     className={`flex items-center gap-1.5 transition-all duration-300 pb-1 transform origin-bottom ${
                       isActive(item.href)
                         ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110"
                         : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
                     }`}
                   >
-                    {/* 🔥 4. Nếu là menu Trang chủ thì hiện Icon */}
                     {item.href === "/" && (
                       <HomeOutlined className="text-lg mb-[2px]" />
                     )}
