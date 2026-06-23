@@ -67,7 +67,8 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
       <footer className="cinema-footer mt-12 px-0 py-10 text-white">
         <div className="cinema-shell px-4 sm:px-6">
-          <div className="grid gap-8 md:grid-cols-4">
+          **Thay bằng (Thêm `text-center md:text-left`):** ```tsx
+          <div className="grid gap-8 text-center md:text-left md:grid-cols-4">
             <div>
               <h3 className="text-2xl font-bold">KCT Cinema</h3>
               <div className="mt-3 flex flex-col gap-3 text-white/80">
@@ -115,7 +116,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-
           <div className="mt-8 border-t border-white/20 pt-8 text-center text-sm text-white/60">
             <p>
               © {new Date().getFullYear()} KCT Cinema. {footerText.copyright}

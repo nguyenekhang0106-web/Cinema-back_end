@@ -113,12 +113,14 @@ export function CgvHeader() {
                   placement="bottomLeft"
                   arrow={{ pointAtCenter: true }}
                 >
+                  **Thay bằng đoạn này (Thêm `hidden md:flex` để ẩn trên điện
+                  thoại, chỉ hiện trên iPad/PC):** ```tsx
                   <Link
                     href={localizeHref(item.href, locale)}
                     onClick={(event) =>
                       handleProtectedNavigation(event, item.href)
                     }
-                    className="flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
+                    className="hidden md:flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-white !text-white shadow-sm transition hover:border-white/40 hover:bg-white/18 hover:text-white"
                   >
                     {/* 🔥 1. Thêm Icon Hộp quà cho Ưu đãi thành viên */}
                     <GiftOutlined className="text-base" />
@@ -221,23 +223,26 @@ export function CgvHeader() {
           <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
             {/* 🔥 Đã thêm justify-end để căn phải các nút bấm sau khi xóa ô tìm kiếm */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center justify-end">
-              <div className="flex shrink-0 flex-wrap gap-3 md:flex-nowrap">
+              **Thay bằng đoạn này (Dùng `grid-cols-2` trên mobile, nút bấm căn
+              giữa `text-center`):** ```tsx
+              <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto md:flex-nowrap">
                 <Link
                   href={localizeHref("/phim", locale)}
-                  className="whitespace-nowrap rounded-2xl bg-[#a61d24] px-5 py-3 font-semibold text-white"
+                  className="flex items-center justify-center whitespace-nowrap rounded-2xl bg-[#a61d24] px-4 py-2 md:px-5 md:py-3 text-sm md:text-base font-semibold text-white text-center"
                 >
                   {dictionary.header.quickBooking}
                 </Link>
                 <Link
                   href={localizeHref("/rap-gia-ve", locale)}
-                  className="whitespace-nowrap rounded-2xl border border-[#c89a2b] px-5 py-3 font-semibold text-[#4a3426]"
+                  className="flex items-center justify-center whitespace-nowrap rounded-2xl border border-[#c89a2b] px-4 py-2 md:px-5 md:py-3 text-sm md:text-base font-semibold text-[#4a3426] text-center"
                 >
                   {dictionary.header.showtimes}
                 </Link>
               </div>
             </div>
-
-            <nav className="flex flex-wrap gap-6 text-sm md:text-base font-semibold">
+            **Thay bằng thẻ này (Sửa `flex-wrap` thành `overflow-x-auto
+            whitespace-nowrap` để khách vuốt ngang được trên mobile):** ```tsx
+            <nav className="flex overflow-x-auto whitespace-nowrap gap-6 pb-2 text-sm md:text-base md:flex-wrap md:overflow-visible md:pb-0 font-semibold no-scrollbar">
               {dictionary.header.nav.map((item) => {
                 let displayLabel = item.label;
 
