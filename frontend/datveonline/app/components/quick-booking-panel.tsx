@@ -1,7 +1,22 @@
 "use client";
 
-import { CalendarOutlined, EnvironmentOutlined, ApiOutlined } from "@ant-design/icons";
-import { Alert, Card, Col, Empty, Radio, Row, Select, Space, Tag, Typography } from "antd";
+import {
+  CalendarOutlined,
+  EnvironmentOutlined,
+  ApiOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  Card,
+  Col,
+  Empty,
+  Radio,
+  Row,
+  Select,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
 import { useState } from "react";
 import { useDictionary } from "./locale-provider";
 
@@ -26,13 +41,18 @@ export function QuickBookingPanel() {
             </Typography.Text>
           </div>
           <Radio.Group
-            className="quick-booking-toggle shrink-0 self-start"
+            className="quick-booking-toggle w-full md:w-auto shrink-0 flex"
             value={ticketType}
             onChange={(event) => setTicketType(event.target.value)}
             buttonStyle="solid"
           >
-            <Radio.Button value="by-movie">{dictionary.quickBooking.byMovie}</Radio.Button>
-            <Radio.Button value="by-cinema">{dictionary.quickBooking.byCinema}</Radio.Button>
+            {/* Thêm flex-1 text-center để 2 nút chia đều 50/50 chiều ngang trên điện thoại */}
+            <Radio.Button className="flex-1 text-center" value="by-movie">
+              {dictionary.quickBooking.byMovie}
+            </Radio.Button>
+            <Radio.Button className="flex-1 text-center" value="by-cinema">
+              {dictionary.quickBooking.byCinema}
+            </Radio.Button>
           </Radio.Group>
         </div>
 
@@ -92,7 +112,10 @@ export function QuickBookingPanel() {
             <Tag color="processing">{dictionary.quickBooking.backendHint}</Tag>
           </div>
           <div className="mt-4 rounded-2xl border border-dashed border-[#d7c0a0] bg-white/70 p-4">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={dictionary.quickBooking.integrationDescription} />
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={dictionary.quickBooking.integrationDescription}
+            />
           </div>
         </div>
       </Space>

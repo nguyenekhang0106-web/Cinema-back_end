@@ -1612,7 +1612,8 @@ export function CgvHomePage() {
           <main className="pb-8 pt-10">
             {featuredMovies.length > 0 && (
               <div className="mb-16 px-4 sm:px-6">
-                <div className="flex items-center justify-between mb-8">
+                {/* Thay đổi class ở thẻ div này: Thêm flex-col md:flex-row và md:items-center */}
+                <div className="flex flex-col items-start gap-4 mb-8 md:flex-row md:items-center md:justify-between">
                   <Typography.Title
                     level={2}
                     className="cinema-section-title"
