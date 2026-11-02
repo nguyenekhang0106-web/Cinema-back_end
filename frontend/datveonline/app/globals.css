@@ -54,8 +54,52 @@ button {
 }
 
 .cinema-shell {
-  width: min(1280px, calc(100vw - 32px));
+  width: min(1280px, calc(100% - 32px));
+  min-width: 0;
   margin: 0 auto;
+}
+
+/* Keep intrinsic-width content inside its own scroll region, not the page. */
+.booking-layout .ant-col,
+.booking-layout .ant-space,
+.booking-layout .ant-space-item {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.customer-chat {
+  bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 639px) {
+  .cinema-header .cinema-shell {
+    padding-inline: 0;
+    gap: 10px;
+  }
+
+  .cinema-paper > .ant-card-body {
+    padding: 16px !important;
+  }
+
+  .quick-booking-toggle .ant-radio-button-wrapper {
+    min-width: 0;
+    flex: 1;
+    padding-inline: 8px;
+    white-space: normal;
+    height: auto;
+    min-height: 44px;
+    line-height: 1.4;
+  }
+
+  .booking-layout .ant-steps {
+    max-width: 100%;
+  }
+
+  .booking-layout .ant-btn {
+    white-space: normal;
+    height: auto;
+    min-height: 44px;
+  }
 }
 
 .cinema-top-stripe {

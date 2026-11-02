@@ -99,7 +99,7 @@ export function CgvHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 shadow-sm">
+    <header className="cinema-header relative z-40 shadow-sm lg:sticky lg:top-0">
       <div className="cinema-top-stripe text-white">
         <div className="cinema-shell flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
@@ -140,7 +140,7 @@ export function CgvHeader() {
               </Link>
             </span>
           </div>
-          <div className="flex items-center gap-3 text-sm font-bold">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-bold">
             {!loading && isAuthenticated ? (
               <>
                 <Link
@@ -213,7 +213,7 @@ export function CgvHeader() {
             )}
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 lg:max-w-[700px]">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 lg:max-w-[700px]">
             <div className="flex flex-col gap-3 md:flex-row md:items-center justify-end">
               {/* Đã chia đôi màn hình 50/50 trên mobile bằng grid-cols-2 */}
               <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto md:flex-nowrap">
@@ -233,7 +233,7 @@ export function CgvHeader() {
             </div>
 
             {/* Đã thêm tính năng lướt vuốt ngang trên mobile bằng overflow-x-auto */}
-            <nav className="flex overflow-x-auto whitespace-nowrap gap-6 pb-2 text-sm md:text-base md:flex-wrap md:overflow-visible md:pb-0 font-semibold no-scrollbar">
+            <nav aria-label={locale === "vi" ? "Điều hướng chính" : "Main navigation"} className="flex min-w-0 max-w-full overflow-x-auto whitespace-nowrap gap-5 py-2 text-sm md:text-base md:flex-wrap md:overflow-visible font-semibold">
               {dictionary.header.nav.map((item) => {
                 let displayLabel = item.label;
 
@@ -272,10 +272,10 @@ export function CgvHeader() {
                   <Link
                     key={item.href}
                     href={localizeHref(item.href, locale)}
-                    className={`flex items-center gap-1.5 transition-all duration-300 pb-1 transform origin-bottom ${
+                    className={`flex min-h-11 shrink-0 items-center gap-1.5 transition-colors pb-1 ${
                       isActive(item.href)
-                        ? "text-[#a61d24] border-b-[3px] border-[#a61d24] scale-110"
-                        : "text-[#4a3426] hover:text-[#a61d24] hover:scale-110"
+                        ? "text-[#a61d24] border-b-[3px] border-[#a61d24]"
+                        : "text-[#4a3426] hover:text-[#a61d24]"
                     }`}
                   >
                     {item.href === "/" && (

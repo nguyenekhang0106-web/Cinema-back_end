@@ -302,6 +302,7 @@ export function AdminConcessionManager({
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 5 }}
+        scroll={{ x: "max-content" }}
         bordered
       />
 

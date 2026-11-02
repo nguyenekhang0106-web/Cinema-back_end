@@ -327,23 +327,23 @@ export function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50">
+    <div className="customer-chat fixed bottom-4 right-4 z-50 sm:bottom-8 sm:right-8">
       {isOpen && (
         <Card
-          className="mb-4 flex w-[380px] flex-col overflow-hidden border-0 shadow-2xl"
+          className="flex w-[min(380px,calc(100vw-32px))] flex-col overflow-hidden border-0 shadow-2xl"
           bodyStyle={{
             padding: 0,
             display: "flex",
             flexDirection: "column",
-            height: "500px",
+            height: "min(500px, calc(100dvh - 48px))",
           }}
         >
           <div className="flex items-center justify-between bg-[#a61d24] p-4 text-white">
             <span className="text-lg font-bold">Hỗ trợ trực tuyến</span>
-            <CloseOutlined className="cursor-pointer" onClick={closeChat} />
+            <button type="button" aria-label="Đóng chat / Close chat" className="flex h-11 w-11 shrink-0 items-center justify-center" onClick={closeChat}><CloseOutlined /></button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-gray-50 p-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-gray-50 p-4">
             {messages.map((msg, idx) => {
               const isMe = msg.senderId === (user?.id || "GUEST");
 
@@ -360,7 +360,7 @@ export function ChatWidget() {
                     </div>
 
                     {msg.content && (
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                      <div className="whitespace-pre-wrap [overflow-wrap:anywhere] text-sm leading-relaxed">
                         {msg.content}
                       </div>
                     )}
@@ -388,7 +388,7 @@ export function ChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t bg-white p-3">
+          <div className="shrink-0 border-t bg-white p-3">
             {/* 🔥 KHU VỰC PREVIEW NHIỀU ẢNH (GIAO DIỆN MESSENGER) */}
             {selectedImagePreviews.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-3 rounded-2xl bg-gray-100 p-3">
@@ -457,6 +457,7 @@ export function ChatWidget() {
         <button
           type="button"
           onClick={openChat}
+          aria-label="Mở chat hỗ trợ / Open support chat"
           className="relative flex !h-16 !w-16 items-center justify-center rounded-full bg-[#a61d24] text-white shadow-xl transition-transform hover:scale-110"
         >
           {hasUnreadAdminReply && (

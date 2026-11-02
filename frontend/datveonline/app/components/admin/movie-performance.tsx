@@ -294,7 +294,7 @@ export default function MoviePerformance({
                     className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       loading={loading}
                       className="custom-table"
                       dataSource={movieData.map((item, index) => ({
@@ -476,7 +476,7 @@ export default function MoviePerformance({
                     className="shadow-sm rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       className="custom-table"
                       dataSource={hallData.map((item, index) => ({
                         key: index,

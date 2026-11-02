@@ -65,7 +65,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
       {children}
 
-      <footer className="cinema-footer mt-12 px-0 py-10 text-white">
+      <footer className="cinema-footer mt-12 px-0 py-10 text-white [overflow-wrap:anywhere]">
         <div className="cinema-shell px-4 sm:px-6">
           <div className="grid gap-8 text-center md:text-left md:grid-cols-4">
             <div>

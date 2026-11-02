@@ -467,7 +467,7 @@ export default function RevenueAnalytics({
           }
         `}</style>
 
-        <Table
+        <Table scroll={{ x: "max-content" }}
           dataSource={movieRevenueData.map((item, index) => ({
             key: index,
             ...item,

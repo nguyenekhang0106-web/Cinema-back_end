@@ -514,8 +514,8 @@ export default function AdminChatManager() {
   };
 
   return (
-    <div className="grid h-[620px] grid-cols-[370px_1fr] overflow-hidden bg-white">
-      <div className="flex min-h-0 flex-col border-r border-[#ead8bf]">
+    <div className="grid h-[min(800px,90dvh)] min-h-[480px] grid-cols-1 grid-rows-[220px_minmax(0,1fr)] overflow-hidden bg-white md:h-[620px] md:grid-cols-[minmax(220px,32%)_minmax(0,1fr)] md:grid-rows-1">
+      <div className="flex min-h-0 min-w-0 flex-col border-b md:border-b-0 md:border-r border-[#ead8bf]">
         <div className="border-b border-[#ead8bf] px-6 py-5">
           <Typography.Title level={4} style={{ margin: 0 }}>
             Đoạn chat
@@ -585,7 +585,7 @@ export default function AdminChatManager() {
         </Spin>
       </div>
 
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere]">
         {!selectedRoomId ? (
           <div className="flex flex-1 flex-col items-center justify-center text-gray-400">
             <MessageOutlined style={{ fontSize: 54 }} />

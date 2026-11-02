@@ -990,13 +990,13 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
     );
 
   return (
-    <Row gutter={[24, 24]}>
+    <Row gutter={[24, 24]} className="booking-layout">
       <Col xs={24} lg={17}>
         <Card bordered={false} className="cinema-paper rounded-[24px]">
           <Space
             direction="vertical"
             size={22}
-            className="w-full relative pt-14"
+            className={`w-full relative ${currentStep > 0 && currentStep < 4 ? "pt-14" : "sm:pt-4"}`}
           >
             {currentStep > 0 && currentStep < 4 && timeLeft !== null && (
               <div className="absolute top-[-10px] right-0 bg-white border-2 border-[#a61d24] px-5 py-2 rounded-xl shadow-[0_4px_15px_rgba(166,29,36,0.2)] z-10 flex items-center gap-3 animate-pulse">
@@ -1012,7 +1012,19 @@ export function SeatSelectionClient({ showtimeId }: { showtimeId: string }) {
               </div>
             )}
 
-            <Steps current={currentStep} items={stepItems} responsive />
+            <div className="sm:hidden" role="status" aria-live="polite">
+              <p className="mb-3 font-semibold text-[#4a3426]">
+                {currentStep + 1}/{stepItems.length} · {stepItems[currentStep]?.title}
+              </p>
+              <div className="flex gap-2" aria-hidden="true">
+                {stepItems.map((_, index) => (
+                  <span key={index} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-[#a61d24]" : "bg-gray-200"}`} />
+                ))}
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <Steps current={currentStep} items={stepItems} responsive />
+            </div>
 
             {currentStep === 0 ? (
               <SeatStep
@@ -1179,7 +1191,7 @@ function SeatStep({
 }: any) {
   return (
     <Space direction="vertical" size={18} className="w-full">
-      <div className="w-full overflow-x-auto rounded-[20px] border border-[#ead8c1] shadow-sm">
+      <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-[20px] border border-[#ead8c1] shadow-sm" tabIndex={0} role="region" aria-label="Sơ đồ ghế — cuộn ngang để xem / Seat map — scroll horizontally">
         <div className="bg-[#fffaf4] p-4 sm:p-8 min-w-max flex flex-col items-center">
           <div className="mb-12 w-[80%] min-w-[400px] rounded-t-[100%] border-b-4 border-gray-400 bg-[#4a3426] px-8 py-2 text-center font-semibold text-white shadow-[0_12px_30px_rgba(74,52,38,0.18)]">
             {copy.screen}
@@ -1225,7 +1237,7 @@ function SeatStep({
                           disabled={seatObj.disabled || isAdmin}
                           onClick={() => toggleSeat(seatObj.seat)}
                           // 🔥 3. THÊM STYLE CON TRỎ CHUỘT BỊ CHẶN CHO ADMIN
-                          className={`h-9 w-9 shrink-0 rounded-t-lg border-2 text-[10px] transition-all ${seatClass} ${isAdmin ? "cursor-not-allowed" : ""}`}
+                          className={`h-11 w-11 sm:h-9 sm:w-9 shrink-0 rounded-t-lg border-2 text-xs sm:text-[10px] transition-all ${seatClass} ${isAdmin ? "cursor-not-allowed" : ""}`}
                         >
                           {seatObj.seat}
                         </button>
@@ -1291,7 +1303,7 @@ function ConcessionStep({
         {concessions.map((item: any) => (
           <Col xs={24} md={12} key={item.id}>
             <div className="flex h-full gap-4 rounded-[16px] border border-[#ead8c1] bg-[#fffaf4] p-4">
-              <div className="flex aspect-square w-24 shrink-0 items-center justify-center rounded-[14px] border border-dashed border-[#c89a2b] bg-white text-center overflow-hidden">
+              <div className="flex aspect-square w-16 sm:w-24 shrink-0 self-start items-center justify-center rounded-[14px] border border-dashed border-[#c89a2b] bg-white text-center overflow-hidden">
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
@@ -1304,7 +1316,7 @@ function ConcessionStep({
                   </span>
                 )}
               </div>
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
+              <div className="flex min-w-0 flex-1 flex-col items-start justify-between gap-3 xl:flex-row xl:items-center">
                 <div className="min-w-0">
                   <Typography.Text strong>{item.name}</Typography.Text>
                   <div className="mt-1 text-sm text-[#8c6b45]">
@@ -1469,7 +1481,7 @@ function PaymentStep({ copy, grandTotal, locale }: any) {
         className="rounded-xl border-[#c89a2b] bg-[#fff7e0] text-[#8c6b45] font-medium"
       />
 
-      <div className="rounded-[20px] border border-[#ead8c1] bg-[#fffaf4] p-6 sm:p-8 shadow-sm">
+      <div className="rounded-[20px] border border-[#ead8c1] bg-[#fffaf4] p-3 sm:p-8 shadow-sm">
         <Typography.Title
           level={4}
           style={{ marginTop: 0, color: "#4a3426", marginBottom: 20 }}
@@ -1479,9 +1491,9 @@ function PaymentStep({ copy, grandTotal, locale }: any) {
         </Typography.Title>
 
         {/* Hộp chọn phương thức VNPay (Mặc định chọn) */}
-        <div className="flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 border-[#a61d24] bg-white shadow-[0_4px_15px_rgba(166,29,36,0.08)] cursor-pointer transition-all hover:border-red-600">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 p-2 shrink-0">
+        <div className="flex min-w-0 items-start gap-2 justify-between p-3 sm:p-5 rounded-2xl border-2 border-[#a61d24] bg-white shadow-[0_4px_15px_rgba(166,29,36,0.08)]">
+          <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+            <div className="w-12 h-12 sm:w-20 sm:h-20 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 p-2 shrink-0">
               {/* Logo VNPay */}
               <img
                 src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR.png"
@@ -1503,7 +1515,7 @@ function PaymentStep({ copy, grandTotal, locale }: any) {
         </div>
 
         {/* Khối tổng tiền */}
-        <div className="mt-8 p-5 rounded-2xl bg-white border border-[#ead8c1] flex justify-between items-center">
+        <div className="mt-6 p-3 sm:p-5 rounded-2xl bg-white border border-[#ead8c1] flex flex-wrap gap-3 justify-between items-center">
           <Typography.Text className="text-gray-500 font-medium text-base">
             {locale === "vi"
               ? "Số tiền cần thanh toán:"
@@ -1511,7 +1523,7 @@ function PaymentStep({ copy, grandTotal, locale }: any) {
           </Typography.Text>
           <Typography.Title
             level={2}
-            style={{ margin: 0, color: "#a61d24", lineHeight: 1 }}
+            style={{ margin: 0, color: "#a61d24", lineHeight: 1, overflowWrap: "anywhere" }}
           >
             {new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US").format(
               grandTotal,

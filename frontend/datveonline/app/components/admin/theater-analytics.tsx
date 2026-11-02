@@ -300,7 +300,7 @@ export default function TheaterAnalytics({
                     className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       loading={loading}
                       className="custom-table"
                       dataSource={cinemaData.map((item, index) => ({
@@ -384,7 +384,7 @@ export default function TheaterAnalytics({
                     className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       loading={loading}
                       className="custom-table"
                       dataSource={hallData.map((item, index) => ({
@@ -583,7 +583,7 @@ export default function TheaterAnalytics({
                     className="shadow-sm rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       loading={loading}
                       className="custom-table"
                       dataSource={seatData.map((item, index) => ({

@@ -1489,7 +1489,7 @@ export function AdminDashboardPage() {
 
                   {/* 🔥 BỘ LỌC TÌM KIẾM ĐỘNG */}
                   <div className="flex flex-wrap gap-5 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex flex-col">
+                    <div className="flex min-w-0 w-full flex-col sm:w-auto">
                       <span className="text-sm font-bold mb-2 text-gray-700">
                         Tra cứu ngày:
                       </span>
@@ -1499,11 +1499,11 @@ export function AdminDashboardPage() {
                         value={filterDate}
                         onChange={(date) => setFilterDate(date)}
                         placeholder="Tất cả các ngày"
-                        className="w-[200px]"
+                        className="w-full sm:w-[200px]"
                         allowClear // Cho phép xóa để xem toàn bộ lịch
                       />
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex min-w-0 w-full flex-col sm:w-auto">
                       <span className="text-sm font-bold mb-2 text-gray-700">
                         Lọc theo Rạp:
                       </span>
@@ -1511,7 +1511,7 @@ export function AdminDashboardPage() {
                         size="large"
                         value={filterCinema}
                         onChange={setFilterCinema}
-                        className="w-[280px]"
+                        className="w-full sm:w-[280px]"
                         options={[
                           { label: "Tất cả các rạp", value: "ALL" },
                           ...allCinemas.map((c) => ({

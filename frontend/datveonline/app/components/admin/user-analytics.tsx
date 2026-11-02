@@ -362,7 +362,7 @@ export default function UserAnalytics({ dateRange }: UserAnalyticsProps) {
                     className="shadow-sm hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden border-0"
                     bodyStyle={{ padding: 0 }}
                   >
-                    <Table
+                    <Table scroll={{ x: "max-content" }}
                       loading={loading}
                       className="custom-table"
                       dataSource={topCustomers.map((item, index) => ({
